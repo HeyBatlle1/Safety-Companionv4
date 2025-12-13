@@ -1,15 +1,15 @@
-import google.generativeai as genai
+from google import genai
 from datetime import datetime
 from typing import Dict, Any, Optional
 from app.agents.adapters.base_adapter import BaseModelAdapter
 from app.agents.base import ModelCapability
+import os
 
 class GoogleGeminiAdapter(BaseModelAdapter):
-    """Adapter for Google Gemini models"""
+    """Adapter for Google Gemini models using new google-genai SDK"""
 
-    def __init__(self, api_key: str, model: str = "gemini-2.0-flash"):
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(model)
+    def __init__(self, api_key: str, model: str = "gemini-2.5-flash"):
+        self.client = genai.Client(api_key=api_key)
         self.model_name = model
 
     async def generate(
@@ -23,36 +23,23 @@ class GoogleGeminiAdapter(BaseModelAdapter):
 
         start_time = datetime.utcnow()
 
-        generation_config = genai.GenerationConfig(
-            temperature=temperature,
-            max_output_tokens=max_tokens
-        )
-
         try:
-            response = self.model.generate_content(
-                prompt,
-                generation_config=generation_config
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt
             )
 
             execution_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
 
-            # Safe access to usage metadata with comprehensive error handling
-            usage_metadata = None
-            try:
-                if hasattr(response, 'usage_metadata'):
-                    usage_metadata = response.usage_metadata
-            except Exception as e:
-                print(f"⚠️ Usage metadata access error: {e}")
-                usage_metadata = None
-
-            # Build token usage safely
+            # Extract token usage if available
             token_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
-            if usage_metadata:
+            if hasattr(response, 'usage_metadata'):
                 try:
+                    usage = response.usage_metadata
                     token_usage = {
-                        "prompt_tokens": getattr(usage_metadata, 'prompt_token_count', 0),
-                        "completion_tokens": getattr(usage_metadata, 'candidates_token_count', 0),
-                        "total_tokens": getattr(usage_metadata, 'total_token_count', 0)
+                        "prompt_tokens": getattr(usage, 'prompt_token_count', 0),
+                        "completion_tokens": getattr(usage, 'candidates_token_count', 0),
+                        "total_tokens": getattr(usage, 'total_token_count', 0)
                     }
                 except Exception as e:
                     print(f"⚠️ Token usage parsing error: {e}")

@@ -20,8 +20,9 @@ def get_agent_registry() -> AgentRegistry:
     settings = get_settings()
 
     return AgentRegistry({
-        'gemini_api_key': settings.gemini_api_key,
-        'anthropic_api_key': settings.anthropic_api_key  # Optional
+        'openrouter_api_key': settings.openrouter_api_key,  # Primary (free tier available)
+        'gemini_api_key': settings.gemini_api_key,          # Fallback
+        'anthropic_api_key': settings.anthropic_api_key     # Optional
     })
 
 

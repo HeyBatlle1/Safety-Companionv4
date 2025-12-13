@@ -3,25 +3,60 @@ from datetime import datetime
 from typing import Optional, Dict, List, Any
 
 # JHA Analysis schemas
+class JobInfo(BaseModel):
+    projectName: str
+    location: str
+    workType: str
+    crewSize: int
+    date: str
+    supervisor: Optional[str] = None
+    company: Optional[str] = None
+
+class Hazard(BaseModel):
+    id: str
+    category: str
+    description: str
+    severity: str
+
+class ControlMeasures(BaseModel):
+    ppe: List[str]
+    procedures: List[str]
+    emergencyPlan: str
+    additionalNotes: str
+
 class JHAAnalysisRequest(BaseModel):
-    """Request for JHA analysis - matches V1 checklist structure"""
-    checklist_data: dict  # Master JHA responses with sa-1, sa-2, etc.
+    """Request for JHA analysis - V2 structure"""
+    jobInfo: JobInfo
+    hazards: List[Hazard]
+    controlMeasures: ControlMeasures
+    
+    # Optional fields for backward compatibility or future use
     weather_conditions: Optional[dict] = None
     project_data: Optional[dict] = None
 
     class Config:
         json_schema_extra = {
             "example": {
-                "checklist_data": {
-                    "templateId": "master-jha",
-                    "responses": {
-                        "sa-1": {"value": "Chicago IL, 45ft height"},
-                        "sa-5": {"value": "18mph winds", "critical": True}
-                    }
+                "jobInfo": {
+                    "projectName": "Test Project",
+                    "location": "Site A",
+                    "workType": "Roofing",
+                    "crewSize": 5,
+                    "date": "2023-10-27"
                 },
-                "weather_conditions": {
-                    "wind_speed": 18,
-                    "temperature": 50
+                "hazards": [
+                    {
+                        "id": "1",
+                        "category": "Fall",
+                        "description": "Roof edge",
+                        "severity": "high"
+                    }
+                ],
+                "controlMeasures": {
+                    "ppe": ["Helmet"],
+                    "procedures": ["Tie-off"],
+                    "emergencyPlan": "Call 911",
+                    "additionalNotes": "None"
                 }
             }
         }

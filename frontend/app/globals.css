@@ -3,66 +3,121 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Stone/Slate Theme - Construction meets Aerospace */
-/* Tailwind CSS v4 configuration using @theme directive */
+/* Stone/Slate Theme - Dark, Modern, Professional */
+/* Sophisticated dark palette with subtle textures and depth */
 
 :root {
-  /* Backgrounds - Deep charcoal with slight blue tint */
-  --background: 222.2 84% 4.9%;
+  /* Backgrounds - Dark slate with depth */
+  --background: 222.2 47.4% 11.2%;
+  /* slate-900 */
   --foreground: 210 40% 98%;
+  /* near-white */
 
-  /* Cards - Stone surface */
-  --card: 222.2 84% 10%;
+  /* Cards - Slightly lighter slate for elevation */
+  --card: 215.3 25% 16.9%;
+  /* slate-800 */
   --card-foreground: 210 40% 98%;
+  --card-border: 215.3 19.3% 34.5%;
+  /* slate-600 for subtle highlight */
 
   /* Popovers */
-  --popover: 222.2 84% 10%;
+  --popover: 215.3 25% 16.9%;
   --popover-foreground: 210 40% 98%;
 
-  /* Primary - Slate gray */
-  --primary: 217.2 32.6% 55%;
-  --primary-foreground: 222.2 47.4% 11.2%;
+  /* Primary - Medium slate (professional, neutral) */
+  --primary: 215.4 16.3% 46.9%;
+  /* slate-500 #64748b */
+  --primary-foreground: 210 40% 98%;
 
-  /* Secondary */
-  --secondary: 217.2 32.6% 17.9%;
+  /* Secondary - Deeper slate for contrast */
+  --secondary: 215.3 19.3% 34.5%;
+  /* slate-600 #475569 */
   --secondary-foreground: 210 40% 98%;
 
-  /* Muted */
+  /* Muted - Dark slate for subtle backgrounds */
   --muted: 217.2 32.6% 17.9%;
+  /* slate-800 */
   --muted-foreground: 215 20.2% 65.1%;
+  /* slate-400 */
 
-  /* Accent - Safety orange */
-  --accent: 38 92% 50%;
+  /* Accent - Subtle construction orange (use sparingly) */
+  --accent: 24.6 95% 53.1%;
+  /* orange-500 #f97316 */
   --accent-foreground: 222.2 47.4% 11.2%;
 
-  /* Destructive - Construction red */
+  /* Destructive - Alert red */
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+
+  /* Borders - Subtle slate */
+  --border: 217.2 32.6% 17.9%;
+  /* slate-800 */
+  --input: 217.2 32.6% 17.9%;
+  --ring: 215.4 16.3% 46.9%;
+  /* slate-500 */
+
+  /* Chart colors - stone palette with orange accent */
+  --chart-1: 24.6 95% 53.1%;
+  /* orange */
+  --chart-2: 215.4 16.3% 46.9%;
+  /* slate */
+  --chart-3: 217.2 91.2% 59.8%;
+  /* blue */
+  --chart-4: 142.1 76.2% 36.3%;
+  /* green */
+  --chart-5: 262.1 83.3% 57.8%;
+  /* purple */
+
+  /* Radius - subtle, professional */
+  --radius: 0.5rem;
+
+  /* Bottom Nav - mobile-first */
+  --bottom-nav-height: 4rem;
+  /* 64px */
+  --bottom-nav-bg: 215.3 25% 16.9%;
+  /* slate-800 */
+  --bottom-nav-border: 215.3 19.3% 34.5%;
+  /* slate-600 */
+}
+
+/* Light mode - lighter stone/slate tones (optional) */
+.light {
+  --background: 210 20% 98%;
+  /* slate-50 */
+  --foreground: 222.2 47.4% 11.2%;
+  /* slate-900 */
+
+  --card: 0 0% 100%;
+  /* white */
+  --card-foreground: 222.2 47.4% 11.2%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 47.4% 11.2%;
+
+  --primary: 215.4 16.3% 46.9%;
+  /* slate-500 */
+  --primary-foreground: 210 40% 98%;
+
+  --secondary: 215.3 19.3% 34.5%;
+  /* slate-600 */
+  --secondary-foreground: 210 40% 98%;
+
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+
+  --accent: 24.6 95% 53.1%;
+  /* orange-500 */
+  --accent-foreground: 0 0% 100%;
+
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
 
-  /* Borders */
-  --border: 217.2 32.6% 17.9%;
-  --input: 217.2 32.6% 17.9%;
-  --ring: 217.2 32.6% 55%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 215.4 16.3% 46.9%;
 
-  /* Chart colors */
-  --chart-1: 38 92% 50%;
-  --chart-2: 217.2 32.6% 55%;
-  --chart-3: 0 84.2% 60.2%;
-  --chart-4: 142 76% 36%;
-  --chart-5: 270 70% 50%;
-
-  /* Radius */
-  --radius: 0.5rem;
-
-  /* Sidebar (for shadcn/ui compatibility) */
-  --sidebar: 222.2 84% 10%;
-  --sidebar-foreground: 210 40% 98%;
-  --sidebar-primary: 217.2 32.6% 55%;
-  --sidebar-primary-foreground: 222.2 47.4% 11.2%;
-  --sidebar-accent: 38 92% 50%;
-  --sidebar-accent-foreground: 222.2 47.4% 11.2%;
-  --sidebar-border: 217.2 32.6% 17.9%;
-  --sidebar-ring: 217.2 32.6% 55%;
+  --bottom-nav-bg: 0 0% 100%;
+  --bottom-nav-border: 214.3 31.8% 91.4%;
 }
 
 @theme inline {
@@ -119,10 +174,82 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans), Arial, Helvetica, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    position: relative;
+  }
+
+  /* Subtle animated background texture */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    opacity: 0.03;
+    background:
+      radial-gradient(circle at 20% 50%, rgba(100, 116, 139, 0.4) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(248, 113, 22, 0.3) 0%, transparent 50%),
+      radial-gradient(circle at 40% 20%, rgba(71, 85, 105, 0.4) 0%, transparent 50%);
+    animation: subtleFloat 20s ease-in-out infinite;
+  }
+
+  @keyframes subtleFloat {
+
+    0%,
+    100% {
+      transform: translate(0, 0) scale(1);
+    }
+
+    33% {
+      transform: translate(30px, -30px) scale(1.1);
+    }
+
+    66% {
+      transform: translate(-20px, 20px) scale(0.9);
+    }
+  }
+}
+
+/* Utilities for mobile-first design */
+@layer utilities {
+
+  /* Bottom navigation safe area */
+  .pb-safe-bottom {
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Large touch targets for field use */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .touch-target-lg {
+    min-height: 56px;
+    min-width: 56px;
+  }
+
+  /* High contrast for sunlight readability */
+  .text-high-contrast {
+    color: hsl(var(--foreground));
+    font-weight: 500;
+  }
+
+  /* Bottom nav specific */
+  .bottom-nav-height {
+    height: var(--bottom-nav-height);
+  }
+
+  /* Card enhancements - subtle border highlights */
+  .card-highlight {
+    border: 1px solid hsl(var(--card-border) / 0.3);
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
   }
 }

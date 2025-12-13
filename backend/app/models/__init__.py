@@ -1,10 +1,11 @@
 from app.models.base import Base
 from app.models.user import User
 from app.models.analysis import AnalysisHistory, AgentOutput
-from app.models.safety import SafetyReport, RiskAssessment
+from app.models.agent_config import AgentConfiguration, AgentPerformanceLog
+# from app.models.safety import SafetyReport, RiskAssessment
 from app.models.jha_updates import JHAUpdate  # NEW - replaces ChatMessage
-from app.models.company import Company, Project
-from app.models.notifications import NotificationPreference
+# from app.models.company import Company, Project
+# from app.models.notifications import NotificationPreference
 
 # Export all models
 __all__ = [
@@ -12,10 +13,12 @@ __all__ = [
     "User",
     "AnalysisHistory",
     "AgentOutput",
-    "SafetyReport",
-    "RiskAssessment",
+    "AgentConfiguration",
+    "AgentPerformanceLog",
+    # "SafetyReport",
+    # "RiskAssessment",
     "JHAUpdate",  # Purpose-built live updates
-    "Company",
-    "Project",
-    "NotificationPreference",
+    # "Company",
+    # "Project",
+    # "NotificationPreference",
 ]

@@ -8,6 +8,7 @@ Replicates the multiAgentSafety.ts workflow in Python.
 from typing import Dict, Any, Optional
 from uuid import UUID
 from datetime import datetime
+import json
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -48,29 +49,66 @@ class JHAOrchestrator:
         self,
         request: JHAAnalysisRequest,
         user_id: UUID,
-        company_id: Optional[UUID] = None
+        company_id: Optional[UUID] = None,
+        analysis_id: Optional[str] = None
     ) -> JHAAnalysisResponse:
         """
         Execute the complete 4-agent pipeline.
 
         This matches the V1 endpoint: POST /api/checklist-analysis
         """
-
+        from sqlalchemy import select
+        
         pipeline_start = datetime.utcnow()
 
-        # Create analysis record for tracking (disabled for testing)
-        # analysis_record = AnalysisHistory(
-        #     user_id=user_id,
-        #     query=f"JHA Analysis - {request.project_data.get('projectName', 'Master JHA') if request.project_data else 'Master JHA'}",
-        #     response="Generating multi-agent safety analysis...",
-        #     type="jha_multi_agent_analysis"
-        # )
+        # Create or fetch analysis record for tracking
+        if analysis_id:
+            result = await self.db.execute(select(AnalysisHistory).where(AnalysisHistory.id == str(analysis_id)))
+            analysis_record = result.scalar_one_or_none()
+            if not analysis_record:
+                 # Fallback if ID provided but not found
+                 project_name = request.jobInfo.projectName if hasattr(request, 'jobInfo') else "JHA Analysis"
+                 analysis_record = AnalysisHistory(
+                    id=str(analysis_id), # Use provided ID
+                    user_id=str(user_id),
+                    query=f"JHA Analysis - {project_name}",
+                    response=json.dumps({"status": "queued", "progress": 0}),
+                    type="jha_multi_agent_analysis"
+                )
+                 self.db.add(analysis_record)
+        else:
+            project_name = request.jobInfo.projectName if hasattr(request, 'jobInfo') else "JHA Analysis"
+            analysis_record = AnalysisHistory(
+                user_id=str(user_id),
+                query=f"JHA Analysis - {project_name}",
+                response=json.dumps({"status": "starting", "progress": 0}),
+                type="jha_multi_agent_analysis"
+            )
+            self.db.add(analysis_record)
 
-        # self.db.add(analysis_record)
-        # await self.db.commit()
-        # await self.db.refresh(analysis_record)
+        if not analysis_id:
+            await self.db.commit()
+            await self.db.refresh(analysis_record)
+        
+        # Helper to update progress
+        async def update_progress(agent_name: str, status: str, percent: int):
+            try:
+                progress_data = {
+                    "status": "processing",
+                    "current_agent": agent_name,
+                    "agent_status": status,
+                    "progress": percent,
+                    "elapsed_ms": int((datetime.utcnow() - pipeline_start).total_seconds() * 1000)
+                }
+                analysis_record.response = json.dumps(progress_data)
+                await self.db.commit() # Commit incremental update
+            except Exception as e:
+                print(f"⚠️ Failed to update progress: {e}")
 
         try:
+            # Update status: Starting
+            await update_progress("system", "initializing", 5)
+
             # Load agent configurations from database
             await self.config_service.ensure_default_configs_exist()
             agent_configs = await self.config_service.get_orchestrator_config()
@@ -89,7 +127,9 @@ class JHAOrchestrator:
                 "current_time": datetime.utcnow().isoformat()
             }
 
+
             # AGENT 1: Data Validation (Temperature from DB)
+            await update_progress("agent1_validation", "running", 10)
             agent1_config = agent_configs.get("agent1_validation", {"temperature": 0.3})
             print(f"📋 Agent 1: Validating data quality... (T={agent1_config['temperature']})")
             agent1_task = AgentTask(
@@ -105,8 +145,10 @@ class JHAOrchestrator:
 
             validation_data = validation_result.output_data
             print(f"✓ Data quality: {validation_data.get('validation', {}).get('dataQuality', 'UNKNOWN')}")
+            await update_progress("agent1_validation", "completed", 25)
 
             # AGENT 2: Risk Assessment (Temperature from DB)
+            await update_progress("agent2_risk", "running", 30)
             agent2_config = agent_configs.get("agent2_risk", {"temperature": 0.7})
             print(f"⚠️ Agent 2: Assessing risks with OSHA data... (T={agent2_config['temperature']})")
             agent2_task_data = base_task_data.copy()
@@ -125,9 +167,12 @@ class JHAOrchestrator:
 
             risk_data = risk_result.output_data
             hazard_count = len(risk_data.get("hazards", []))
+            hazard_count = len(risk_data.get("hazards", []))
             print(f"✓ Identified {hazard_count} hazards")
+            await update_progress("agent2_risk", "completed", 50)
 
             # AGENT 3: Swiss Cheese Incident Prediction (Temperature from DB)
+            await update_progress("agent3_prediction", "running", 55)
             agent3_config = agent_configs.get("agent3_prediction", {"temperature": 1.0})
             print(f"🔮 Agent 3: Predicting incident scenarios... (T={agent3_config['temperature']})")
             agent3_task_data = base_task_data.copy()
@@ -149,8 +194,10 @@ class JHAOrchestrator:
             incident_name = prediction_data.get("incidentPrediction", {}).get("incidentName", "Unknown incident")
             confidence = prediction_data.get("incidentPrediction", {}).get("confidence", "Unknown")
             print(f"✓ Predicted: {incident_name} (confidence: {confidence})")
+            await update_progress("agent3_prediction", "completed", 75)
 
             # AGENT 4: Report Synthesis (Temperature from DB)
+            await update_progress("agent4_synthesis", "running", 80)
             agent4_config = agent_configs.get("agent4_synthesis", {"temperature": 0.5})
             print(f"📄 Agent 4: Synthesizing final report... (T={agent4_config['temperature']})")
             agent4_task_data = {
@@ -162,7 +209,7 @@ class JHAOrchestrator:
             }
 
             agent4_task = AgentTask(
-                task_type="report_synthesis",
+                task_type="final_report",
                 input_data=agent4_task_data,
                 temperature=agent4_config["temperature"],
                 required_capabilities=[ModelCapability.STRUCTURED_OUTPUT]
@@ -174,9 +221,11 @@ class JHAOrchestrator:
 
             final_report = synthesis_result.output_data.get("finalReport", {})
             print("✓ Pipeline complete!")
+            await update_progress("agent4_synthesis", "completed", 95)
 
-            # Return complete analysis result for testing
-            return {
+
+            # Prepare complete analysis result
+            complete_analysis = {
                 "pipeline_metadata": {
                     "version": "python-multi-agent-v1.0",
                     "execution_time_ms": int((datetime.utcnow() - pipeline_start).total_seconds() * 1000),
@@ -201,6 +250,22 @@ class JHAOrchestrator:
                 }
             }
 
+            # Update analysis record with complete results
+            analysis_record.response = json.dumps(complete_analysis)
+            analysis_record.risk_score = complete_analysis["summary"]["overall_risk_score"]
+            analysis_record.urgency_level = self._determine_urgency_level(final_report)
+            analysis_record.safety_categories = self._extract_safety_categories(risk_data)
+            
+            await self.db.commit()
+            await self.db.refresh(analysis_record)
+
+            # Return analysis with database ID
+            return {
+                "id": str(analysis_record.id),
+                "created_at": analysis_record.created_at.isoformat(),
+                **complete_analysis
+            }
+
         except Exception as error:
             # Generate fallback report
             print(f"❌ Multi-agent pipeline error: {error}")
@@ -216,7 +281,23 @@ class JHAOrchestrator:
                 "error": str(error)
             }
 
+            try:
+                # Persist error state to database so polling stops
+                analysis_record.response = json.dumps({
+                    "status": "failed",
+                    "error": str(error),
+                    "fallback_report": fallback_report,
+                    "timestamp": datetime.utcnow().isoformat()
+                })
+                # Attempt to update risk score if available in fallback? No, keep it simple.
+                analysis_record.risk_score = 0
+                analysis_record.urgency_level = "HIGH" 
+                await self.db.commit()
+            except Exception as db_e:
+                 print(f"⚠️ Failed to save error state to DB: {db_e}")
+
             return {
+                "id": str(analysis_record.id),
                 "pipeline_metadata": {
                     "version": "python-multi-agent-v1.0",
                     "execution_time_ms": int((datetime.utcnow() - pipeline_start).total_seconds() * 1000),

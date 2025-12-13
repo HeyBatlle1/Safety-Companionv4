@@ -31,7 +31,10 @@ class AgentConfigBase(BaseModel):
             "deepseek/deepseek-chat-v3.1:free",
             "qwen/qwen3-235b-a22b:free",
             "mistralai/mistral-small-3.2-24b-instruct:free",
-            "google/gemini-2.0-flash-exp:free",
+            "gemini-2.5-flash",
+            "anthropic/claude-3.5-sonnet",
+            "openai/gpt-4o",
+            # Deprecated: "google/gemini-2.0-flash-exp:free" (EOL: Feb 26, 2026)
             "nvidia/nemotron-nano-9b-v2:free",
             "z-ai/glm-4.5-air:free",
             "moonshotai/kimi-k2:free",

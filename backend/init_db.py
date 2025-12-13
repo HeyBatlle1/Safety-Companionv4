@@ -14,10 +14,11 @@ from app.core.database import engine, Base
 from app.models.agent_config import AgentConfiguration, AgentPerformanceLog
 from app.models.analysis import AnalysisHistory, AgentOutput
 from app.models.jha_updates import JHAUpdate
-from app.models.safety import SafetyReport, RiskAssessment
+# Commented out to avoid FK constraint errors for now
+# from app.models.safety import SafetyReport, RiskAssessment
 from app.models.user import User
-from app.models.company import Company, Project
-from app.models.notifications import NotificationPreference
+# from app.models.company import Company, Project
+# from app.models.notifications import NotificationPreference
 
 async def create_tables():
     """Create all V2 tables in Neon database"""

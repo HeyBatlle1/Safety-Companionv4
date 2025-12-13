@@ -92,31 +92,35 @@ class AgentPerformanceLog(Base):
 
 
 # Default configurations for the 4 agents
-# All agents configured to use OpenRouter with Gemini 2.0 Flash (free tier)
-# Maintains model-agnostic architecture - Google/Anthropic adapters remain for production
+# Updated to use FREE OpenRouter models (production-ready, no API costs)
+# Model selection optimized for# Default agent configurations (used when no user config exists)
 DEFAULT_AGENT_CONFIGS = {
     "validator": {
-        "model": "google/gemini-2.0-flash-exp:free",
+        "agent_name": "validator",
+        "model": "gemini-2.5-flash",
         "temperature": 0.3,
-        "max_tokens": 3000,
-        "notes": "Data validation requires precise, consistent responses"
+        "max_tokens": 12000,
+        "notes": "Gemini 2.5 Flash - Fast validation, completeness checks"
     },
     "risk_assessor": {
-        "model": "google/gemini-2.0-flash-exp:free",
+        "agent_name": "risk_assessor",
+        "model": "gemini-2.5-flash",
         "temperature": 0.7,
-        "max_tokens": 4000,
-        "notes": "Risk assessment benefits from balanced creativity and accuracy"
+        "max_tokens": 16000,
+        "notes": "Gemini 2.5 Flash - Deep reasoning for risk assessment"
     },
     "swiss_cheese": {
-        "model": "google/gemini-2.0-flash-exp:free",
-        "temperature": 1.0,
-        "max_tokens": 5000,
-        "notes": "Incident prediction requires high creativity for scenario generation"
+        "agent_name": "swiss_cheese",
+        "model": "gemini-2.5-flash",
+        "temperature": 0.5,
+        "max_tokens": 16000,
+        "notes": "Gemini 2.5 Flash - OSHA compliance analysis"
     },
     "synthesizer": {
-        "model": "google/gemini-2.0-flash-exp:free",
-        "temperature": 0.5,
-        "max_tokens": 6000,
-        "notes": "Final synthesis needs structured, comprehensive reporting"
+        "agent_name": "synthesizer",
+        "model": "gemini-2.5-flash",
+        "temperature": 0.4,
+        "max_tokens": 12000,
+        "notes": "Gemini 2.5 Flash - Fast final report generation"
     }
 }

@@ -1,5 +1,4 @@
-from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey, Index, Boolean
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey, Index, Boolean, JSON
 from datetime import datetime
 import uuid
 from app.models.base import Base, APP_SCHEMA
@@ -15,20 +14,20 @@ class JHAUpdate(Base):
         Index('jha_updates_user_id_idx', 'user_id'),
         Index('jha_updates_requires_action_idx', 'requires_action'),
         Index('jha_updates_created_at_idx', 'created_at'),
-        {'schema': APP_SCHEMA}
+        # {'schema': APP_SCHEMA} # Removed for SQLite
     )
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Link to original JHA analysis
     original_jha_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey(f'{APP_SCHEMA}.analysis_history.id', ondelete='CASCADE'),
+        String,
+        ForeignKey('analysis_history.id', ondelete='CASCADE'),
         nullable=False
     )
     user_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey(f'{APP_SCHEMA}.users.id', ondelete='CASCADE'),
+        String,
+        # ForeignKey('users.id', ondelete='CASCADE'), # FK disabled for now
         nullable=False
     )
 
@@ -37,7 +36,7 @@ class JHAUpdate(Base):
     update_type = Column(Text, name="update_type")  # 'environmental', 'crew', 'scope', 'equipment'
 
     # Extracted: Structured data from NLP
-    extracted_variables = Column(JSONB, name="extracted_variables")
+    extracted_variables = Column(JSON, name="extracted_variables")
     # Example: {"wind_speed": 30, "temperature": 35, "crew_size": 4, "precipitation": true}
 
     # Analysis: What changed
@@ -46,11 +45,11 @@ class JHAUpdate(Base):
     risk_delta = Column(Integer, name="risk_delta")  # positive = risk increased
 
     # Detected changes
-    new_hazards = Column(JSONB, name="new_hazards")
+    new_hazards = Column(JSON, name="new_hazards")
     # Example: [{"hazard": "fall_risk", "reason": "high_wind", "severity": "high"}]
 
-    removed_hazards = Column(JSONB, name="removed_hazards")
-    changed_mitigations = Column(JSONB, name="changed_mitigations")
+    removed_hazards = Column(JSON, name="removed_hazards")
+    changed_mitigations = Column(JSON, name="changed_mitigations")
 
     # Output: What to tell the crew
     crew_alert = Column(Text, name="crew_alert")
@@ -63,11 +62,11 @@ class JHAUpdate(Base):
 
     # Status tracking
     acknowledged = Column(Boolean, default=False)
-    acknowledged_by = Column(UUID(as_uuid=True), ForeignKey(f'{APP_SCHEMA}.users.id', ondelete='SET NULL'))
+    acknowledged_by = Column(String, nullable=True) # FK to user removed
     acknowledged_at = Column(DateTime(timezone=True), name="acknowledged_at")
 
     # Analysis metadata
-    gemini_response = Column(JSONB, name="gemini_response")  # Full AI analysis for audit
+    gemini_response = Column(JSON, name="gemini_response")  # Full AI analysis for audit
     processing_time_ms = Column(Integer, name="processing_time_ms")
 
     created_at = Column(DateTime(timezone=True), name="created_at", default=datetime.utcnow, nullable=False)

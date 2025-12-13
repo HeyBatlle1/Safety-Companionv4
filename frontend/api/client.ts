@@ -1,0 +1,166 @@
+// API Configuration
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_V1 = `${API_BASE_URL}/api/v1`;
+
+// API Client
+class APIClient {
+    private baseURL: string;
+
+    constructor(baseURL: string) {
+        this.baseURL = baseURL;
+    }
+
+    private async request<T>(
+        endpoint: string,
+        options?: RequestInit
+    ): Promise<T> {
+        const url = `${this.baseURL}${endpoint}`;
+
+        const response = await fetch(url, {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options?.headers,
+            },
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ detail: 'Request failed' }));
+            throw new Error(error.detail || `HTTP ${response.status}`);
+        }
+
+        return response.json();
+    }
+
+    // JHA Endpoints
+    async analyzeJHA(data: any) {
+        return this.request('/jha/analyze', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async getJHAHealth() {
+        return this.request('/jha/health');
+    }
+
+    async liveUpdateJHA(analysisId: string, data: any) {
+        return this.request(`/jha/${analysisId}/live-update`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async getRecentJHAs(limit: number = 10, offset: number = 0) {
+        return this.request<JHAListResponse>(`/jha/recent?limit=${limit}&offset=${offset}`);
+    }
+
+    async getJHADetails(id: string) {
+        return this.request<JHAAnalysisResponse>(`/jha/${id}`);
+    }
+
+    // Weather Endpoint
+    async getWeather(lat: number, lon: number) {
+        return this.request(`/weather?lat=${lat}&lon=${lon}`);
+    }
+
+    // Dashboard Stats (placeholder - will need backend endpoint)
+    async getDashboardStats() {
+        // TODO: Backend needs to implement this endpoint
+        return this.request('/dashboard/stats');
+    }
+
+
+}
+
+// Export singleton instance
+export const apiClient = new APIClient(API_V1);
+
+// Export types
+export interface JHAAnalysisRequest {
+    jobInfo: {
+        projectName: string;
+        location: string;
+        workType: string;
+        crewSize: number;
+        date: string;
+        supervisor?: string;
+        company?: string;
+    };
+    hazards: Array<{
+        id: string;
+        category: string;
+        description: string;
+        severity: 'low' | 'medium' | 'high' | 'critical';
+    }>;
+    controlMeasures: {
+        ppe: string[];
+        procedures: string[];
+        emergencyPlan: string;
+        additionalNotes: string;
+    };
+}
+
+// Response matching backend get_jha_details
+export interface JHAAnalysisResponse {
+    id: string;
+    project_name: string;
+    created_at: string;
+    user_id: string;
+    risk_score: number;
+    urgency_level: string;
+    safety_categories: string[];
+    agent_outputs: {
+        agent1_validation: any;
+        agent2_risk_assessment: any;
+        agent3_swiss_cheese: any;
+        agent4_final_report: any;
+    };
+    summary: {
+        overall_risk_score: number;
+        go_no_go_decision: string;
+        primary_concerns: string[];
+        execution_time_seconds: number;
+    };
+    pipeline_metadata?: any;
+
+    // Progress tracking fields (optional as they are only present during processing)
+    status?: string;
+    current_agent?: string;
+    agent_status?: string;
+    progress?: number;
+    elapsed_ms?: number;
+    error?: string;
+}
+
+export interface WeatherData {
+    temperature: number;
+    windSpeed: number;
+    precipitation: number;
+    conditions: string;
+    alerts?: string[];
+}
+
+export interface DashboardStats {
+    jhasThisWeek: number;
+    complianceScore: number;
+    activeAlerts: number;
+    teamSize: number;
+}
+
+export interface RecentJHA {
+    id: string;
+    project_name: string;
+    created_at: string;
+    risk_score: number;
+    urgency_level: string;
+    go_no_go: string;
+    safety_categories: string[];
+}
+
+export interface JHAListResponse {
+    jhas: RecentJHA[];
+    total: number;
+    limit: number;
+    offset: number;
+}

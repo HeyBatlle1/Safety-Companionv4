@@ -7,23 +7,27 @@ from app.agents.base import ModelCapability
 class OpenRouterAdapter(BaseModelAdapter):
     """Adapter for OpenRouter API using OpenAI-compatible interface"""
 
-    def __init__(self, api_key: str, model: str = "google/gemini-2.0-flash-exp:free"):
+    def __init__(self, api_key: str, model: str = "google/gemma-3n-e4b-it:free"):
         self.client = AsyncOpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=api_key
         )
-        self.model_name = model
+        self.default_model = model  # Default model if not specified in generate()
 
     async def generate(
         self,
         prompt: str,
         temperature: float,
         max_tokens: Optional[int] = None,
-        response_format: Optional[str] = None
+        response_format: Optional[str] = None,
+        model: Optional[str] = None  # Allow model override per request
     ) -> Dict[str, Any]:
         """Generate completion from OpenRouter"""
 
         start_time = datetime.utcnow()
+        
+        # Use provided model or fall back to default
+        model_to_use = model or self.default_model
 
         try:
             # Prepare messages in OpenAI format
@@ -31,7 +35,7 @@ class OpenRouterAdapter(BaseModelAdapter):
 
             # Prepare request parameters
             request_params = {
-                "model": self.model_name,
+                "model": model_to_use,
                 "messages": messages,
                 "temperature": temperature
             }
@@ -66,9 +70,14 @@ class OpenRouterAdapter(BaseModelAdapter):
                 except Exception as e:
                     print(f"⚠️ Token usage parsing error: {e}")
 
+            # Log which model was used (with free tier indicator)
+            model_display = model_to_use
+            if ":free" in model_to_use:
+                print(f"🆓 Used free model: {model_to_use}")
+            
             return {
                 "text": content,
-                "model": self.model_name,
+                "model": model_to_use,  # Return actual model used
                 "execution_time_ms": execution_time,
                 "token_usage": token_usage
             }

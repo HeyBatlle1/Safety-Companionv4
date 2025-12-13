@@ -7,9 +7,9 @@ from app.models.base import Base, APP_SCHEMA
 class User(Base):
     """User model - matches Drizzle users table"""
     __tablename__ = "users"
-    __table_args__ = {'schema': APP_SCHEMA}
+    # __table_args__ = {'schema': APP_SCHEMA} # Removed for SQLite
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     email = Column(Text, unique=True, nullable=False)
     password = Column(Text, nullable=False)
     role = Column(Text, default="field_worker", nullable=False)

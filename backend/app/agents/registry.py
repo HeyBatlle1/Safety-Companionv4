@@ -28,12 +28,13 @@ class AgentRegistry:
     def __init__(self, config: dict):
         self.adapters: Dict[str, BaseModelAdapter] = {}
 
-        # Initialize OpenRouter (preferred - free tier available)
+        # Initialize OpenRouter (fallback only - has rate limits)
         if OPENROUTER_AVAILABLE and config.get("openrouter_api_key"):
-            # Free tier Gemini 2.0 Flash via OpenRouter
-            self.adapters["openrouter-gemini-free"] = OpenRouterAdapter(
+            # GPT-OSS 120B via OpenRouter (fallback if native Gemini fails)
+            # Better model diversity than using Gemini twice
+            self.adapters["openrouter-gpt-oss"] = OpenRouterAdapter(
                 api_key=config["openrouter_api_key"],
-                model="google/gemini-2.0-flash-exp:free"
+                model="openai/gpt-oss-120b:free"
             )
             # Paid tier models via OpenRouter (if needed)
             self.adapters["openrouter-claude-sonnet"] = OpenRouterAdapter(
@@ -44,15 +45,15 @@ class AgentRegistry:
                 api_key=config["openrouter_api_key"],
                 model="openai/gpt-4o"
             )
-            print("✅ OpenRouter initialized with free Gemini 2.0 Flash")
+            print("✅ OpenRouter initialized with GPT-OSS 120B fallback")
 
-        # Initialize Direct Gemini (fallback if OpenRouter not available)
+        # Initialize Direct Gemini (PREFERRED - use Tier 1 API key, no rate limits)
         if config.get("gemini_api_key"):
-            self.adapters["gemini-2.0-flash"] = GoogleGeminiAdapter(
-                api_key=config["gemini_api_key"]
+            self.adapters["gemini-2.5-flash"] = GoogleGeminiAdapter(
+                api_key=config["gemini_api_key"],
+                model="gemini-2.5-flash"
             )
-            if not OPENROUTER_AVAILABLE or not config.get("openrouter_api_key"):
-                print("⚠️ Using direct Gemini API (quota limitations may apply)")
+            print("✅ Native Google Gemini 2.5 Flash initialized (Tier 1 API key)")
 
         # Initialize Anthropic (optional - only if library installed AND key provided)
         if ANTHROPIC_AVAILABLE and config.get("anthropic_api_key"):
@@ -76,11 +77,24 @@ class AgentRegistry:
         2. Preferred provider (if specified)
         3. Cost (if multiple options)
         4. Current availability
+        
+        Models are configured via database (agent_configurations table)
         """
 
         if not self.adapters:
             raise RuntimeError("No model adapters available. Check API keys.")
 
+        # PRIORITY 1: Use native Google Gemini if available (no rate limits with Tier 1 key)
+        if "gemini-2.5-flash" in self.adapters:
+            print("🚀 Using native Google Gemini 2.5 Flash")
+            return self.adapters["gemini-2.5-flash"]
+
+        # PRIORITY 2: Use OpenRouter as fallback (free tier but has rate limits)
+        if "openrouter-gpt-oss" in self.adapters:
+            print("⚠️ Using OpenRouter GPT-OSS 120B fallback")
+            return self.adapters["openrouter-gpt-oss"]
+
+        # Fallback to capability-based routing if neither available
         # If user specified a provider, try to use it
         if task.preferred_provider:
             adapter = self._get_preferred_adapter(task.preferred_provider)
@@ -112,7 +126,7 @@ class AgentRegistry:
     def _get_preferred_adapter(self, provider: ModelProvider) -> Optional[BaseModelAdapter]:
         """Get adapter for preferred provider (if available)"""
         if provider == ModelProvider.GOOGLE:
-            return self.adapters.get("gemini-2.0-flash")
+            return self.adapters.get("gemini-2.5-flash")  # Primary: native Gemini 2.5
         elif provider == ModelProvider.ANTHROPIC:
             # Try Sonnet first (faster), then Opus
             return self.adapters.get("claude-sonnet-4.5") or self.adapters.get("claude-opus-4")

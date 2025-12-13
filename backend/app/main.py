@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
 from app.api.v1.jha import router as jha_router, analyze_checklist
 from app.api.v1.admin import router as admin_router
+from app.api.v1.jha_suggestions import router as suggestions_router
+from app.api.v1.weather import router as weather_router
 from app.schemas.jha import JHAAnalysisRequest
 from app.core.deps import get_jha_service
 from app.services.jha_service import JHAService
@@ -28,6 +30,8 @@ app.add_middleware(
 # Include API routes
 app.include_router(jha_router, prefix="/api/v1")
 app.include_router(admin_router, prefix="/api/v1")
+app.include_router(suggestions_router, prefix="/api/v1/jha", tags=["jha-suggestions"])
+app.include_router(weather_router, prefix="/api/v1", tags=["weather"])
 
 # Legacy compatibility routes for old frontend
 app.include_router(jha_router, prefix="/api", tags=["legacy"])

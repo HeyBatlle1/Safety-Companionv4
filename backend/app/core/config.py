@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     # External APIs (OPTIONAL)
     google_maps_api_key: str | None = None
     anthropic_api_key: str | None = None  # Optional - for when LLC account is ready
+    openweather_api_key: str | None = None  # Weather data for smart cards
 
     # Security
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173", "http://localhost:5000"]

@@ -55,8 +55,8 @@ export function SiteConditionsWidget() {
 
     useEffect(() => {
         detectSiteConditions();
-        // Refresh every 10 minutes
-        const interval = setInterval(detectSiteConditions, 10 * 60 * 1000);
+        // Refresh every 3 hours (instead of 10 minutes to save API calls)
+        const interval = setInterval(detectSiteConditions, 3 * 60 * 60 * 1000);
         return () => clearInterval(interval);
     }, []);
 
@@ -71,7 +71,7 @@ export function SiteConditionsWidget() {
 
             // Step 2: Get weather for that location
             if (locationData.address) {
-                const city = locationData.address.split(',')[0].trim();
+                const city = locationData.address.split(',')[0]?.trim() || 'Unknown';
                 const weatherData = await getWeather(city);
                 setWeather(weatherData);
             }
@@ -291,7 +291,7 @@ export function SiteConditionsWidget() {
                         {/* Actions */}
                         <div className="flex items-center justify-between pt-2 border-t">
                             <p className="text-xs text-muted-foreground">
-                                Auto-updates every 10 min
+                                Auto-updates every 3 hours
                             </p>
                             <Button
                                 variant="ghost"

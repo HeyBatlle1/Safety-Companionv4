@@ -151,12 +151,11 @@ class JHAOrchestrator:
             await update_progress("agent2_risk", "running", 30)
             agent2_config = agent_configs.get("agent2_risk", {"temperature": 0.7})
             print(f"⚠️ Agent 2: Assessing risks with OSHA data... (T={agent2_config['temperature']})")
-            agent2_task_data = base_task_data.copy()
-            agent2_task_data["validation"] = validation_data
-
+            
+            # Agent 2 receives Agent 1's complete output (validation + enriched_data)
             agent2_task = AgentTask(
                 task_type="risk_assessment",
-                input_data=agent2_task_data,
+                input_data=validation_data,  # This contains validation + enriched_data
                 temperature=agent2_config["temperature"],
                 required_capabilities=[ModelCapability.FAST_REASONING, ModelCapability.STRUCTURED_OUTPUT]
             )
@@ -166,8 +165,7 @@ class JHAOrchestrator:
                 raise ValueError(f"Agent 2 risk assessment failed: {risk_result.error}")
 
             risk_data = risk_result.output_data
-            hazard_count = len(risk_data.get("hazards", []))
-            hazard_count = len(risk_data.get("hazards", []))
+            hazard_count = len(risk_data.get("risk", {}).get("hazards", []))
             print(f"✓ Identified {hazard_count} hazards")
             await update_progress("agent2_risk", "completed", 50)
 
@@ -175,13 +173,11 @@ class JHAOrchestrator:
             await update_progress("agent3_prediction", "running", 55)
             agent3_config = agent_configs.get("agent3_prediction", {"temperature": 1.0})
             print(f"🔮 Agent 3: Predicting incident scenarios... (T={agent3_config['temperature']})")
-            agent3_task_data = base_task_data.copy()
-            agent3_task_data["validation"] = validation_data
-            agent3_task_data["risk_assessment"] = risk_data
-
+            
+            # Agent 3 receives Agent 2's output (risk data)
             agent3_task = AgentTask(
                 task_type="swiss_cheese_analysis",
-                input_data=agent3_task_data,
+                input_data=risk_data,  # This contains risk analysis
                 temperature=agent3_config["temperature"],
                 required_capabilities=[ModelCapability.DEEP_REASONING, ModelCapability.CREATIVE, ModelCapability.STRUCTURED_OUTPUT]
             )
@@ -191,8 +187,8 @@ class JHAOrchestrator:
                 raise ValueError(f"Agent 3 incident prediction failed: {prediction_result.error}")
 
             prediction_data = prediction_result.output_data
-            incident_name = prediction_data.get("incidentPrediction", {}).get("incidentName", "Unknown incident")
-            confidence = prediction_data.get("incidentPrediction", {}).get("confidence", "Unknown")
+            incident_name = prediction_data.get("prediction", {}).get("incidentPrediction", {}).get("incident_name", "Unknown incident")
+            confidence = prediction_data.get("prediction", {}).get("confidence", "Unknown")
             print(f"✓ Predicted: {incident_name} (confidence: {confidence})")
             await update_progress("agent3_prediction", "completed", 75)
 
@@ -200,12 +196,12 @@ class JHAOrchestrator:
             await update_progress("agent4_synthesis", "running", 80)
             agent4_config = agent_configs.get("agent4_synthesis", {"temperature": 0.5})
             print(f"📄 Agent 4: Synthesizing final report... (T={agent4_config['temperature']})")
+            
+            # Agent 4 receives all agent outputs combined
             agent4_task_data = {
-                "validation": validation_data,
-                "risk": risk_data,
-                "prediction": prediction_data,
-                "weather": base_task_data["weather"],
-                "checklist": base_task_data["checklist"]
+                **validation_data,  # Contains validation + enriched_data
+                **risk_data,        # Contains risk
+                **prediction_data   # Contains prediction
             }
 
             agent4_task = AgentTask(
@@ -243,9 +239,9 @@ class JHAOrchestrator:
                     "agent4_final_report": final_report
                 },
                 "summary": {
-                    "overall_risk_score": risk_data.get("riskSummary", {}).get("highestRiskScore", 0),
-                    "go_no_go_decision": final_report.get("decision", {}).get("goNoGo", "UNKNOWN"),
-                    "primary_concerns": final_report.get("riskProfile", {}).get("primaryHazards", []),
+                    "overall_risk_score": risk_data.get("risk", {}).get("top_score", 0),
+                    "go_no_go_decision": final_report.get("decision", "UNKNOWN"),
+                    "primary_concerns": final_report.get("criticalFindings", [])[:3],
                     "execution_time_seconds": (datetime.utcnow() - pipeline_start).total_seconds()
                 }
             }

@@ -260,6 +260,15 @@ class JHAOrchestrator:
             
             await self.db.commit()
             await self.db.refresh(analysis_record)
+            
+            # Send final SSE event to trigger frontend redirect
+            await push_progress(str(analysis_record.id), {
+                "status": "completed",
+                "current_agent": "completed",
+                "agent_status": "done",
+                "progress": 100,
+                "elapsed_ms": int((datetime.utcnow() - pipeline_start).total_seconds() * 1000)
+            })
 
             # Return analysis with database ID
             return {
@@ -268,9 +277,13 @@ class JHAOrchestrator:
                 **complete_analysis
             }
 
+
         except Exception as error:
-            # Generate fallback report
+            # Generate fallback report with detailed traceback
+            import traceback
+            error_traceback = traceback.format_exc()
             print(f"❌ Multi-agent pipeline error: {error}")
+            print(f"🔍 Full traceback:\n{error_traceback}")
 
             fallback_report = {
                 "metadata": {"reportId": f"FALLBACK-{int(datetime.utcnow().timestamp())}"},
@@ -280,8 +293,10 @@ class JHAOrchestrator:
                     "keyFindings": ["Analysis system error - manual review required"],
                     "actionRequired": True
                 },
-                "error": str(error)
+                "error": str(error),
+                "traceback": error_traceback  # Include traceback for debugging
             }
+
 
             try:
                 # Persist error state to database so polling stops

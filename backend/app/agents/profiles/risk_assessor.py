@@ -235,6 +235,13 @@ Return ONLY valid JSON. No markdown, no explanations."""
         """
         DETERMINISTIC weather analysis
         Calculate equipment margins, determine status
+        
+        JHA Structure:
+        {
+            "jobInfo": {"workType", "location", ...},
+            "hazards": [...],
+            "controlMeasures": {...}
+        }
         """
         
         # Normalize field names (Agent 1 uses camelCase)
@@ -249,10 +256,21 @@ Return ONLY valid JSON. No markdown, no explanations."""
         status = "GREEN"
         stop_work = []
         
-        equipment = str(jha.get("equipment", "")).lower()
+        # Extract equipment info from nested jobInfo
+        job_info = jha.get("jobInfo", {})
+        if not isinstance(job_info, dict):
+            job_info = {}
         
-        # Crane margin
-        if "crane" in equipment:
+        # Look for equipment in workType, or dedicated equipment field
+        work_type = str(job_info.get("workType", "")).lower()
+        equipment = str(jha.get("equipment", job_info.get("equipment", ""))).lower()
+        
+        # Combine workType and equipment for matching
+        equipment_context = f"{work_type} {equipment}"
+
+        
+        # Crane margin (check both equipment and workType)
+        if "crane" in equipment_context:
             crane_margin = ((crane_limit - wind_gust) / crane_limit) * 100
             margins["crane"] = {
                 "limit": crane_limit,
@@ -266,8 +284,8 @@ Return ONLY valid JSON. No markdown, no explanations."""
             elif crane_margin <= 20:
                 status = "YELLOW"
         
-        # Swing stage margin
-        if "swing stage" in equipment or "swing-stage" in equipment:
+        # Swing stage margin (check both equipment and workType)
+        if "swing stage" in equipment_context or "swing-stage" in equipment_context:
             stage_margin = ((swing_stage_limit - wind_gust) / swing_stage_limit) * 100
             margins["swing_stage"] = {
                 "limit": swing_stage_limit,

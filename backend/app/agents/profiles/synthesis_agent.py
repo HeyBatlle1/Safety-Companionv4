@@ -197,9 +197,9 @@ Your 2-3 paragraph summary here.
                     "weatherMonitoring": agent2_risk.get("weather_analysis", {}),
                     "metadata": {
                         "generatedAt": datetime.utcnow().isoformat(),
-                        "projectName": jha.get("projectName", "Unknown"),
-                        "location": jha.get("location", "Unknown"),
-                        "workType": jha.get("workType", "Unknown")
+                        "projectName": jha.get("jobInfo", {}).get("projectName", "Unknown"),
+                        "location": jha.get("jobInfo", {}).get("location", "Unknown"),
+                        "workType": jha.get("jobInfo", {}).get("workType", "Unknown")
                     }
                 }
             }

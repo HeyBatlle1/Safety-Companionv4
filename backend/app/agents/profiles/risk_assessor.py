@@ -151,10 +151,28 @@ Return ONLY valid JSON. No markdown, no explanations."""
             # Extract Agent 1 output
             # Agent 1 returns: {validation: {...}, enriched_data: {jha, weather}}
             agent1_output = task.input_data
+            
+            # DEFENSIVE: Ensure agent1_output is a dict
+            if not isinstance(agent1_output, dict):
+                agent1_output = {}
+            
             validation = agent1_output.get("validation", {})
             enriched_data = agent1_output.get("enriched_data", {})
+            
+            # DEFENSIVE: Ensure nested data is dict
+            if not isinstance(validation, dict):
+                validation = {}
+            if not isinstance(enriched_data, dict):
+                enriched_data = {}
+            
             jha = enriched_data.get("jha", {})
             weather = enriched_data.get("weather", {})
+            
+            # DEFENSIVE: Ensure jha and weather are dicts
+            if not isinstance(jha, dict):
+                jha = {}
+            if not isinstance(weather, dict):
+                weather = {}
             
             # STEP 1: Weather analysis (DETERMINISTIC)
             weather_analysis = self._analyze_weather(weather, jha)

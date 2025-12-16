@@ -144,12 +144,31 @@ Return ONLY valid JSON. No markdown, no explanations."""
         try:
             # Extract Agent 2 output
             agent2_output = task.input_data
+            
+            # DEFENSIVE: Ensure agent2_output is a dict
+            if not isinstance(agent2_output, dict):
+                agent2_output = {}
+            
             risk_data = agent2_output.get("risk", {})
+            
+            # DEFENSIVE: Ensure risk_data is a dict
+            if not isinstance(risk_data, dict):
+                risk_data = {}
             
             hazards = risk_data.get("hazards", [])
             osha_gaps = risk_data.get("osha_gaps", [])
             inadequate_controls = risk_data.get("inadequate_controls", [])
             hazard_interactions = risk_data.get("hazard_interactions", [])
+            
+            # DEFENSIVE: Ensure lists are actually lists
+            if not isinstance(hazards, list):
+                hazards = []
+            if not isinstance(osha_gaps, list):
+                osha_gaps = []
+            if not isinstance(inadequate_controls, list):
+                inadequate_controls = []
+            if not isinstance(hazard_interactions, list):
+                hazard_interactions = []
             
             # Predict incidents using AI
             predictions = await self._predict_incidents_with_ai(

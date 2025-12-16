@@ -128,14 +128,35 @@ Your 2-3 paragraph summary here.
         try:
             # Extract all agent outputs
             # Orchestrator combines: {validation, enriched_data, risk, prediction}
+            
+            # DEFENSIVE: Ensure input_data is a dict
+            if not isinstance(task.input_data, dict):
+                raise ValueError("Invalid input data: expected dict")
+            
             agent1_validation = task.input_data.get("validation", {})
             enriched_data = task.input_data.get("enriched_data", {})
             agent2_risk = task.input_data.get("risk", {})
             agent3_prediction = task.input_data.get("prediction", {})
             
+            # DEFENSIVE: Ensure all extracted data are dicts
+            if not isinstance(agent1_validation, dict):
+                agent1_validation = {}
+            if not isinstance(enriched_data, dict):
+                enriched_data = {}
+            if not isinstance(agent2_risk, dict):
+                agent2_risk = {}
+            if not isinstance(agent3_prediction, dict):
+                agent3_prediction = {}
+            
             # Also get JHA and weather for context
             jha = enriched_data.get("jha", {})
             weather = enriched_data.get("weather", {})
+            
+            # DEFENSIVE: Ensure jha and weather are dicts
+            if not isinstance(jha, dict):
+                jha = {}
+            if not isinstance(weather, dict):
+                weather = {}
             
             # STEP 1: Make decision (DETERMINISTIC)
             decision_data = self._make_decision(agent1_validation, agent2_risk, agent3_prediction)

@@ -22,6 +22,8 @@ from app.models.analysis import AnalysisHistory
 from app.models.jha_updates import JHAUpdate
 from app.schemas.jha import JHAAnalysisRequest, JHAAnalysisResponse
 from app.services.agent_config_service import AgentConfigService
+from app.api.v1.jha_stream import push_progress
+
 
 
 class JHAOrchestrator:
@@ -90,7 +92,7 @@ class JHAOrchestrator:
             await self.db.commit()
             await self.db.refresh(analysis_record)
         
-        # Helper to update progress
+        # Helper to update progress (DB + SSE streaming)
         async def update_progress(agent_name: str, status: str, percent: int):
             try:
                 progress_data = {
@@ -102,8 +104,12 @@ class JHAOrchestrator:
                 }
                 analysis_record.response = json.dumps(progress_data)
                 await self.db.commit() # Commit incremental update
+                
+                # Push SSE event for real-time frontend updates
+                await push_progress(str(analysis_record.id), progress_data)
             except Exception as e:
                 print(f"⚠️ Failed to update progress: {e}")
+
 
         try:
             # Update status: Starting

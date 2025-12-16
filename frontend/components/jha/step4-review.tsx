@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useJHAStore } from '@/stores/jha-store';
-import { useAnalyzeJHA, useJHADetails } from '@/hooks/use-api';
+import { useAnalyzeJHA } from '@/hooks/use-api';
+import { useSSEProgress } from '@/hooks/use-sse-progress';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,34 +17,28 @@ export function Step4Review() {
     const analyzeJHA = useAnalyzeJHA();
     const [analysisId, setAnalysisId] = useState<string | null>(null);
 
-    // Poll for status if we have an analysis ID
-    const { data: analysisStatus } = useJHADetails(analysisId ?? '', {
-        refetchInterval: (data) => {
-            // Keep polling if status is present and indicates processing
-            if (data?.status === 'processing' || data?.status === 'queued' || data?.status === 'starting' || data?.status === 'initializing') {
-                return 1000;
-            }
-            return false;
+    // Handle completion - navigate to results
+    const handleComplete = useCallback(() => {
+        if (analysisId) {
+            resetForm();
+            router.push(`/jha/${analysisId}`);
         }
+    }, [analysisId, router, resetForm]);
+
+    // Handle error - still navigate to see error details
+    const handleError = useCallback((error: string) => {
+        console.error('Analysis error:', error);
+        if (analysisId) {
+            resetForm();
+            router.push(`/jha/${analysisId}`);
+        }
+    }, [analysisId, router, resetForm]);
+
+    // SSE streaming for real-time progress (replaces polling)
+    const { progress, isConnected, error: sseError } = useSSEProgress(analysisId, {
+        onComplete: handleComplete,
+        onError: handleError
     });
-
-    const isPolling = !!analysisId;
-
-    // Watch for completion (when status field is gone or risk_score exists)
-    useEffect(() => {
-        if (analysisStatus && analysisId) {
-            // If we have a risk_score or summary, analysis is complete
-            if (analysisStatus.risk_score !== undefined || analysisStatus.summary) {
-                resetForm();
-                router.push(`/jha/${analysisId}`);
-            }
-            // Handle Failure
-            if (analysisStatus.status === 'failed' || analysisStatus.error) {
-                resetForm();
-                router.push(`/jha/${analysisId}`);
-            }
-        }
-    }, [analysisStatus, analysisId, router, resetForm]);
 
     const handleSubmit = async () => {
         console.log('Submit button clicked!');
@@ -61,7 +56,7 @@ export function Step4Review() {
             });
 
             console.log('Analysis response:', response);
-            // Start polling
+            // Start SSE streaming by setting the analysis ID
             setAnalysisId(response.id);
         } catch (error) {
             console.error('Failed to submit JHA:', error);
@@ -70,19 +65,27 @@ export function Step4Review() {
     };
 
     const isSubmitting = analyzeJHA.isPending;
+    const isStreaming = !!analysisId;
 
-    if (isPolling) {
+    // Show progress tracker during analysis
+    if (isStreaming) {
         return (
             <div className="py-12">
                 <ProgressTracker
-                    currentAgent={analysisStatus?.current_agent || 'system'}
-                    agentStatus={analysisStatus?.agent_status || 'queued'}
-                    progress={analysisStatus?.progress || 0}
-                    elapsedMs={analysisStatus?.elapsed_ms || 0}
+                    currentAgent={progress?.current_agent || 'system'}
+                    agentStatus={progress?.agent_status || (isConnected ? 'connecting' : 'queued')}
+                    progress={progress?.progress || 0}
+                    elapsedMs={progress?.elapsed_ms || 0}
                 />
+                {sseError && (
+                    <p className="text-center text-sm text-muted-foreground mt-4">
+                        {sseError}
+                    </p>
+                )}
             </div>
         );
     }
+
 
     return (
         <div className="space-y-6">

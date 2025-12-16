@@ -83,19 +83,30 @@ If no additional concerns, return empty array: []"""
         start_time = datetime.utcnow()
         
         try:
-            # Extract JHA input - orchestrator sends "checklist" key
+            # Extract JHA input - orchestrator sends "checklist" key containing request.dict()
             jha_input = task.input_data.get("checklistData") or task.input_data.get("checklist", {})
             
             # Ensure jha_input is a dict (not a string or None)
             if not isinstance(jha_input, dict):
                 jha_input = {}
             
-            # STEP 1: Fetch weather data
-            location = jha_input.get("location", "")
+            # The JHA request structure has nested jobInfo, hazards, controlMeasures
+            # Extract the nested structures
+            job_info = jha_input.get("jobInfo", {})
+            if not isinstance(job_info, dict):
+                job_info = {}
+            
+            hazards = jha_input.get("hazards", [])
+            control_measures = jha_input.get("controlMeasures", {})
+            
+            # STEP 1: Fetch weather data (location is inside jobInfo)
+            location = job_info.get("location", "")
             weather_data = await self._fetch_weather(location)
             
             # STEP 2: Validate JHA input (DETERMINISTIC)
+            # Pass the full jha_input but also make job_info accessible
             validation_result = self._validate_jha(jha_input, weather_data)
+
             
             # STEP 3: Optional - AI-enhanced concern detection
             if validation_result["qualityScore"] < 8:
@@ -187,6 +198,13 @@ If no additional concerns, return empty array: []"""
         """
         DETERMINISTIC validation logic
         Validates JHA completeness and quality
+        
+        JHA Structure:
+        {
+            "jobInfo": {"location", "workType", "crewSize", "projectName", ...},
+            "hazards": [{"category", "description", "severity", ...}, ...],
+            "controlMeasures": {"ppe", "procedures", "emergencyPlan", ...}
+        }
         """
         quality_score = 10.0
         missing_critical: List[str] = []
@@ -194,39 +212,60 @@ If no additional concerns, return empty array: []"""
         stop_work_triggers: List[str] = []
         concerns: List[str] = []
         
-        # CRITICAL FIELDS CHECK
-        critical_fields = {
+        # Extract nested structures
+        job_info = jha_input.get("jobInfo", {})
+        if not isinstance(job_info, dict):
+            job_info = {}
+        
+        hazards = jha_input.get("hazards", [])
+        if not isinstance(hazards, list):
+            hazards = []
+        
+        control_measures = jha_input.get("controlMeasures", {})
+        if not isinstance(control_measures, dict):
+            control_measures = {}
+        
+        # CRITICAL FIELDS CHECK (from jobInfo)
+        job_info_critical = {
             "location": "Site location",
             "workType": "Work type/task description",
-            "workHeight": "Work height",
             "crewSize": "Number of workers",
-            "emergencyPlan": "Emergency response plan"
         }
         
-        for field, description in critical_fields.items():
-            if not jha_input.get(field):
+        for field, description in job_info_critical.items():
+            if not job_info.get(field):
                 missing_critical.append(description)
                 quality_score -= 2
         
-        # RECOMMENDED FIELDS CHECK
-        recommended_fields = {
-            "equipmentSpecs": "Equipment specifications",
-            "workerCertifications": "Worker certifications",
-            "identifiedHazards": "Identified hazards",
-            "controlMeasures": "Control measures",
-            "ppeRequirements": "PPE requirements"
-        }
+        # CRITICAL: Must have at least one hazard identified
+        if len(hazards) == 0:
+            missing_critical.append("Identified hazards")
+            quality_score -= 2
         
-        for field, description in recommended_fields.items():
-            if not jha_input.get(field):
-                missing_recommended.append(description)
-                quality_score -= 0.5
+        # CRITICAL: Must have emergency plan
+        if not control_measures.get("emergencyPlan"):
+            missing_critical.append("Emergency response plan")
+            quality_score -= 2
+        
+        # RECOMMENDED FIELDS CHECK
+        if not job_info.get("supervisor"):
+            missing_recommended.append("Supervisor name")
+            quality_score -= 0.5
+        
+        if not control_measures.get("ppe") or len(control_measures.get("ppe", [])) == 0:
+            missing_recommended.append("PPE requirements")
+            quality_score -= 0.5
+        
+        if not control_measures.get("procedures") or len(control_measures.get("procedures", [])) == 0:
+            missing_recommended.append("Safety procedures")
+            quality_score -= 0.5
         
         # WEATHER DATA CHECK
         weather_present = weather_data.get("fetch_status") == "SUCCESS"
         if not weather_present:
             concerns.append(f"Weather data unavailable: {weather_data.get('error', 'Unknown error')}")
             quality_score -= 1
+
         
         # STOP-WORK TRIGGERS
         

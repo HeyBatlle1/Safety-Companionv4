@@ -1,58 +1,70 @@
-"""
-Agent 3: Swiss Cheese Analyzer - Incident Prediction
-AI-driven incident prediction with causal chains and leading indicators
-"""
+# app/agents/profiles/swiss_cheese_analyzer.py
 
-from app.agents.base import BaseAgent, AgentTask, AgentResponse, ModelCapability, ModelProvider
-from app.agents.registry import AgentRegistry
-from typing import Dict, Any, List
-from datetime import datetime
+import os
 import json
+from typing import Dict, List, Any
+import google.generativeai as genai
 
-class SwissCheeseAnalyzerAgent(BaseAgent):
+
+class SwissCheeseAnalyzer:
     """
-    Agent 3: Incident Prediction & Swiss Cheese Analysis
-    
-    Responsibilities:
-    - Predict SPECIFIC incidents using Swiss Cheese model
-    - Build causal chains (how incidents happen step-by-step)
-    - Identify leading indicators (observable warning signs)
-    - Determine near-miss versions
-    - Recommend single best intervention
-    
-    Input: Agent 2's risk assessment
-    Output: Incident predictions for Agent 4
+    Agent 3: Swiss Cheese Analyzer
+    Predicts specific incidents using causal chains and defensive layers
     """
-
-    def __init__(self, registry: AgentRegistry):
-        super().__init__(
-            name="swiss_cheese_analyzer",
-            description="Predicts incidents using Swiss Cheese model"
-        )
-        self.registry = registry
-
-    def get_capabilities(self) -> list[ModelCapability]:
-        """Requires AI for incident prediction"""
-        return [
-            ModelCapability.STRUCTURED_OUTPUT,
-            ModelCapability.REASONING
-        ]
-
-    def get_prompt_template(self) -> str:
-        """Gemini prompt for incident prediction"""
-        return """You are Agent 3: Incident Prediction using Swiss Cheese Model.
+    
+    def __init__(self):
+        # Configure Gemini
+        api_key = os.getenv("GOOGLE_API_KEY")
+        genai.configure(api_key=api_key)
+        self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    
+    def predict(self, agent2_output: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Main prediction function
+        
+        Args:
+            agent2_output: Complete output from Agent 2
+            
+        Returns:
+            Predicted incidents with causal chains
+        """
+        
+        # Use Gemini for incident prediction
+        predictions = self._gemini_prediction(agent2_output)
+        
+        return {
+            "predicted_incidents": predictions.get("predicted_incidents", [])
+        }
+    
+    def _gemini_prediction(self, agent2: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Use Gemini to predict specific incidents
+        """
+        
+        prompt = f"""You are Agent 3: Incident Predictor using Swiss Cheese Model.
 
 Agent 2 has identified hazards and risks.
+
 Your job: Predict SPECIFIC incidents that could occur.
 
 ═══════════════════════════════════════════
 INPUT FROM AGENT 2
 ═══════════════════════════════════════════
 
-Hazards: {hazards}
-OSHA Gaps: {osha_gaps}
-Inadequate Controls: {inadequate_controls}
-Hazard Interactions: {hazard_interactions}
+WEATHER STATUS: {agent2.get('weather_analysis', {}).get('status', 'UNKNOWN')}
+Weather Finding: {agent2.get('weather_analysis', {}).get('critical_finding', 'N/A')}
+
+TOP HAZARDS:
+{self._format_hazards(agent2.get('hazards', []))}
+
+OSHA GAPS:
+{self._format_osha_gaps(agent2.get('osha_gaps', []))}
+
+INADEQUATE CONTROLS:
+{agent2.get('inadequate_controls', [])}
+
+HAZARD INTERACTIONS:
+{agent2.get('hazard_interactions', [])}
 
 ═══════════════════════════════════════════
 YOUR JOB: PREDICT SPECIFIC INCIDENTS
@@ -62,10 +74,17 @@ For the TOP 2-3 HIGHEST RISK hazards, predict:
 
 1. SPECIFIC INCIDENT NAME
    NOT: "Fall hazard"
-   YES: "Worker falls 90ft from swing stage during glass panel positioning in high wind"
+   YES: "Worker falls 90ft from swing stage during glass panel positioning in 19mph wind"
 
 2. CAUSAL CHAIN (how it happens step-by-step)
    Initial Event → Defense Failure 1 → Defense Failure 2 → Human Factor → Mechanism → Outcome
+   
+   Example:
+   - Wind gust hits 19mph during panel lift
+   - Swing stage sways unexpectedly
+   - Worker loses balance reaching for panel
+   - Fall protection anchor fails under dynamic load
+   - Worker falls 90 feet to ground
 
 3. SWISS CHEESE LAYERS (identify holes in each layer)
    - Organizational: What policy/culture failures?
@@ -80,205 +99,106 @@ For the TOP 2-3 HIGHEST RISK hazards, predict:
    - Equipment degradation?
    - Near-miss events?
 
-5. NEAR-MISS VERSION (what happens if we get LUCKY)
+5. NEAR-MISS VERSION (what if we get LUCKY)
    Same scenario but non-injury outcome
 
 6. SINGLE BEST INTERVENTION
    What ONE change prevents this most effectively?
 
 ═══════════════════════════════════════════
-OUTPUT FORMAT (JSON)
+OUTPUT FORMAT (JSON ONLY)
 ═══════════════════════════════════════════
 
 {{
   "predicted_incidents": [
     {{
-      "incident_name": "Specific incident description",
-      "likelihood": "LOW/MEDIUM/HIGH",
-      "severity": "MINOR/SERIOUS/CRITICAL/CATASTROPHIC",
-      "confidence": "LOW/MEDIUM/HIGH",
-      "probability_next_4_hours": 0.35,
+      "incident_name": "Specific detailed incident description",
+      "likelihood": "LOW" | "MEDIUM" | "HIGH",
+      "severity": "MINOR" | "SERIOUS" | "CRITICAL" | "CATASTROPHIC",
+      "confidence": "LOW" | "MEDIUM" | "HIGH",
       
       "causal_chain": [
-        "Wind gust during panel lift",
-        "Swing stage sways unexpectedly",
-        "Worker loses balance reaching for panel",
-        "Fall protection anchor fails under dynamic load",
-        "Worker falls 90 feet to ground"
+        "Step 1: Initial trigger",
+        "Step 2: First defense fails",
+        "Step 3: Second defense fails",
+        "Step 4: Human factor",
+        "Step 5: Incident occurs"
       ],
       
       "swiss_cheese": {{
-        "organizational": ["No weather monitoring policy enforced"],
-        "engineering": ["Swing stage not rated for wind loads"],
-        "administrative": ["Lift procedure doesn't account for wind"],
-        "behavioral": ["Worker rushing to finish before weather worsens"],
-        "ppe": ["Fall protection anchor not inspected"]
+        "organizational": ["Policy failure 1", "Policy failure 2"],
+        "engineering": ["Equipment failure 1"],
+        "administrative": ["Procedure gap 1"],
+        "behavioral": ["Human factor 1"],
+        "ppe": ["Last defense failure"]
       }},
       
       "leading_indicators": [
-        "Workers checking weather informally",
-        "Swing stage swaying visibly",
-        "Team discussing wind concerns"
+        "Observable warning sign 1",
+        "Observable warning sign 2"
       ],
       
-      "near_miss_version": "Same scenario but worker grabs railing, close call reported",
+      "near_miss_version": "Same scenario but lucky outcome",
       
-      "single_best_intervention": "Stop work when wind exceeds 15mph margin"
+      "single_best_intervention": "Most effective prevention"
     }}
   ]
 }}
 
-Return ONLY valid JSON. No markdown, no explanations."""
+Focus on the TOP 2-3 highest risk hazards only.
+Make incident names SPECIFIC and DETAILED.
+Return ONLY valid JSON."""
 
-    async def execute(self, task: AgentTask) -> AgentResponse:
-        """
-        Execute incident prediction
-        
-        1. Extract Agent 2 output
-        2. Predict specific incidents using AI
-        3. Package for Agent 4
-        """
-        
-        start_time = datetime.utcnow()
-        # Agent 2 returns: {risk: {hazards, osha_gaps, etc}}
         try:
-            # Extract Agent 2 output
-            agent2_output = task.input_data
+            response = self.model.generate_content(prompt)
             
-            # DEFENSIVE: Ensure agent2_output is a dict
-            if not isinstance(agent2_output, dict):
-                agent2_output = {}
+            # Extract JSON from response
+            response_text = response.text.strip()
             
-            risk_data = agent2_output.get("risk", {})
+            # Remove markdown code blocks if present
+            if response_text.startswith("```json"):
+                response_text = response_text[7:]
+            if response_text.startswith("```"):
+                response_text = response_text[3:]
+            if response_text.endswith("```"):
+                response_text = response_text[:-3]
             
-            # DEFENSIVE: Ensure risk_data is a dict
-            if not isinstance(risk_data, dict):
-                risk_data = {}
+            response_text = response_text.strip()
             
-            hazards = risk_data.get("hazards", [])
-            osha_gaps = risk_data.get("osha_gaps", [])
-            inadequate_controls = risk_data.get("inadequate_controls", [])
-            hazard_interactions = risk_data.get("hazard_interactions", [])
-            
-            # DEFENSIVE: Ensure lists are actually lists
-            if not isinstance(hazards, list):
-                hazards = []
-            if not isinstance(osha_gaps, list):
-                osha_gaps = []
-            if not isinstance(inadequate_controls, list):
-                inadequate_controls = []
-            if not isinstance(hazard_interactions, list):
-                hazard_interactions = []
-            
-            # Predict incidents using AI
-            predictions = await self._predict_incidents_with_ai(
-                hazards,
-                osha_gaps,
-                inadequate_controls,
-                hazard_interactions
-            )
-            
-            # Extract interventions from predictions
-            interventions = []
-            for incident in predictions.get("predicted_incidents", []):
-                interventions.append({
-                    "action": incident.get("single_best_intervention", ""),
-                    "target_incident": incident.get("incident_name", ""),
-                    "effectiveness": "HIGH"  # Assuming best intervention is highly effective
-                })
-            
-            # Package for Agent 4
-            output = {
-                "prediction": {
-                    "incidentPrediction": predictions.get("predicted_incidents", [{}])[0] if predictions.get("predicted_incidents") else {},
-                    "allPredictions": predictions.get("predicted_incidents", []),
-                    "causalChain": predictions.get("predicted_incidents", [{}])[0].get("causal_chain", []) if predictions.get("predicted_incidents") else [],
-                    "leadingIndicators": predictions.get("predicted_incidents", [{}])[0].get("leading_indicators", []) if predictions.get("predicted_incidents") else [],
-                    "interventions": interventions,
-                    "confidence": predictions.get("predicted_incidents", [{}])[0].get("confidence", "MEDIUM") if predictions.get("predicted_incidents") else "LOW"
-                }
-            }
-            
-            execution_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
-            
-            return AgentResponse(
-                success=True,
-                output_data=output,
-                model_used="gemini-2.5-flash",
-                provider=ModelProvider.GOOGLE,
-                execution_time_ms=execution_time,
-                token_usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
-            )
-
-        except Exception as e:
-            execution_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
-            return AgentResponse(
-                success=False,
-                output_data={},
-                model_used="gemini-2.5-flash",
-                provider=ModelProvider.GOOGLE,
-                execution_time_ms=execution_time,
-                token_usage={},
-                error=f"Incident prediction failed: {str(e)}"
-            )
-
-    async def _predict_incidents_with_ai(
-        self,
-        hazards: List[Dict[str, Any]],
-        osha_gaps: List[Dict[str, Any]],
-        inadequate_controls: List[str],
-        hazard_interactions: List[str]
-    ) -> Dict[str, Any]:
-        """Use AI to predict specific incidents with causal chains"""
-        
-        try:
-            # Build prompt
-            prompt = self.get_prompt_template().format(
-                hazards=json.dumps(hazards, indent=2),
-                osha_gaps=json.dumps(osha_gaps, indent=2),
-                inadequate_controls=json.dumps(inadequate_controls, indent=2),
-                hazard_interactions=json.dumps(hazard_interactions, indent=2)
-            )
-            
-            # Call AI
-            adapter = self.registry.route_task(
-                required_capabilities=[ModelCapability.STRUCTURED_OUTPUT],
-                preferred_provider=ModelProvider.GOOGLE
-            )
-            
-            result = await adapter.generate(
-                prompt=prompt,
-                temperature=1.0,  # High temp for creative incident prediction
-                max_tokens=4000
-            )
-            
-            # Parse JSON response
-            response_text = result.get("text", "{}")
-            
-            # Clean markdown if present
-            if "```json" in response_text:
-                response_text = response_text.split("```json")[1].split("```")[0]
-            elif "```" in response_text:
-                response_text = response_text.split("```")[1].split("```")[0]
-            
-            predictions = json.loads(response_text.strip())
-            
-            return predictions
+            return json.loads(response_text)
             
         except Exception as e:
-            print(f"AI incident prediction failed: {e}")
-            # Fallback to basic structure
+            print(f"❌ Error in Gemini prediction: {e}")
+            # Return minimal structure on error
             return {
-                "predicted_incidents": [{
-                    "incident_name": "Unable to predict specific incident",
-                    "likelihood": "UNKNOWN",
-                    "severity": "UNKNOWN",
-                    "confidence": "LOW",
-                    "probability_next_4_hours": 0.0,
-                    "causal_chain": [],
-                    "swiss_cheese": {},
-                    "leading_indicators": [],
-                    "near_miss_version": "",
-                    "single_best_intervention": "Complete risk assessment"
-                }]
+                "predicted_incidents": []
             }
+    
+    def _format_hazards(self, hazards: List[Dict]) -> str:
+        """Format hazards for prompt"""
+        if not hazards:
+            return "None identified"
+        
+        lines = []
+        for i, hazard in enumerate(hazards[:5], 1):  # Top 5
+            lines.append(f"{i}. {hazard.get('name', 'Unknown hazard')}")
+            lines.append(f"   Risk Score: {hazard.get('risk_score', 0)}")
+            lines.append(f"   Likelihood: {hazard.get('likelihood', 'N/A')}, Consequence: {hazard.get('consequence', 'N/A')}")
+            lines.append(f"   Weather Amplified: {hazard.get('weather_amplified', False)}")
+            if hazard.get('inadequate_controls'):
+                lines.append(f"   Inadequate Controls: {', '.join(hazard['inadequate_controls'])}")
+            lines.append("")
+        
+        return "\n".join(lines)
+    
+    def _format_osha_gaps(self, gaps: List[Dict]) -> str:
+        """Format OSHA gaps for prompt"""
+        if not gaps:
+            return "None identified"
+        
+        lines = []
+        for gap in gaps:
+            lines.append(f"- {gap.get('standard', 'N/A')}: {gap.get('gap', 'N/A')}")
+            lines.append(f"  Citation Likelihood: {gap.get('citation_likelihood', 'N/A')}, Severity: {gap.get('severity', 'N/A')}")
+        
+        return "\n".join(lines)

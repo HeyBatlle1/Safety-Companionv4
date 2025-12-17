@@ -16,7 +16,7 @@ from app.agents.registry import AgentRegistry
 from app.agents.base import AgentTask, ModelCapability
 from app.agents.profiles.jha_validator import JHAValidatorAgent
 from app.agents.profiles.risk_assessor import RiskAssessor
-from app.agents.profiles.swiss_cheese_analyzer import SwissCheeseAnalyzerAgent
+from app.agents.profiles.swiss_cheese_analyzer import SwissCheeseAnalyzer
 from app.agents.profiles.synthesis_agent import SynthesisAgent
 from app.models.analysis import AnalysisHistory
 from app.models.jha_updates import JHAUpdate
@@ -41,7 +41,7 @@ class JHAOrchestrator:
         # Initialize agent profiles
         self.validator = JHAValidatorAgent(agent_registry)
         self.risk_assessor = RiskAssessor()
-        self.swiss_cheese = SwissCheeseAnalyzerAgent(agent_registry)
+        self.swiss_cheese = SwissCheeseAnalyzer()
         self.synthesizer = SynthesisAgent(agent_registry)
 
         # Initialize agent config service
@@ -167,27 +167,23 @@ class JHAOrchestrator:
             print(f"✓ Identified {hazard_count} hazards")
             await update_progress("agent2_risk", "completed", 50)
 
-            # AGENT 3: Swiss Cheese Incident Prediction (Temperature from DB)
+            # AGENT 3: Swiss Cheese Incident Prediction
             await update_progress("agent3_prediction", "running", 55)
-            agent3_config = agent_configs.get("agent3_prediction", {"temperature": 1.0})
-            print(f"🔮 Agent 3: Predicting incident scenarios... (T={agent3_config['temperature']})")
+            print(f"🔮 Agent 3: Predicting incident scenarios...")
             
-            # Agent 3 receives Agent 2's output (risk data)
-            agent3_task = AgentTask(
-                task_type="swiss_cheese_analysis",
-                input_data=risk_data,  # This contains risk analysis
-                temperature=agent3_config["temperature"],
-                required_capabilities=[ModelCapability.DEEP_REASONING, ModelCapability.CREATIVE, ModelCapability.STRUCTURED_OUTPUT]
-            )
-
-            prediction_result = await self.swiss_cheese.execute(agent3_task)
-            if not prediction_result.success:
-                raise ValueError(f"Agent 3 incident prediction failed: {prediction_result.error}")
-
-            prediction_data = prediction_result.output_data
-            incident_name = prediction_data.get("prediction", {}).get("incidentPrediction", {}).get("incident_name", "Unknown incident")
-            confidence = prediction_data.get("prediction", {}).get("confidence", "Unknown")
-            print(f"✓ Predicted: {incident_name} (confidence: {confidence})")
+            # Agent 3 receives Agent 2's risk assessment (unwrapped from 'risk' key)
+            prediction_result = self.swiss_cheese.predict(risk_assessment)
+            
+            # Wrap in 'prediction' key for Agent 4 compatibility
+            prediction_data = {"prediction": prediction_result}
+            
+            incidents = prediction_result.get("predicted_incidents", [])
+            if incidents:
+                incident_name = incidents[0].get("incident_name", "Unknown incident")
+                confidence = incidents[0].get("confidence", "Unknown")
+                print(f"✓ Predicted: {incident_name} (confidence: {confidence})")
+            else:
+                print(f"✓ No specific incidents predicted")
             await update_progress("agent3_prediction", "completed", 75)
 
             # AGENT 4: Report Synthesis (Temperature from DB)

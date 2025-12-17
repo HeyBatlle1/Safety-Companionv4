@@ -1,319 +1,154 @@
-"""
-Agent 2: Risk Assessor
-Deterministic weather analysis + AI-driven hazard identification
-"""
+# app/agents/profiles/risk_assessor.py
 
-from app.agents.base import BaseAgent, AgentTask, AgentResponse, ModelCapability, ModelProvider
-from app.agents.registry import AgentRegistry
-from typing import Dict, Any, List
-from datetime import datetime
+import os
+import re
 import json
+from typing import Dict, List, Any
+import google.generativeai as genai
 
-class RiskAssessorAgent(BaseAgent):
-    """
-    Agent 2: Risk Assessment & Hazard Analysis
-    
-    Responsibilities:
-    - Analyze weather impact on equipment (deterministic)
-    - Identify hazards using AI
-    - Assess OSHA compliance gaps
-    - Calculate risk scores
-    - Identify hazard interactions
-    
-    Input: Agent 1's enriched data (JHA + weather + validation)
-    Output: Risk assessment for Agent 3
-    """
 
-    def __init__(self, registry: AgentRegistry):
-        super().__init__(
-            name="risk_assessor",
-            description="Assesses risks and analyzes hazards"
+class RiskAssessor:
+    """
+    Agent 2: Risk Assessor
+    Analyzes hazards, weather impacts, and OSHA compliance
+    """
+    
+    def __init__(self):
+        # Configure Gemini
+        api_key = os.getenv("GOOGLE_API_KEY")
+        genai.configure(api_key=api_key)
+        self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    
+    def assess(self, agent1_output: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Main assessment function
+        
+        Args:
+            agent1_output: Complete output from Agent 1
+            
+        Returns:
+            Risk assessment with hazards, weather, OSHA gaps
+        """
+        
+        # Extract data from Agent 1 output
+        validation = agent1_output.get("validation", {})
+        enriched_data = agent1_output.get("enriched_data", {})
+        
+        jha_data = enriched_data.get("jha", {})
+        weather_data = enriched_data.get("weather", {})
+        
+        # STEP 1: Analyze weather (deterministic)
+        weather_analysis = self._analyze_weather(weather_data, jha_data)
+        
+        # STEP 2: Use Gemini for hazard identification
+        gemini_analysis = self._gemini_analysis(
+            jha_data, 
+            weather_analysis, 
+            validation
         )
-        self.registry = registry
-
-    def get_capabilities(self) -> list[ModelCapability]:
-        """Requires AI for hazard identification"""
-        return [
-            ModelCapability.STRUCTURED_OUTPUT,
-            ModelCapability.REASONING
-        ]
-
-    def get_prompt_template(self) -> str:
-        """Gemini prompt for hazard identification"""
-        return """You are Agent 2: Risk Assessor.
-
-Agent 1 has validated the data and fetched weather.
-Your job: Analyze hazards and assess risk.
-
-═══════════════════════════════════════════
-STEP 1: WEATHER ANALYSIS (ALREADY DONE)
-═══════════════════════════════════════════
-
-Weather Status: {weather_status}
-Equipment Margins: {equipment_margins}
-Stop-Work Triggers: {stop_work_weather}
-
-═══════════════════════════════════════════
-STEP 2: HAZARD IDENTIFICATION
-═══════════════════════════════════════════
-
-JHA Data:
-{jha_data}
-
-Identify ALL hazards for this work.
-
-For EACH hazard, assess:
-- Risk score (0-100): likelihood × consequence
-- Likelihood: LOW/MEDIUM/HIGH
-- Consequence: MINOR/SERIOUS/CRITICAL/CATASTROPHIC
-- Weather amplification: How weather makes this worse
-- Inadequate controls: What defenses are missing/weak
-
-Focus on:
-- Fall hazards (height work)
-- Struck-by (falling objects, crane loads)
-- Caught-between (pinch points)
-- Electrical (tools, weather)
-- Environmental (cold, heat, wind)
-
-═══════════════════════════════════════════
-STEP 3: HAZARD INTERACTIONS
-═══════════════════════════════════════════
-
-Identify how hazards COMPOUND each other:
-- Wind + crane + heavy load + public below = catastrophic
-- Height + cold + fatigue = reduced dexterity
-- Multiple crews + complex lifts + poor visibility = coordination failure
-
-═══════════════════════════════════════════
-STEP 4: OSHA COMPLIANCE GAPS
-═══════════════════════════════════════════
-
-Identify violations or gaps in OSHA compliance:
-
-Example:
-- 1926.502(d)(15): No rescue plan for fall protection
-- 1926.550(a)(6): No wind monitoring for crane operations
-- 1926.95(a): No PPE hazard assessment documented
-
-For each gap:
-- Standard number
-- What's missing
-- Citation likelihood: LOW/MEDIUM/HIGH/CERTAIN
-- Severity: OTHER/SERIOUS/WILLFUL
-
-═══════════════════════════════════════════
-OUTPUT FORMAT (JSON)
-═══════════════════════════════════════════
-
-{{
-  "hazards": [
-    {{
-      "name": "Specific hazard name",
-      "category": "Fall/Struck-by/Electrical/etc",
-      "risk_score": 85,
-      "likelihood": "HIGH",
-      "consequence": "CATASTROPHIC",
-      "weather_amplified": true,
-      "inadequate_controls": ["Missing X", "Weak Y"]
-    }}
-  ],
-  "hazard_interactions": [
-    "Wind + crane + load = compounding catastrophic risk"
-  ],
-  "osha_gaps": [
-    {{
-      "standard": "1926.502(d)(15)",
-      "title": "Fall Protection Rescue",
-      "gap": "No rescue plan documented",
-      "citation_likelihood": "HIGH",
-      "severity": "SERIOUS",
-      "required_action": "Document rescue procedure"
-    }}
-  ]
-}}
-
-Return ONLY valid JSON. No markdown, no explanations."""
-
-    async def execute(self, task: AgentTask) -> AgentResponse:
-        """
-        Execute risk assessment
         
-        1. Analyze weather impact (deterministic)
-        2. Identify hazards (AI)
-        3. Assess OSHA gaps (AI)
-        4. Package for Agent 3
-        """
+        # STEP 3: Structure output
+        hazards = gemini_analysis.get("hazards", [])
         
-        start_time = datetime.utcnow()
-        
-        try:
-            # Extract Agent 1 output
-            # Agent 1 returns: {validation: {...}, enriched_data: {jha, weather}}
-            agent1_output = task.input_data
-            
-            # DEFENSIVE: Ensure agent1_output is a dict
-            if not isinstance(agent1_output, dict):
-                agent1_output = {}
-            
-            validation = agent1_output.get("validation", {})
-            enriched_data = agent1_output.get("enriched_data", {})
-            
-            # DEFENSIVE: Ensure nested data is dict
-            if not isinstance(validation, dict):
-                validation = {}
-            if not isinstance(enriched_data, dict):
-                enriched_data = {}
-            
-            jha = enriched_data.get("jha", {})
-            weather = enriched_data.get("weather", {})
-            
-            # DEFENSIVE: Ensure jha and weather are dicts
-            if not isinstance(jha, dict):
-                jha = {}
-            if not isinstance(weather, dict):
-                weather = {}
-            
-            # STEP 1: Weather analysis (DETERMINISTIC)
-            weather_analysis = self._analyze_weather(weather, jha)
-            
-            # STEP 2: Hazard identification (AI)
-            ai_analysis = await self._identify_hazards_with_ai(
-                jha, weather_analysis
-            )
-            
-            # STEP 3: Calculate top risk score
-            hazards = ai_analysis.get("hazards", [])
-            top_score = max([h.get("risk_score", 0) for h in hazards]) if hazards else 0
-            
-            # STEP 4: Calculate citation risk
-            osha_gaps = ai_analysis.get("osha_gaps", [])
-            citation_risk = self._calculate_citation_risk(osha_gaps)
-            
-            # STEP 5: Extract inadequate controls
-            inadequate_controls = []
-            for hazard in hazards:
-                inadequate_controls.extend(hazard.get("inadequate_controls", []))
-            
-            # STEP 6: Package for Agent 3
-            output = {
-                "risk": {
-                    "weather_analysis": weather_analysis,
-                    "hazards": hazards,
-                    "top_score": top_score,
-                    "osha_gaps": osha_gaps,
-                    "citation_risk": citation_risk,
-                    "inadequate_controls": list(set(inadequate_controls)),  # Deduplicate
-                    "hazard_interactions": ai_analysis.get("hazard_interactions", [])
-                }
-            }
-            
-            execution_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
-            
-            return AgentResponse(
-                success=True,
-                output_data=output,
-                model_used="gemini-2.5-flash",
-                provider=ModelProvider.GOOGLE,
-                execution_time_ms=execution_time,
-                token_usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
-            )
-
-        except Exception as e:
-            execution_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
-            return AgentResponse(
-                success=False,
-                output_data={},
-                model_used="gemini-2.5-flash",
-                provider=ModelProvider.GOOGLE,
-                execution_time_ms=execution_time,
-                token_usage={},
-                error=f"Risk assessment failed: {str(e)}"
-            )
-
+        return {
+            "weather_analysis": weather_analysis,
+            "hazards": hazards,
+            "top_score": max([h.get("risk_score", 0) for h in hazards], default=0),
+            "top_hazard": hazards[0].get("name", "None identified") if hazards else "None identified",
+            "osha_gaps": gemini_analysis.get("osha_gaps", []),
+            "citation_risk": self._calculate_citation_risk(gemini_analysis.get("osha_gaps", [])),
+            "inadequate_controls": gemini_analysis.get("inadequate_controls", []),
+            "hazard_interactions": gemini_analysis.get("hazard_interactions", [])
+        }
+    
     def _analyze_weather(self, weather: Dict[str, Any], jha: Dict[str, Any]) -> Dict[str, Any]:
         """
-        DETERMINISTIC weather analysis
-        Calculate equipment margins, determine status
-        
-        JHA Structure:
-        {
-            "jobInfo": {"workType", "location", ...},
-            "hazards": [...],
-            "controlMeasures": {...}
-        }
+        Deterministic weather analysis with equipment margins
         """
         
-        # Normalize field names (Agent 1 uses camelCase)
-        wind_speed = weather.get("windSpeed", weather.get("wind_speed", 0))
-        wind_gust = weather.get("windGust", weather.get("wind_gust", wind_speed))
+        if weather.get("fetch_status") != "SUCCESS":
+            return {
+                "status": "UNKNOWN",
+                "current_wind": 0,
+                "equipment_margins": {},
+                "stop_work_weather": ["Weather data unavailable"],
+                "critical_finding": "Cannot assess weather risk - data unavailable"
+            }
         
-        # Equipment-specific limits
-        crane_limit = 20  # ASME B30.3 default
-        swing_stage_limit = 25  # ANSI/IWCA I-14.1
+        wind_speed = weather.get("wind_speed", weather.get("windSpeed", 0))
+        wind_gust = weather.get("wind_gust", weather.get("windGust", wind_speed))
+        
+        # Extract equipment info - handle nested jobInfo structure
+        job_info = jha.get("jobInfo", {})
+        if isinstance(job_info, dict):
+            work_type = str(job_info.get("workType", "")).lower()
+        else:
+            work_type = ""
+        
+        equipment = jha.get("equipment", [])
+        if isinstance(equipment, list):
+            equipment_str = " ".join([str(e).lower() for e in equipment])
+        else:
+            equipment_str = str(equipment).lower()
+        
+        equipment_specs = str(jha.get("equipment_specs", "")).lower()
+        
+        # Combine work type and equipment for matching
+        equipment_context = f"{work_type} {equipment_str}"
         
         margins = {}
         status = "GREEN"
         stop_work = []
         
-        # Extract equipment info from nested jobInfo
-        job_info = jha.get("jobInfo", {})
-        if not isinstance(job_info, dict):
-            job_info = {}
-        
-        # Look for equipment in workType, or dedicated equipment field
-        work_type = str(job_info.get("workType", "")).lower()
-        equipment = str(jha.get("equipment", job_info.get("equipment", ""))).lower()
-        
-        # Combine workType and equipment for matching
-        equipment_context = f"{work_type} {equipment}"
-
-        
-        # Crane margin (check both equipment and workType)
+        # Crane limit detection
         if "crane" in equipment_context:
-            crane_margin = ((crane_limit - wind_gust) / crane_limit) * 100
+            # Try to parse limit from specs
+            crane_limit = 20  # Default ASME B30.3
+            if "wind" in equipment_specs and "mph" in equipment_specs:
+                match = re.search(r'(\d+)\s*mph', equipment_specs)
+                if match:
+                    crane_limit = int(match.group(1))
+            
+            crane_margin = ((crane_limit - wind_gust) / crane_limit) * 100 if crane_limit > 0 else 0
+            
             margins["crane"] = {
                 "limit": crane_limit,
                 "current": wind_gust,
                 "margin_percent": round(crane_margin, 1),
                 "status": "GREEN" if crane_margin > 20 else "YELLOW" if crane_margin > 0 else "RED"
             }
+            
             if crane_margin <= 0:
                 stop_work.append(f"Wind {wind_gust}mph exceeds crane limit {crane_limit}mph")
                 status = "RED"
             elif crane_margin <= 20:
+                stop_work.append(f"Wind at {100-crane_margin:.0f}% of crane limit - CRITICAL MARGIN")
                 status = "YELLOW"
         
-        # Swing stage margin (check both equipment and workType)
-        if "swing stage" in equipment_context or "swing-stage" in equipment_context:
-            stage_margin = ((swing_stage_limit - wind_gust) / swing_stage_limit) * 100
+        # Swing stage limit (ANSI/IWCA I-14.1: 25mph)
+        if "swing stage" in equipment_context or "suspended scaffold" in equipment_context:
+            stage_limit = 25
+            stage_margin = ((stage_limit - wind_gust) / stage_limit) * 100 if stage_limit > 0 else 0
+            
             margins["swing_stage"] = {
-                "limit": swing_stage_limit,
+                "limit": stage_limit,
                 "current": wind_gust,
                 "margin_percent": round(stage_margin, 1),
                 "status": "GREEN" if stage_margin > 20 else "YELLOW" if stage_margin > 0 else "RED"
             }
+            
             if stage_margin <= 0:
-                stop_work.append(f"Wind {wind_gust}mph exceeds swing stage limit {swing_stage_limit}mph")
+                stop_work.append(f"Wind {wind_gust}mph exceeds swing stage limit {stage_limit}mph")
                 status = "RED"
-            elif status != "RED" and stage_margin <= 20:
+            elif stage_margin <= 20 and status != "RED":
                 status = "YELLOW"
         
-        # Temperature analysis (bonus - not in spec but we have the data)
-        temp = weather.get("temperature", weather.get("temp", 0))
-        if temp >= 90:
-            stop_work.append(f"Temperature {temp}°F - heat stress precautions required")
-            if status == "GREEN":
-                status = "YELLOW"
-        elif temp <= 32:
-            stop_work.append(f"Temperature {temp}°F - cold stress precautions required")
-            if status == "GREEN":
-                status = "YELLOW"
-        
-        critical_finding = "No equipment limits defined"
+        # Determine critical finding
         if margins:
             worst_margin = min([m["margin_percent"] for m in margins.values()])
-            critical_finding = f"Operating at {worst_margin:.0f}% safety margin"
+            critical_finding = f"Operating at {worst_margin:.0f}% margin - {'CRITICAL' if worst_margin < 20 else 'ACCEPTABLE'}"
+        else:
+            critical_finding = "No equipment-specific wind limits defined"
         
         return {
             "status": status,
@@ -322,68 +157,189 @@ Return ONLY valid JSON. No markdown, no explanations."""
             "stop_work_weather": stop_work,
             "critical_finding": critical_finding
         }
-
-    async def _identify_hazards_with_ai(
-        self,
-        jha: Dict[str, Any],
-        weather_analysis: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Use AI to identify hazards, interactions, and OSHA gaps"""
+    
+    def _gemini_analysis(self, jha: Dict[str, Any], weather: Dict[str, Any], validation: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Use Gemini to identify hazards, OSHA gaps, interactions
+        """
         
+        prompt = f"""You are Agent 2: Risk Assessor for construction safety.
+
+Agent 1 has validated the data and fetched weather.
+
+Your job: Identify hazards, assess risks, find OSHA gaps.
+
+═══════════════════════════════════════════
+JHA DATA
+═══════════════════════════════════════════
+
+{self._format_jha_for_prompt(jha)}
+
+═══════════════════════════════════════════
+WEATHER ANALYSIS (ALREADY DONE)
+═══════════════════════════════════════════
+
+Status: {weather.get('status', 'UNKNOWN')}
+Current Wind: {weather.get('current_wind', 0)}mph
+Equipment Margins: {weather.get('equipment_margins', {})}
+Critical Finding: {weather.get('critical_finding', 'N/A')}
+
+═══════════════════════════════════════════
+VALIDATION RESULTS
+═══════════════════════════════════════════
+
+Quality Score: {validation.get('qualityScore', validation.get('quality_score', 'N/A'))}/10
+Stop-Work Triggers: {validation.get('stopWorkTriggers', validation.get('stop_work_triggers', []))}
+Missing Critical: {validation.get('missingCritical', validation.get('missing_critical', []))}
+Concerns: {validation.get('concerns', [])}
+
+═══════════════════════════════════════════
+YOUR ANALYSIS TASKS
+═══════════════════════════════════════════
+
+1. IDENTIFY HAZARDS
+   For EACH hazard, provide:
+   - Specific name (not generic like "fall hazard")
+   - Category (Fall, Struck-by, Electrical, etc.)
+   - Risk score (0-100): likelihood × consequence
+   - Likelihood: LOW/MEDIUM/HIGH
+   - Consequence: MINOR/SERIOUS/CRITICAL/CATASTROPHIC
+   - Weather amplified: true/false
+   - Inadequate controls: What's missing or weak
+
+2. HAZARD INTERACTIONS
+   How do hazards compound each other?
+   Example: "Wind + crane + heavy panels = catastrophic"
+
+3. OSHA COMPLIANCE GAPS
+   Identify violations or missing requirements:
+   - Standard number (e.g., 1926.502(d)(15))
+   - Title
+   - What's missing
+   - Citation likelihood: LOW/MEDIUM/HIGH/CERTAIN
+   - Severity: OTHER/SERIOUS/WILLFUL
+   - Required action to fix
+
+4. INADEQUATE CONTROLS
+   List controls that are missing, weak, or poorly defined
+
+═══════════════════════════════════════════
+OUTPUT FORMAT (JSON ONLY)
+═══════════════════════════════════════════
+
+{{
+  "hazards": [
+    {{
+      "name": "Worker falls 90ft from swing stage during glass panel positioning in high wind",
+      "category": "Fall",
+      "risk_score": 85,
+      "likelihood": "HIGH",
+      "consequence": "CATASTROPHIC",
+      "weather_amplified": true,
+      "inadequate_controls": ["No rescue plan", "Weak anchor points"]
+    }}
+  ],
+  "hazard_interactions": [
+    "Wind + height + heavy panels = compounding catastrophic risk",
+    "Multiple crews + complex lifts + poor visibility = coordination failure"
+  ],
+  "osha_gaps": [
+    {{
+      "standard": "1926.502(d)(15)",
+      "title": "Fall Protection Rescue",
+      "gap": "No rescue procedure documented",
+      "citation_likelihood": "HIGH",
+      "severity": "SERIOUS",
+      "required_action": "Document rescue procedure with <6min response"
+    }}
+  ],
+  "inadequate_controls": [
+    "No rescue plan documented",
+    "Fall protection anchor points not specified",
+    "Weather monitoring plan not defined"
+  ]
+}}
+
+Return ONLY valid JSON. No explanation, no markdown, just JSON."""
+
         try:
-            # Build prompt
-            prompt = self.get_prompt_template().format(
-                weather_status=weather_analysis["status"],
-                equipment_margins=json.dumps(weather_analysis["equipment_margins"], indent=2),
-                stop_work_weather=json.dumps(weather_analysis["stop_work_weather"]),
-                jha_data=json.dumps(jha, indent=2)
-            )
+            response = self.model.generate_content(prompt)
             
-            # Call AI
-            adapter = self.registry.route_task(
-                required_capabilities=[ModelCapability.STRUCTURED_OUTPUT],
-                preferred_provider=ModelProvider.GOOGLE
-            )
+            # Extract JSON from response
+            response_text = response.text.strip()
             
-            result = await adapter.generate(
-                prompt=prompt,
-                temperature=0.7,  # Higher temp for creative hazard identification
-                max_tokens=3000
-            )
+            # Remove markdown code blocks if present
+            if response_text.startswith("```json"):
+                response_text = response_text[7:]
+            if response_text.startswith("```"):
+                response_text = response_text[3:]
+            if response_text.endswith("```"):
+                response_text = response_text[:-3]
             
-            # Parse JSON response
-            response_text = result.get("text", "{}")
+            response_text = response_text.strip()
             
-            # Clean markdown if present
-            if "```json" in response_text:
-                response_text = response_text.split("```json")[1].split("```")[0]
-            elif "```" in response_text:
-                response_text = response_text.split("```")[1].split("```")[0]
-            
-            analysis = json.loads(response_text.strip())
-            
-            return analysis
+            return json.loads(response_text)
             
         except Exception as e:
-            print(f"AI hazard identification failed: {e}")
-            # Fallback to basic structure
+            print(f"❌ Error in Gemini analysis: {e}")
+            # Return minimal structure on error
             return {
                 "hazards": [],
                 "hazard_interactions": [],
-                "osha_gaps": []
+                "osha_gaps": [],
+                "inadequate_controls": []
             }
-
-    def _calculate_citation_risk(self, osha_gaps: List[Dict[str, Any]]) -> str:
+    
+    def _format_jha_for_prompt(self, jha: Dict[str, Any]) -> str:
+        """Format JHA data for readable prompt"""
+        lines = []
+        
+        # Handle nested jobInfo structure
+        job_info = jha.get("jobInfo", {})
+        if isinstance(job_info, dict):
+            for key, value in job_info.items():
+                if value:
+                    lines.append(f"{key}: {value}")
+        
+        # Handle hazards array
+        hazards = jha.get("hazards", [])
+        if hazards:
+            lines.append(f"Identified Hazards: {len(hazards)}")
+            for h in hazards:
+                if isinstance(h, dict):
+                    lines.append(f"  - {h.get('category', 'Unknown')}: {h.get('description', 'No description')}")
+        
+        # Handle control measures
+        controls = jha.get("controlMeasures", {})
+        if isinstance(controls, dict):
+            if controls.get("ppe"):
+                lines.append(f"PPE: {controls.get('ppe')}")
+            if controls.get("procedures"):
+                lines.append(f"Procedures: {controls.get('procedures')}")
+            if controls.get("emergencyPlan"):
+                lines.append(f"Emergency Plan: {controls.get('emergencyPlan')}")
+        
+        # Add any other top-level fields
+        for key, value in jha.items():
+            if key not in ["jobInfo", "hazards", "controlMeasures"] and value:
+                lines.append(f"{key}: {value}")
+        
+        return "\n".join(lines) if lines else "No JHA data available"
+    
+    def _calculate_citation_risk(self, osha_gaps: List[Dict]) -> str:
         """Calculate overall citation risk from OSHA gaps"""
         if not osha_gaps:
             return "LOW"
         
-        high_count = sum(1 for gap in osha_gaps if gap.get("citation_likelihood") in ["HIGH", "CERTAIN"])
-        willful_count = sum(1 for gap in osha_gaps if gap.get("severity") == "WILLFUL")
+        # Count CERTAIN and HIGH likelihood citations
+        certain_count = sum(1 for gap in osha_gaps if gap.get("citation_likelihood") == "CERTAIN")
+        high_count = sum(1 for gap in osha_gaps if gap.get("citation_likelihood") == "HIGH")
         
-        if willful_count > 0 or high_count >= 3:
+        if certain_count > 0:
+            return "CERTAIN"
+        elif high_count >= 2:
             return "HIGH"
-        elif high_count > 0:
+        elif high_count == 1:
             return "MEDIUM"
         else:
             return "LOW"

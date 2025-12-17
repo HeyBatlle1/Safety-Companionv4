@@ -15,7 +15,7 @@ from sqlalchemy import select
 from app.agents.registry import AgentRegistry
 from app.agents.base import AgentTask, ModelCapability
 from app.agents.profiles.jha_validator import JHAValidatorAgent
-from app.agents.profiles.risk_assessor import RiskAssessorAgent
+from app.agents.profiles.risk_assessor import RiskAssessor
 from app.agents.profiles.swiss_cheese_analyzer import SwissCheeseAnalyzerAgent
 from app.agents.profiles.synthesis_agent import SynthesisAgent
 from app.models.analysis import AnalysisHistory
@@ -40,7 +40,7 @@ class JHAOrchestrator:
 
         # Initialize agent profiles
         self.validator = JHAValidatorAgent(agent_registry)
-        self.risk_assessor = RiskAssessorAgent(agent_registry)
+        self.risk_assessor = RiskAssessor()
         self.swiss_cheese = SwissCheeseAnalyzerAgent(agent_registry)
         self.synthesizer = SynthesisAgent(agent_registry)
 
@@ -153,25 +153,17 @@ class JHAOrchestrator:
             print(f"✓ Data quality: {validation_data.get('validation', {}).get('dataQuality', 'UNKNOWN')}")
             await update_progress("agent1_validation", "completed", 25)
 
-            # AGENT 2: Risk Assessment (Temperature from DB)
+            # AGENT 2: Risk Assessment
             await update_progress("agent2_risk", "running", 30)
-            agent2_config = agent_configs.get("agent2_risk", {"temperature": 0.7})
-            print(f"⚠️ Agent 2: Assessing risks with OSHA data... (T={agent2_config['temperature']})")
+            print(f"⚠️ Agent 2: Assessing risks with OSHA data...")
             
             # Agent 2 receives Agent 1's complete output (validation + enriched_data)
-            agent2_task = AgentTask(
-                task_type="risk_assessment",
-                input_data=validation_data,  # This contains validation + enriched_data
-                temperature=agent2_config["temperature"],
-                required_capabilities=[ModelCapability.FAST_REASONING, ModelCapability.STRUCTURED_OUTPUT]
-            )
-
-            risk_result = await self.risk_assessor.execute(agent2_task)
-            if not risk_result.success:
-                raise ValueError(f"Agent 2 risk assessment failed: {risk_result.error}")
-
-            risk_data = risk_result.output_data
-            hazard_count = len(risk_data.get("risk", {}).get("hazards", []))
+            risk_assessment = self.risk_assessor.assess(validation_data)
+            
+            # Wrap in 'risk' key for Agent 3/4 compatibility
+            risk_data = {"risk": risk_assessment}
+            
+            hazard_count = len(risk_assessment.get("hazards", []))
             print(f"✓ Identified {hazard_count} hazards")
             await update_progress("agent2_risk", "completed", 50)
 

@@ -1,490 +1,415 @@
-"""
-Agent 4: Synthesis Agent - Executive Decision Maker
-Deterministic decision logic + AI executive summary
-"""
+# app/agents/profiles/synthesis_agent.py
 
-from app.agents.base import BaseAgent, AgentTask, AgentResponse, ModelCapability, ModelProvider
-from app.agents.registry import AgentRegistry
-from typing import Dict, Any, List
-from datetime import datetime
+import os
 import json
+from typing import Dict, List, Any
+import google.generativeai as genai
 
-class SynthesisAgent(BaseAgent):
+
+class SynthesisAgent:
     """
-    Agent 4: Report Synthesizer
-    
-    Responsibilities:
-    - Make GO/NO-GO decision (deterministic weighted scoring)
-    - Generate action items (deduplicated)
-    - Write executive summary (AI)
-    - Extract critical findings
-    - Define stop-work conditions
-    
-    Input: Outputs from Agents 1, 2, 3
-    Output: Final report for users (PUBLIC-FACING)
+    Agent 4: Synthesis Agent
+    Makes GO/NO-GO decision and writes executive report
+    This is what users see - everything else is invisible.
     """
-
-    def __init__(self, registry: AgentRegistry):
-        super().__init__(
-            name="synthesis_agent",
-            description="Synthesizes final JHA report from agent outputs"
-        )
-        self.registry = registry
-
-    def get_capabilities(self) -> list[ModelCapability]:
-        """AI only for executive summary writing"""
-        return [ModelCapability.STRUCTURED_OUTPUT]
-
-    def get_prompt_template(self) -> str:
-        """Gemini prompt for executive summary"""
-        return """You are Agent 4: Executive Synthesizer.
-
-You receive analysis from Agents 1, 2, and 3.
-Your job: Write a professional executive summary for site supervisors.
-
-═══════════════════════════════════════════
-DECISION (ALREADY CALCULATED)
-═══════════════════════════════════════════
-
-Decision: {decision}
-Score: {decision_score}/100
-
-Decision Factors:
-{decision_factors}
-
-═══════════════════════════════════════════
-AGENT OUTPUTS
-═══════════════════════════════════════════
-
-Agent 1 (Validator):
-- Data quality: {quality_score}/10
-- Stop-work triggers: {stop_work_triggers}
-- Missing critical: {missing_critical}
-
-Agent 2 (Risk Assessor):
-- Weather status: {weather_status}
-- Top hazard: {top_hazard} (score: {top_score})
-- OSHA gaps: {osha_gap_count}
-- Citation risk: {citation_risk}
-
-Agent 3 (Incident Predictor):
-- Predicted incidents: {incident_count}
-- Highest severity: {max_severity}
-- Top incident: {top_incident_name}
-
-═══════════════════════════════════════════
-YOUR JOB: WRITE EXECUTIVE SUMMARY
-═══════════════════════════════════════════
-
-Write 2-3 paragraphs for site supervisor:
-
-Paragraph 1: Overall Assessment
-- Decision (GO/GO_WITH_CONDITIONS/NO_GO)
-- Why this decision was made
-- Key safety concerns
-
-Paragraph 2: Critical Findings
-- Weather status and margins
-- Highest risks identified
-- OSHA compliance concerns
-
-Paragraph 3: Path Forward (if GO_WITH_CONDITIONS)
-- What must be done before work starts
-- What must be monitored during work
-- When to stop work
-
-TONE:
-- Professional, direct, actionable
-- Safety-focused but not alarmist
-- Specific, not generic
-
-DO NOT:
-- Repeat action items (they're listed separately)
-- Use bullet points (prose only)
-- Mention "Agent 1/2/3" (invisible to user)
-- Quote OSHA standards verbatim (cite them)
-
-═══════════════════════════════════════════
-OUTPUT (TEXT ONLY - NOT JSON)
-═══════════════════════════════════════════
-
-<executive_summary>
-Your 2-3 paragraph summary here.
-</executive_summary>"""
-
-    async def execute(self, task: AgentTask) -> AgentResponse:
+    
+    def __init__(self):
+        # Configure Gemini
+        api_key = os.getenv("GOOGLE_API_KEY")
+        genai.configure(api_key=api_key)
+        self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    
+    def synthesize(
+        self, 
+        agent1_output: Dict[str, Any],
+        agent2_output: Dict[str, Any],
+        agent3_output: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Complete synthesis pipeline
         
-        1. Make decision (deterministic)
-        2. Generate action items (deterministic deduplication)
-        3. Write executive summary (AI)
-        4. Extract critical findings
-        5. Define stop-work conditions
+        Args:
+            agent1_output: Validation and enriched data
+            agent2_output: Risk assessment
+            agent3_output: Incident predictions
+            
+        Returns:
+            Final executive report (PUBLIC - what users see)
         """
         
-        start_time = datetime.utcnow()
+        # Extract validation with proper field access
+        validation = agent1_output.get("validation", {})
         
-        try:
-            # Extract all agent outputs
-            # Orchestrator combines: {validation, enriched_data, risk, prediction}
-            
-            # DEFENSIVE: Ensure input_data is a dict
-            if not isinstance(task.input_data, dict):
-                raise ValueError("Invalid input data: expected dict")
-            
-            agent1_validation = task.input_data.get("validation", {})
-            enriched_data = task.input_data.get("enriched_data", {})
-            agent2_risk = task.input_data.get("risk", {})
-            agent3_prediction = task.input_data.get("prediction", {})
-            
-            # DEFENSIVE: Ensure all extracted data are dicts
-            if not isinstance(agent1_validation, dict):
-                agent1_validation = {}
-            if not isinstance(enriched_data, dict):
-                enriched_data = {}
-            if not isinstance(agent2_risk, dict):
-                agent2_risk = {}
-            if not isinstance(agent3_prediction, dict):
-                agent3_prediction = {}
-            
-            # Also get JHA and weather for context
-            jha = enriched_data.get("jha", {})
-            weather = enriched_data.get("weather", {})
-            
-            # DEFENSIVE: Ensure jha and weather are dicts
-            if not isinstance(jha, dict):
-                jha = {}
-            if not isinstance(weather, dict):
-                weather = {}
-            
-            # STEP 1: Make decision (DETERMINISTIC)
-            decision_data = self._make_decision(agent1_validation, agent2_risk, agent3_prediction)
-            
-            # STEP 2: Generate action items (DETERMINISTIC DEDUPLICATION)
-            action_items = self._generate_actions(agent2_risk, agent3_prediction)
-            
-            # STEP 3: Write executive summary (AI)
-            executive_summary = await self._write_summary(
-                decision_data,
-                agent1_validation,
-                agent2_risk,
-                agent3_prediction
-            )
-            
-            # STEP 4: Extract critical findings
-            critical_findings = self._extract_critical_findings(
-                agent1_validation,
-                agent2_risk,
-                agent3_prediction
-            )
-            
-            # STEP 5: Define stop-work conditions
-            stop_work_conditions = self._define_stop_work(
-                agent2_risk,
-                agent3_prediction
-            )
-            
-            # STEP 6: Package final report
-            output = {
-                "finalReport": {
-                    "decision": decision_data["decision"],
-                    "decisionScore": decision_data["decision_score"],
-                    "executiveSummary": executive_summary,
-                    "criticalFindings": critical_findings,
-                    "actionItems": action_items,
-                    "stopWorkConditions": stop_work_conditions,
-                    "weatherMonitoring": agent2_risk.get("weather_analysis", {}),
-                    "metadata": {
-                        "generatedAt": datetime.utcnow().isoformat(),
-                        "projectName": jha.get("jobInfo", {}).get("projectName", "Unknown"),
-                        "location": jha.get("jobInfo", {}).get("location", "Unknown"),
-                        "workType": jha.get("jobInfo", {}).get("workType", "Unknown")
-                    }
-                }
-            }
-            
-            execution_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
-            
-            return AgentResponse(
-                success=True,
-                output_data=output,
-                model_used="deterministic-synthesis",
-                provider=ModelProvider.GOOGLE,
-                execution_time_ms=execution_time,
-                token_usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
-            )
-
-        except Exception as e:
-            execution_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
-            return AgentResponse(
-                success=False,
-                output_data={},
-                model_used="deterministic-synthesis",
-                provider=ModelProvider.GOOGLE,
-                execution_time_ms=execution_time,
-                token_usage={},
-                error=f"Report synthesis failed: {str(e)}"
-            )
-
+        # STEP 1: Make decision (deterministic scoring)
+        decision_data = self._make_decision(agent1_output, agent2_output, agent3_output)
+        
+        # STEP 2: Generate action items (deterministic deduplication)
+        action_items = self._generate_actions(agent2_output, agent3_output)
+        
+        # STEP 3: Write executive summary (Gemini)
+        executive_summary = self._write_summary(
+            decision_data,
+            agent1_output,
+            agent2_output,
+            agent3_output
+        )
+        
+        # STEP 4: Extract critical findings
+        critical_findings = self._extract_critical_findings(
+            agent1_output,
+            agent2_output,
+            agent3_output
+        )
+        
+        # STEP 5: Define stop-work conditions
+        stop_work_conditions = self._define_stop_work(agent2_output)
+        
+        return {
+            "decision": decision_data["decision"],
+            "decisionScore": decision_data["score"],
+            "executiveSummary": executive_summary,
+            "criticalFindings": critical_findings,
+            "actionItems": action_items,
+            "stopWorkConditions": stop_work_conditions,
+            "weatherMonitoring": self._format_weather_monitoring(agent2_output)
+        }
+    
     def _make_decision(
         self,
-        agent1_validation: Dict[str, Any],
-        agent2_risk: Dict[str, Any],
-        agent3_prediction: Dict[str, Any]
+        agent1: Dict[str, Any],
+        agent2: Dict[str, Any],
+        agent3: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        DETERMINISTIC decision logic with weighted scoring
+        Deterministic GO/NO-GO decision using weighted scoring
         """
         
-        decision_score = 100  # Start at GO
+        score = 100  # Start at GO
         factors = []
         
+        # Extract validation data
+        validation = agent1.get("validation", {})
+        
         # FACTOR 1: Data Quality (from Agent 1)
-        quality = agent1_validation.get("qualityScore", 10)
+        quality = validation.get("qualityScore", validation.get("quality_score", 10))
         if quality < 3:
-            decision_score -= 50
-            factors.append(f"Critical data missing (quality: {quality}/10) -50pts")
+            score -= 50
+            factors.append(f"Critical data missing (quality: {quality}/10)")
         elif quality < 6:
-            decision_score -= 20
-            factors.append(f"Significant data gaps (quality: {quality}/10) -20pts")
+            score -= 20
+            factors.append(f"Significant data gaps (quality: {quality}/10)")
         
         # FACTOR 2: Weather Status (from Agent 2)
-        weather_status = agent2_risk.get("weather_analysis", {}).get("status", "GREEN")
+        weather_analysis = agent2.get("weather_analysis", {})
+        weather_status = weather_analysis.get("status", "UNKNOWN")
         if weather_status == "RED":
-            decision_score -= 40
-            factors.append("Weather RED status -40pts")
+            score -= 40
+            factors.append("Weather NO-GO (equipment limits exceeded)")
         elif weather_status == "YELLOW":
-            decision_score -= 20
-            factors.append("Weather YELLOW status -20pts")
+            score -= 20
+            factors.append("Weather caution (marginal conditions)")
         
-        # FACTOR 3: High-Confidence Catastrophic Risks (from Agent 2)
-        catastrophic_count = 0
-        for hazard in agent2_risk.get("hazards", []):
+        # FACTOR 3: High-Confidence Catastrophic Risks
+        for hazard in agent2.get("hazards", []):
             if (hazard.get("likelihood") == "HIGH" and 
                 hazard.get("consequence") == "CATASTROPHIC"):
-                catastrophic_count += 1
-                decision_score -= 30
-        if catastrophic_count > 0:
-            factors.append(f"{catastrophic_count} HIGH/CATASTROPHIC hazard(s) -{catastrophic_count * 30}pts")
+                score -= 30
+                factors.append(f"HIGH/CATASTROPHIC risk: {hazard.get('name', 'Unknown')}")
         
-        # FACTOR 4: Stop-Work Triggers (from Agent 1)
-        stop_work_triggers = agent1_validation.get("stopWorkTriggers", [])
+        # FACTOR 4: Stop-Work Triggers
+        stop_work_triggers = validation.get("stopWorkTriggers", validation.get("stop_work_triggers", []))
         stop_work_count = len(stop_work_triggers)
         if stop_work_count > 0:
-            decision_score -= (stop_work_count * 20)
-            factors.append(f"{stop_work_count} stop-work trigger(s) -{stop_work_count * 20}pts")
+            score -= (stop_work_count * 20)
+            for trigger in stop_work_triggers:
+                factors.append(f"Stop-work trigger: {trigger}")
         
-        # FACTOR 5: OSHA Citation Risk (from Agent 2)
-        citation_risk = agent2_risk.get("citation_risk", "LOW")
-        if citation_risk == "HIGH":
-            decision_score -= 20
-            factors.append("HIGH OSHA citation risk -20pts")
+        # FACTOR 5: OSHA Citation Risk
+        if agent2.get("citation_risk") == "CERTAIN":
+            score -= 20
+            factors.append("CERTAIN OSHA citation risk")
         
-        # DETERMINE DECISION
-        decision_score = max(0, decision_score)  # Floor at 0
+        # Ensure score stays in bounds
+        score = max(0, min(100, score))
         
-        if decision_score < 40:
+        # Determine decision
+        if score < 40:
             decision = "NO_GO"
-        elif decision_score < 70:
+        elif score < 70:
             decision = "GO_WITH_CONDITIONS"
         else:
             decision = "GO"
         
         return {
             "decision": decision,
-            "decision_score": decision_score,
+            "score": score,
             "factors": factors
         }
-
+    
     def _generate_actions(
         self,
-        agent2_risk: Dict[str, Any],
-        agent3_prediction: Dict[str, Any]
+        agent2: Dict[str, Any],
+        agent3: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
         """
-        DETERMINISTIC action item generation with semantic deduplication
+        Semantic deduplication of action items
         """
         
         actions = []
         seen_targets = set()
         
-        # From OSHA gaps (Agent 2)
-        for gap in agent2_risk.get("osha_gaps", []):
-            target = gap.get("standard", "")
-            if target and target not in seen_targets:
+        # From OSHA gaps (Agent 2) - HIGHEST PRIORITY
+        for gap in agent2.get("osha_gaps", []):
+            target = gap.get("standard", "Unknown")
+            if target not in seen_targets:
                 actions.append({
                     "what": gap.get("required_action", "Address compliance gap"),
                     "who": "Site supervisor",
                     "verify": f"Compliance with {target}",
                     "priority": "CRITICAL" if gap.get("severity") == "SERIOUS" else "HIGH",
-                    "source": "OSHA compliance",
-                    "category": "Compliance"
+                    "source": "OSHA compliance"
                 })
                 seen_targets.add(target)
         
         # From predicted incidents (Agent 3)
-        all_predictions = agent3_prediction.get("allPredictions", [])
-        if not all_predictions:
-            # Fallback to single prediction
-            single_pred = agent3_prediction.get("incidentPrediction", {})
-            if single_pred:
-                all_predictions = [single_pred]
-        
-        for incident in all_predictions:
+        for incident in agent3.get("predicted_incidents", []):
             intervention = incident.get("single_best_intervention", "")
-            if intervention:
-                # Only add if not already covered by OSHA actions
-                if not any(intervention.lower() in a["what"].lower() for a in actions):
-                    actions.append({
-                        "what": intervention,
-                        "who": "Crew lead",
-                        "verify": "Hazard eliminated or controlled",
-                        "priority": "CRITICAL" if incident.get("severity") == "CATASTROPHIC" else "HIGH",
-                        "source": "Incident prevention",
-                        "category": "Safety"
-                    })
+            
+            # Only add if not already covered
+            if intervention and not any(
+                intervention.lower() in action["what"].lower() 
+                for action in actions
+            ):
+                actions.append({
+                    "what": intervention,
+                    "who": "Crew lead",
+                    "verify": "Hazard eliminated or controlled",
+                    "priority": "CRITICAL" if incident.get("severity") == "CATASTROPHIC" else "HIGH",
+                    "source": "Incident prevention"
+                })
         
         # Sort by priority
-        priority_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
-        actions.sort(key=lambda x: priority_order.get(x.get("priority", "LOW"), 3))
+        priority_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2}
+        actions.sort(key=lambda x: priority_order.get(x["priority"], 3))
         
-        return actions[:10]  # Max 10 action items
-
-    async def _write_summary(
+        # Limit to top 10
+        return actions[:10]
+    
+    def _write_summary(
         self,
         decision_data: Dict[str, Any],
-        agent1_validation: Dict[str, Any],
-        agent2_risk: Dict[str, Any],
-        agent3_prediction: Dict[str, Any]
+        agent1: Dict[str, Any],
+        agent2: Dict[str, Any],
+        agent3: Dict[str, Any]
     ) -> str:
-        """Use AI to write professional executive summary"""
+        """
+        Use Gemini to write executive summary
+        """
         
+        validation = agent1.get("validation", {})
+        weather_analysis = agent2.get("weather_analysis", {})
+        
+        prompt = f"""You are Agent 4: Executive Synthesizer.
+
+Write a professional executive summary for a site supervisor.
+
+═══════════════════════════════════════════
+DECISION (ALREADY CALCULATED)
+═══════════════════════════════════════════
+
+Decision: {decision_data['decision']}
+Score: {decision_data['score']}/100
+
+Decision Factors:
+{self._format_list(decision_data['factors'])}
+
+═══════════════════════════════════════════
+AGENT OUTPUTS
+═══════════════════════════════════════════
+
+AGENT 1 (VALIDATOR):
+Data Quality: {validation.get('qualityScore', validation.get('quality_score', 'N/A'))}/10
+Stop-Work Triggers: {len(validation.get('stopWorkTriggers', validation.get('stop_work_triggers', [])))}
+Missing Critical: {validation.get('missingCritical', validation.get('missing_critical', []))}
+
+AGENT 2 (RISK ASSESSOR):
+Weather Status: {weather_analysis.get('status', 'UNKNOWN')}
+Weather Finding: {weather_analysis.get('critical_finding', 'N/A')}
+Top Hazard: {agent2.get('top_hazard', 'N/A')} (score: {agent2.get('top_score', 0)})
+OSHA Gaps: {len(agent2.get('osha_gaps', []))}
+Citation Risk: {agent2.get('citation_risk', 'N/A')}
+
+AGENT 3 (INCIDENT PREDICTOR):
+Predicted Incidents: {len(agent3.get('predicted_incidents', []))}
+{self._format_top_incident(agent3.get('predicted_incidents', []))}
+
+═══════════════════════════════════════════
+YOUR JOB: WRITE EXECUTIVE SUMMARY
+═══════════════════════════════════════════
+
+Write 2-3 paragraphs in professional prose:
+
+PARAGRAPH 1: Overall Assessment
+- State the decision clearly (GO/GO_WITH_CONDITIONS/NO_GO)
+- Why this decision was made
+- Key safety concerns at a glance
+
+PARAGRAPH 2: Critical Findings
+- Weather status and equipment margins
+- Highest risks identified
+- OSHA compliance concerns
+- What could go wrong
+
+PARAGRAPH 3: Path Forward (if GO_WITH_CONDITIONS or GO)
+- What must be done before work starts
+- What must be monitored during work
+- When to stop work immediately
+
+If NO_GO:
+- Why work cannot proceed
+- What must change before resubmission
+- Immediate actions required
+
+TONE:
+- Professional, direct, actionable
+- Safety-focused but not alarmist
+- Specific, not generic
+- Respectful of worker safety AND project needs
+
+DO NOT:
+- Use bullet points (prose only)
+- Repeat action items (they're listed separately)
+- Mention "Agent 1/2/3" (invisible to user)
+- Quote OSHA standards verbatim (cite them naturally)
+- Use headers or formatting
+
+OUTPUT: Plain text prose, 2-3 paragraphs."""
+
         try:
-            # Extract data for prompt
-            hazards = agent2_risk.get("hazards", [])
-            top_hazard = hazards[0] if hazards else {}
-            
-            all_predictions = agent3_prediction.get("allPredictions", [])
-            if not all_predictions:
-                single_pred = agent3_prediction.get("incidentPrediction", {})
-                if single_pred:
-                    all_predictions = [single_pred]
-            
-            top_incident = all_predictions[0] if all_predictions else {}
-            
-            # Build prompt
-            prompt = self.get_prompt_template().format(
-                decision=decision_data["decision"],
-                decision_score=decision_data["decision_score"],
-                decision_factors="\n".join(f"- {f}" for f in decision_data["factors"]),
-                quality_score=agent1_validation.get("qualityScore", 0),
-                stop_work_triggers=json.dumps(agent1_validation.get("stopWorkTriggers", [])),
-                missing_critical=json.dumps(agent1_validation.get("missingCritical", [])),
-                weather_status=agent2_risk.get("weather_analysis", {}).get("status", "UNKNOWN"),
-                top_hazard=top_hazard.get("name", "Unknown"),
-                top_score=agent2_risk.get("top_score", 0),
-                osha_gap_count=len(agent2_risk.get("osha_gaps", [])),
-                citation_risk=agent2_risk.get("citation_risk", "UNKNOWN"),
-                incident_count=len(all_predictions),
-                max_severity=top_incident.get("severity", "UNKNOWN"),
-                top_incident_name=top_incident.get("incident_name", "Unknown")
-            )
-            
-            # Call AI
-            adapter = self.registry.route_task(
-                required_capabilities=[ModelCapability.STRUCTURED_OUTPUT],
-                preferred_provider=ModelProvider.GOOGLE
-            )
-            
-            result = await adapter.generate(
-                prompt=prompt,
-                temperature=0.5,  # Balanced for professional writing
-                max_tokens=1000
-            )
-            
-            # Extract summary from response
-            response_text = result.get("text", "")
-            
-            # Parse XML tags if present
-            if "<executive_summary>" in response_text:
-                summary = response_text.split("<executive_summary>")[1].split("</executive_summary>")[0].strip()
-            else:
-                summary = response_text.strip()
-            
-            return summary
+            response = self.model.generate_content(prompt)
+            return response.text.strip()
             
         except Exception as e:
-            print(f"AI summary generation failed: {e}")
-            # Fallback to basic summary
-            return f"Analysis complete. Decision: {decision_data['decision']} (score: {decision_data['decision_score']}/100). Review critical findings and action items below."
-
+            print(f"❌ Error generating summary: {e}")
+            # Fallback summary
+            return f"Safety analysis complete. Decision: {decision_data['decision']} (score: {decision_data['score']}/100). Review critical findings and action items below before proceeding."
+    
     def _extract_critical_findings(
         self,
-        agent1_validation: Dict[str, Any],
-        agent2_risk: Dict[str, Any],
-        agent3_prediction: Dict[str, Any]
+        agent1: Dict[str, Any],
+        agent2: Dict[str, Any],
+        agent3: Dict[str, Any]
     ) -> List[str]:
-        """Extract critical findings from all agents"""
+        """
+        Extract most critical findings across all agents
+        """
         
         findings = []
+        validation = agent1.get("validation", {})
+        weather_analysis = agent2.get("weather_analysis", {})
         
-        # From Agent 1: Stop-work triggers
-        for trigger in agent1_validation.get("stopWorkTriggers", []):
+        # Weather findings
+        if weather_analysis.get("status") in ["YELLOW", "RED"]:
+            findings.append(weather_analysis.get("critical_finding", "Weather conditions require monitoring"))
+        
+        # Stop-work triggers from Agent 1
+        stop_work_triggers = validation.get("stopWorkTriggers", validation.get("stop_work_triggers", []))
+        for trigger in stop_work_triggers:
             findings.append(f"{trigger} - STOP WORK TRIGGER")
         
-        # From Agent 2: Weather status
-        weather_analysis = agent2_risk.get("weather_analysis", {})
-        if weather_analysis.get("status") in ["YELLOW", "RED"]:
-            findings.append(f"{weather_analysis.get('critical_finding', 'Weather concern')} - {weather_analysis['status']} status")
+        # Top incident prediction
+        incidents = agent3.get("predicted_incidents", [])
+        if incidents:
+            top = incidents[0]
+            findings.append(
+                f"{top.get('confidence', 'Unknown')} confidence prediction: {top.get('incident_name', 'Unknown incident')}"
+            )
         
-        # From Agent 2: High-risk hazards
-        for hazard in agent2_risk.get("hazards", [])[:3]:  # Top 3
-            if hazard.get("risk_score", 0) >= 70:
-                findings.append(f"{hazard.get('name', 'Unknown hazard')} (risk score: {hazard['risk_score']}/100)")
-        
-        # From Agent 2: OSHA gaps
-        for gap in agent2_risk.get("osha_gaps", [])[:2]:  # Top 2
+        # High-risk OSHA gaps
+        for gap in agent2.get("osha_gaps", []):
             if gap.get("citation_likelihood") in ["HIGH", "CERTAIN"]:
-                findings.append(f"{gap.get('standard', 'OSHA')} gap: {gap.get('gap', 'Compliance issue')} - {gap['citation_likelihood']} citation risk")
+                findings.append(
+                    f"OSHA {gap.get('standard', 'N/A')} gap: {gap.get('gap', 'Unknown')} - {gap.get('citation_likelihood', 'N/A')} citation risk"
+                )
         
-        # From Agent 3: High-confidence predictions
-        all_predictions = agent3_prediction.get("allPredictions", [])
-        if not all_predictions:
-            single_pred = agent3_prediction.get("incidentPrediction", {})
-            if single_pred:
-                all_predictions = [single_pred]
-        
-        for incident in all_predictions[:2]:  # Top 2
-            if incident.get("confidence") == "HIGH":
-                findings.append(f"High-confidence prediction: {incident.get('incident_name', 'Unknown incident')}")
-        
-        return findings[:7]  # Max 7 critical findings
-
-    def _define_stop_work(
-        self,
-        agent2_risk: Dict[str, Any],
-        agent3_prediction: Dict[str, Any]
-    ) -> List[str]:
-        """Define measurable stop-work conditions"""
+        return findings
+    
+    def _define_stop_work(self, agent2: Dict[str, Any]) -> List[str]:
+        """
+        Define clear stop-work conditions
+        """
         
         conditions = []
+        weather_analysis = agent2.get("weather_analysis", {})
         
-        # From Agent 2: Weather thresholds
-        weather_analysis = agent2_risk.get("weather_analysis", {})
-        for stop_work in weather_analysis.get("stop_work_weather", []):
-            conditions.append(stop_work)
-        
-        # Equipment-specific thresholds
+        # Weather-based stop-work
         equipment_margins = weather_analysis.get("equipment_margins", {})
-        for equipment, margin_data in equipment_margins.items():
-            limit = margin_data.get("limit", 0)
-            conditions.append(f"Wind sustained >{limit}mph ({equipment} limit)")
+        if equipment_margins:
+            # Get worst equipment limit
+            limits = []
+            for equip, margin_data in equipment_margins.items():
+                if isinstance(margin_data, dict):
+                    limits.append(margin_data.get("limit", 25))
+            
+            if limits:
+                min_limit = min(limits)
+                conditions.append(f"Wind sustained >{min_limit}mph or gusts >{min_limit + 5}mph")
         
-        # Generic safety conditions
-        conditions.append("Visibility drops below 1/4 mile")
-        conditions.append("Any worker observes unsafe condition")
-        conditions.append("Weather forecast predicts deteriorating conditions within 2 hours")
+        # Standard stop-work conditions
+        conditions.extend([
+            "Visibility drops below 1/4 mile",
+            "Any worker observes unsafe condition",
+            "Weather forecast predicts deteriorating conditions within 2 hours"
+        ])
         
-        # Deduplicate
-        return list(dict.fromkeys(conditions))[:8]  # Max 8 conditions
+        return conditions
+    
+    def _format_weather_monitoring(self, agent2: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Format weather monitoring guidance
+        """
+        
+        weather_analysis = agent2.get("weather_analysis", {})
+        equipment_margins = weather_analysis.get("equipment_margins", {})
+        
+        # Get worst margin
+        worst_margin = 100
+        if equipment_margins:
+            margins = []
+            for margin_data in equipment_margins.values():
+                if isinstance(margin_data, dict):
+                    margins.append(margin_data.get("margin_percent", 100))
+            if margins:
+                worst_margin = min(margins)
+        
+        # Get equipment limits
+        limits = []
+        if equipment_margins:
+            for margin_data in equipment_margins.values():
+                if isinstance(margin_data, dict):
+                    limits.append(margin_data.get("limit", 25))
+        
+        stop_threshold = f"{min(limits)}mph sustained" if limits else "Equipment limit"
+        status = weather_analysis.get("status", "UNKNOWN")
+        
+        return {
+            "status": status,
+            "currentWind": weather_analysis.get("current_wind", 0),
+            "equipmentMargin": round(worst_margin, 1),
+            "nextCheck": "15 minutes" if status in ["YELLOW", "RED"] else "30 minutes",
+            "stopWorkThreshold": stop_threshold
+        }
+    
+    def _format_list(self, items: List[str]) -> str:
+        """Format list for prompt"""
+        if not items:
+            return "None"
+        return "\n".join(f"- {item}" for item in items)
+    
+    def _format_top_incident(self, incidents: List[Dict]) -> str:
+        """Format top incident for prompt"""
+        if not incidents:
+            return "None predicted"
+        
+        top = incidents[0]
+        return f"Top Incident: {top.get('incident_name', 'Unknown')}\nLikelihood: {top.get('likelihood', 'N/A')}, Severity: {top.get('severity', 'N/A')}, Confidence: {top.get('confidence', 'N/A')}"

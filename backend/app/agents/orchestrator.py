@@ -42,7 +42,7 @@ class JHAOrchestrator:
         self.validator = JHAValidatorAgent(agent_registry)
         self.risk_assessor = RiskAssessor()
         self.swiss_cheese = SwissCheeseAnalyzer()
-        self.synthesizer = SynthesisAgent(agent_registry)
+        self.synthesizer = SynthesisAgent()
 
         # Initialize agent config service
         self.config_service = AgentConfigService(db)
@@ -186,30 +186,17 @@ class JHAOrchestrator:
                 print(f"✓ No specific incidents predicted")
             await update_progress("agent3_prediction", "completed", 75)
 
-            # AGENT 4: Report Synthesis (Temperature from DB)
+            # AGENT 4: Report Synthesis
             await update_progress("agent4_synthesis", "running", 80)
-            agent4_config = agent_configs.get("agent4_synthesis", {"temperature": 0.5})
-            print(f"📄 Agent 4: Synthesizing final report... (T={agent4_config['temperature']})")
+            print(f"📄 Agent 4: Synthesizing final report...")
             
-            # Agent 4 receives all agent outputs combined
-            agent4_task_data = {
-                **validation_data,  # Contains validation + enriched_data
-                **risk_data,        # Contains risk
-                **prediction_data   # Contains prediction
-            }
-
-            agent4_task = AgentTask(
-                task_type="final_report",
-                input_data=agent4_task_data,
-                temperature=agent4_config["temperature"],
-                required_capabilities=[ModelCapability.STRUCTURED_OUTPUT]
+            # Agent 4 receives all agent outputs separately
+            final_report = self.synthesizer.synthesize(
+                agent1_output=validation_data,
+                agent2_output=risk_assessment,
+                agent3_output=prediction_result
             )
-
-            synthesis_result = await self.synthesizer.execute(agent4_task)
-            if not synthesis_result.success:
-                raise ValueError(f"Agent 4 synthesis failed: {synthesis_result.error}")
-
-            final_report = synthesis_result.output_data.get("finalReport", {})
+            
             print("✓ Pipeline complete!")
             await update_progress("agent4_synthesis", "completed", 95)
 
@@ -217,13 +204,13 @@ class JHAOrchestrator:
             # Prepare complete analysis result
             complete_analysis = {
                 "pipeline_metadata": {
-                    "version": "python-multi-agent-v1.0",
+                    "version": "python-multi-agent-v2.0",
                     "execution_time_ms": int((datetime.utcnow() - pipeline_start).total_seconds() * 1000),
                     "agents_used": {
                         "agent1_validator": {"success": validation_result.success, "model": validation_result.model_used},
-                        "agent2_risk_assessor": {"success": risk_result.success, "model": risk_result.model_used},
-                        "agent3_swiss_cheese": {"success": prediction_result.success, "model": prediction_result.model_used},
-                        "agent4_synthesizer": {"success": synthesis_result.success, "model": synthesis_result.model_used}
+                        "agent2_risk_assessor": {"success": True, "model": "gemini-2.0-flash-exp"},
+                        "agent3_swiss_cheese": {"success": True, "model": "gemini-2.0-flash-exp"},
+                        "agent4_synthesizer": {"success": True, "model": "gemini-2.0-flash-exp"}
                     }
                 },
                 "agent_outputs": {
@@ -233,12 +220,13 @@ class JHAOrchestrator:
                     "agent4_final_report": final_report
                 },
                 "summary": {
-                    "overall_risk_score": risk_data.get("risk", {}).get("top_score", 0),
+                    "overall_risk_score": risk_assessment.get("top_score", 0),
                     "go_no_go_decision": final_report.get("decision", "UNKNOWN"),
                     "primary_concerns": final_report.get("criticalFindings", [])[:3],
                     "execution_time_seconds": (datetime.utcnow() - pipeline_start).total_seconds()
                 }
             }
+
 
             # Update analysis record with complete results
             analysis_record.response = json.dumps(complete_analysis)

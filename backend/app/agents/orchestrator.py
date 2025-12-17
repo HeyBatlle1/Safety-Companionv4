@@ -232,7 +232,7 @@ class JHAOrchestrator:
             analysis_record.response = json.dumps(complete_analysis)
             analysis_record.risk_score = complete_analysis["summary"]["overall_risk_score"]
             analysis_record.urgency_level = self._determine_urgency_level(final_report)
-            analysis_record.safety_categories = self._extract_safety_categories(risk_data)
+            analysis_record.safety_categories = self._extract_safety_categories(risk_assessment)
             
             await self.db.commit()
             await self.db.refresh(analysis_record)
@@ -334,16 +334,15 @@ class JHAOrchestrator:
 
     def _determine_urgency_level(self, final_report: Dict[str, Any]) -> str:
         """Determine urgency level from final report"""
-        decision = final_report.get("executiveSummary", {}).get("decision", "GO")
+        # New Agent 4 returns decision at top level (not nested in executiveSummary)
+        decision = final_report.get("decision", "GO")
 
-        if decision == "STOP_WORK":
+        if decision == "STOP_WORK" or decision == "NO_GO":
             return "CRITICAL"
-        elif decision == "NO_GO":
-            return "HIGH"
         elif decision == "GO_WITH_CONDITIONS":
-            return "MEDIUM"
+            return "HIGH"
         else:
-            return "LOW"
+            return "MEDIUM"
 
     def _extract_safety_categories(self, risk_data: Dict[str, Any]) -> list[str]:
         """Extract safety categories from risk assessment"""

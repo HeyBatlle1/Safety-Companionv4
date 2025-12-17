@@ -1,3 +1,4 @@
+# Agent components - imports are done lazily to avoid circular dependencies
 from app.agents.base import (
     BaseAgent,
     AgentTask,
@@ -6,7 +7,6 @@ from app.agents.base import (
     ModelCapability
 )
 from app.agents.registry import AgentRegistry
-from app.agents.profiles.risk_assessor import RiskAssessorAgent
 
 __all__ = [
     "BaseAgent",
@@ -14,6 +14,5 @@ __all__ = [
     "AgentResponse",
     "ModelProvider",
     "ModelCapability",
-    "AgentRegistry",
-    "RiskAssessorAgent"
+    "AgentRegistry"
 ]

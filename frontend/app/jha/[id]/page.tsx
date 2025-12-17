@@ -152,6 +152,51 @@ export default function JHADetailPage() {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Executive Summary Prose */}
+                        {jha.agent_outputs?.agent4_final_report?.executiveSummary && (
+                            <div className="mt-6 pt-6 border-t">
+                                <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                                    {jha.agent_outputs.agent4_final_report.executiveSummary}
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Critical Findings */}
+                        {jha.agent_outputs?.agent4_final_report?.criticalFindings?.length > 0 && (
+                            <div className="mt-6 pt-6 border-t">
+                                <h4 className="font-medium mb-3 flex items-center gap-2">
+                                    <AlertTriangle className="h-4 w-4 text-orange-500" />
+                                    Critical Findings
+                                </h4>
+                                <ul className="space-y-2">
+                                    {jha.agent_outputs.agent4_final_report.criticalFindings.map((finding: string, idx: number) => (
+                                        <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
+                                            <span className="text-orange-500 mt-1">•</span>
+                                            {finding}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {/* Stop Work Conditions */}
+                        {jha.agent_outputs?.agent4_final_report?.stopWorkConditions?.length > 0 && (
+                            <div className="mt-6 pt-6 border-t">
+                                <h4 className="font-medium mb-3 flex items-center gap-2">
+                                    <XCircle className="h-4 w-4 text-red-500" />
+                                    Stop Work Conditions
+                                </h4>
+                                <ul className="space-y-2">
+                                    {jha.agent_outputs.agent4_final_report.stopWorkConditions.map((condition: string, idx: number) => (
+                                        <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
+                                            <span className="text-red-500 mt-1">•</span>
+                                            {condition}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 

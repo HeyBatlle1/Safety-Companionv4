@@ -34,8 +34,24 @@ class SafetyAnalysisOrchestrator:
     4. Agent 4: Synthesize report (with all outputs) → final_report
     """
     
-    def __init__(self, db: AsyncSession):
+    def __init__(self, agent_registry=None, db: AsyncSession = None):
+        """
+        Initialize orchestrator.
+        
+        Args:
+            agent_registry: Optional - kept for backwards compatibility with JHAService
+            db: Database session for persisting results
+        """
+        # Handle both (registry, db) and (db,) signatures  
+        if db is None and agent_registry is not None:
+            # Called as (db,) - first arg is actually db
+            if hasattr(agent_registry, 'execute'):
+                # It's a db session
+                db = agent_registry
+                agent_registry = None
+        
         self.db = db
+        self.agent_registry = agent_registry  # Kept for compatibility
         self.gemini_client = GeminiClient()
         
         # Initialize agents
@@ -355,6 +371,106 @@ class SafetyAnalysisOrchestrator:
                 "matchConfidence": "LOW",
                 "citationsExpected": []
             }
+        }
+
+    async def execute_full_analysis(
+        self,
+        request,
+        user_id,
+        company_id=None
+    ):
+        """
+        Execute full analysis - compatibility wrapper for JHAService.
+        
+        Converts JHAAnalysisRequest to dict format needed by analyze().
+        """
+        from uuid import uuid4
+        from app.models.analysis import AnalysisHistory
+        
+        # Extract data from request
+        job_info = request.jobInfo.model_dump() if hasattr(request.jobInfo, 'model_dump') else request.jobInfo
+        hazards = [h.model_dump() if hasattr(h, 'model_dump') else h for h in request.hazards]
+        control_measures = request.controlMeasures.model_dump() if hasattr(request.controlMeasures, 'model_dump') else request.controlMeasures
+        
+        # Build checklist data
+        checklist_data = {
+            "jobInfo": job_info,
+            "hazards": hazards,
+            "controlMeasures": control_measures,
+            "projectName": job_info.get("projectName", "Unknown"),
+            "location": job_info.get("location", "Unknown"),
+            "workType": job_info.get("workType", "General Construction"),
+            "crewSize": job_info.get("crewSize", 1),
+            "date": job_info.get("date"),
+            "supervisor": job_info.get("supervisor"),
+        }
+        
+        # Default weather data (should be fetched from API)
+        weather_data = {
+            "temperature": 70,
+            "windSpeed": 5,
+            "conditions": "Clear",
+            "precipitation": "None"
+        }
+        
+        # NAICS code defaults
+        work_type = job_info.get("workType", "").lower()
+        if "glaz" in work_type or "glass" in work_type:
+            naics_code = "23815"
+            industry_name = "Glass and glazing contractors"
+            injury_rate = 3.5
+        elif "roof" in work_type:
+            naics_code = "23816"
+            industry_name = "Roofing contractors"
+            injury_rate = 4.7
+        elif "electric" in work_type:
+            naics_code = "23821"
+            industry_name = "Electrical contractors"
+            injury_rate = 2.1
+        else:
+            naics_code = "23"
+            industry_name = "Construction"
+            injury_rate = 2.5
+        
+        # Create analysis record
+        analysis_id = str(uuid4())
+        analysis_record = AnalysisHistory(
+            id=analysis_id,
+            user_id=str(user_id),
+            company_id=str(company_id) if company_id else None,
+            project_name=job_info.get("projectName", "Unknown"),
+            request=json.dumps(checklist_data)
+        )
+        
+        self.db.add(analysis_record)
+        await self.db.commit()
+        await self.db.refresh(analysis_record)
+        
+        # Run the analysis
+        result = await self.analyze(
+            checklist_data=checklist_data,
+            weather_data=weather_data,
+            naics_code=naics_code,
+            industry_name=industry_name,
+            injury_rate=injury_rate,
+            analysis_id=analysis_id,
+            analysis_record=analysis_record
+        )
+        
+        return result
+    
+    async def execute_live_update(
+        self,
+        analysis_id,
+        update_data
+    ):
+        """
+        Execute live update - re-runs Agents 2-4 with updated conditions.
+        """
+        # TODO: Implement live update logic
+        return {
+            "status": "live_update_not_yet_implemented",
+            "analysis_id": str(analysis_id)
         }
 
 

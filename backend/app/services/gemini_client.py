@@ -21,8 +21,8 @@ class GeminiClient:
             raise ValueError("GOOGLE_API_KEY environment variable not set. Check your .env file.")
         
         self.client = genai.Client(api_key=api_key)
-        # Using gemini-2.0-flash-exp for reliability - can switch to 2.5-flash when stable
-        self.default_model = "gemini-2.0-flash-exp"
+        # Using production gemini-2.5-flash (not -exp which has stricter rate limits)
+        self.default_model = "gemini-2.5-flash"
     
     async def generate(
         self,

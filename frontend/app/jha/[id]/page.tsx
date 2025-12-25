@@ -153,12 +153,51 @@ export default function JHADetailPage() {
                             </div>
                         </div>
 
-                        {/* Executive Summary Prose */}
+                        {/* Executive Summary Details */}
                         {jha.agent_outputs?.agent4_final_report?.executiveSummary && (
                             <div className="mt-6 pt-6 border-t">
-                                <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                                    {jha.agent_outputs.agent4_final_report.executiveSummary}
-                                </p>
+                                {/* Handle both string and object formats */}
+                                {typeof jha.agent_outputs.agent4_final_report.executiveSummary === 'string' ? (
+                                    <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                                        {jha.agent_outputs.agent4_final_report.executiveSummary}
+                                    </p>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {/* Top Threats */}
+                                        {jha.agent_outputs.agent4_final_report.executiveSummary.topThreats?.length > 0 && (
+                                            <div>
+                                                <h4 className="text-sm font-medium mb-2">Top Threats</h4>
+                                                <ul className="space-y-1">
+                                                    {jha.agent_outputs.agent4_final_report.executiveSummary.topThreats.map((threat: string, idx: number) => (
+                                                        <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
+                                                            <span className="text-red-500">⚠</span> {threat}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                        {/* Critical Actions */}
+                                        {jha.agent_outputs.agent4_final_report.executiveSummary.criticalActions?.length > 0 && (
+                                            <div>
+                                                <h4 className="text-sm font-medium mb-2">Critical Actions Required</h4>
+                                                <ul className="space-y-1">
+                                                    {jha.agent_outputs.agent4_final_report.executiveSummary.criticalActions.map((action: string, idx: number) => (
+                                                        <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
+                                                            <span className="text-orange-500">→</span> {action}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                        {/* Incident Probability */}
+                                        {jha.agent_outputs.agent4_final_report.executiveSummary.incidentProbability !== undefined && (
+                                            <p className="text-sm text-muted-foreground">
+                                                <span className="font-medium">Incident Probability (next 4hrs):</span>{' '}
+                                                {jha.agent_outputs.agent4_final_report.executiveSummary.incidentProbability}%
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )}
 

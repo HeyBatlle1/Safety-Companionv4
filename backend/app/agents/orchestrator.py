@@ -368,6 +368,66 @@ class SafetyAnalysisOrchestrator:
         
         return categories or ["general_safety"]
     
+    async def _fetch_weather(self, location: str) -> Dict[str, Any]:
+        """Fetch weather data from internal weather API"""
+        import httpx
+        
+        if not location:
+            print("⚠️ No location provided for weather fetch")
+            return {
+                "fetch_status": "FAILED",
+                "error": "No location provided",
+                "temperature": 70,
+                "windSpeed": 5,
+                "conditions": "Unknown"
+            }
+        
+        try:
+            # Extract city name from address (take first part before comma)
+            city = location.split(",")[0].strip()
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"http://localhost:8000/api/v1/weather/current/{city}",
+                    timeout=10.0
+                )
+                
+                if response.status_code == 200:
+                    weather = response.json()
+                    print(f"🌤️ Weather fetched for {city}: {weather.get('temperature')}°F, {weather.get('windSpeed')}mph wind")
+                    return {
+                        "fetch_status": "SUCCESS",
+                        "temperature": weather.get("temperature"),
+                        "feelsLike": weather.get("feelsLike"),
+                        "windSpeed": weather.get("windSpeed"),
+                        "windGust": weather.get("windGust", weather.get("windSpeed")),
+                        "conditions": weather.get("conditions"),
+                        "humidity": weather.get("humidity"),
+                        "visibility": weather.get("visibility"),
+                        "safetyStatus": weather.get("safetyStatus", {}),
+                        "alerts": weather.get("alerts", []),
+                        "source": "OpenWeather"
+                    }
+                else:
+                    print(f"⚠️ Weather API returned status {response.status_code} for {city}")
+                    return {
+                        "fetch_status": "FAILED",
+                        "error": f"Weather API returned status {response.status_code}",
+                        "temperature": 70,
+                        "windSpeed": 5,
+                        "conditions": "Unknown"
+                    }
+                    
+        except Exception as e:
+            print(f"⚠️ Weather fetch failed: {e}")
+            return {
+                "fetch_status": "FAILED",
+                "error": str(e),
+                "temperature": 70,
+                "windSpeed": 5,
+                "conditions": "Unknown"
+            }
+    
     def _fallback_risk_assessment(
         self,
         validation: Dict[str, Any],
@@ -456,13 +516,9 @@ class SafetyAnalysisOrchestrator:
             "supervisor": job_info.get("supervisor"),
         }
         
-        # Default weather data (should be fetched from API)
-        weather_data = {
-            "temperature": 70,
-            "windSpeed": 5,
-            "conditions": "Clear",
-            "precipitation": "None"
-        }
+        # Fetch real weather data from API
+        location = job_info.get("location", "")
+        weather_data = await self._fetch_weather(location)
         
         # NAICS code defaults based on work type
         work_type = job_info.get("workType", "").lower()

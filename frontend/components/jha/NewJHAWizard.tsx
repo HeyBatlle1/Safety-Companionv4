@@ -110,21 +110,23 @@ export function NewJHAWizard() {
                 },
                 hazards: [
                     {
+                        id: '1',
                         category: 'Fall Hazards',
-                        description: formData.top_three_hazards || '',
-                        controls: formData.existing_controls || '',
-                        severity: 'HIGH'
+                        description: formData.top_three_hazards || 'Hazards to be identified',
+                        severity: 'high'
                     }
                 ],
                 controlMeasures: {
-                    ppe: formData.ppe_requirements?.split(',').map((s: string) => s.trim()) || [],
+                    ppe: typeof formData.ppe_requirements === 'string'
+                        ? formData.ppe_requirements.split(',').map((s: string) => s.trim()).filter(Boolean)
+                        : ['hard hat', 'safety glasses'],
                     procedures: [
-                        formData.emergency_response || '',
-                        formData.safety_meetings_jha || '',
-                        formData.weather_monitoring || '',
+                        formData.emergency_response || 'See emergency plan',
+                        formData.safety_meetings_jha || 'Daily toolbox talks',
+                        formData.weather_monitoring || 'Weather monitoring in place',
                     ].filter(Boolean),
-                    emergencyPlan: formData.emergency_response || '',
-                    additionalNotes: ''
+                    emergencyPlan: formData.emergency_response || 'Emergency plan documented',
+                    additionalNotes: formData.existing_controls || ''
                 },
                 // Include all form data for rich context
                 extendedData: {

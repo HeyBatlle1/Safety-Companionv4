@@ -5,7 +5,11 @@ V1 Faithful Port - Uses Gemini 2.5 Flash
 
 import os
 import json
+from dotenv import load_dotenv
 from google import genai
+
+# Load .env file to ensure API keys are available
+load_dotenv()
 
 
 class GeminiClient:
@@ -14,7 +18,7 @@ class GeminiClient:
     def __init__(self):
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
-            raise ValueError("GOOGLE_API_KEY environment variable not set")
+            raise ValueError("GOOGLE_API_KEY environment variable not set. Check your .env file.")
         
         self.client = genai.Client(api_key=api_key)
         self.default_model = "gemini-2.5-flash-preview-05-20"  # V1 model

@@ -290,10 +290,59 @@ class SafetyAnalysisOrchestrator:
         agent_name: str,
         output: Dict[str, Any]
     ):
-        """Save agent output to database (NeonDB agent_outputs table)"""
-        # TODO: Implement NeonDB save when connection is configured
-        # For now, just log
-        pass
+        """Save agent output to NeonDB agent_outputs table"""
+        try:
+            from sqlalchemy import text
+            
+            # Build execution metadata
+            execution_metadata = {
+                "model": "gemini-2.5-flash",
+                "timestamp": datetime.now().isoformat(),
+                "output_size_bytes": len(json.dumps(output)) if output else 0
+            }
+            
+            # Insert into agent_outputs table
+            query = text("""
+                INSERT INTO agent_outputs (
+                    analysis_id,
+                    agent_id,
+                    agent_name,
+                    agent_type,
+                    output_data,
+                    execution_metadata,
+                    success,
+                    created_at
+                ) VALUES (
+                    :analysis_id,
+                    :agent_id,
+                    :agent_name,
+                    :agent_type,
+                    :output_data,
+                    :execution_metadata,
+                    :success,
+                    NOW()
+                )
+            """)
+            
+            await self.db.execute(
+                query,
+                {
+                    "analysis_id": analysis_id,
+                    "agent_id": agent_id,
+                    "agent_name": agent_name,
+                    "agent_type": "multi_agent_safety",
+                    "output_data": json.dumps(output) if output else "{}",
+                    "execution_metadata": json.dumps(execution_metadata),
+                    "success": True
+                }
+            )
+            await self.db.commit()
+            
+            print(f"✅ Saved {agent_name} output for analysis {analysis_id}")
+            
+        except Exception as e:
+            print(f"⚠️ Failed to save {agent_name} output: {e}")
+            # Don't fail the pipeline if save fails
     
     def _determine_urgency_level(self, final_report: Dict[str, Any]) -> str:
         """Determine urgency level from final report"""

@@ -113,7 +113,7 @@ export function useJHAProgress(analysisId: string | null) {
         if (!analysisId) return;
 
         const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const url = `${baseUrl}/api/v1/jha/${analysisId}/progress`;
+        const url = `${baseUrl}/api/v1/jha/stream/${analysisId}`;
 
         console.log(`[SSE] Connecting to: ${url}`);
         const eventSource = new EventSource(url);

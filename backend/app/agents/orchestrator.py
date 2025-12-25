@@ -377,7 +377,8 @@ class SafetyAnalysisOrchestrator:
         self,
         request,
         user_id,
-        company_id=None
+        company_id=None,
+        analysis_id=None  # Accept existing analysis ID from background task
     ):
         """
         Execute full analysis - compatibility wrapper for JHAService.
@@ -386,6 +387,7 @@ class SafetyAnalysisOrchestrator:
         """
         from uuid import uuid4
         from app.models.analysis import AnalysisHistory
+        from sqlalchemy import select
         
         # Extract data from request
         job_info = request.jobInfo.model_dump() if hasattr(request.jobInfo, 'model_dump') else request.jobInfo
@@ -413,7 +415,7 @@ class SafetyAnalysisOrchestrator:
             "precipitation": "None"
         }
         
-        # NAICS code defaults
+        # NAICS code defaults based on work type
         work_type = job_info.get("workType", "").lower()
         if "glaz" in work_type or "glass" in work_type:
             naics_code = "23815"
@@ -432,19 +434,28 @@ class SafetyAnalysisOrchestrator:
             industry_name = "Construction"
             injury_rate = 2.5
         
-        # Create analysis record
-        analysis_id = str(uuid4())
-        analysis_record = AnalysisHistory(
-            id=analysis_id,
-            user_id=str(user_id),
-            company_id=str(company_id) if company_id else None,
-            project_name=job_info.get("projectName", "Unknown"),
-            request=json.dumps(checklist_data)
-        )
+        # Get or create analysis record
+        analysis_record = None
+        if analysis_id:
+            # Use existing record from background task
+            result = await self.db.execute(
+                select(AnalysisHistory).where(AnalysisHistory.id == analysis_id)
+            )
+            analysis_record = result.scalar_one_or_none()
         
-        self.db.add(analysis_record)
-        await self.db.commit()
-        await self.db.refresh(analysis_record)
+        if not analysis_record:
+            # Create new record if not found
+            analysis_id = analysis_id or str(uuid4())
+            analysis_record = AnalysisHistory(
+                id=analysis_id,
+                user_id=str(user_id),
+                company_id=str(company_id) if company_id else None,
+                project_name=job_info.get("projectName", "Unknown"),
+                request=json.dumps(checklist_data)
+            )
+            self.db.add(analysis_record)
+            await self.db.commit()
+            await self.db.refresh(analysis_record)
         
         # Run the analysis
         result = await self.analyze(

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useJHAStore } from '@/stores/jha-store';
 import { useAnalyzeJHA } from '@/hooks/use-api';

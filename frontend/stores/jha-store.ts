@@ -63,7 +63,7 @@ const initialState: JHAFormState = {
         location: '',
         workType: '',
         crewSize: 0,
-        date: new Date().toISOString().split('T')[0],
+        date: new Date().toISOString().split('T')[0]!,
         supervisor: '',
         company: '',
     },

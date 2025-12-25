@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, Circle, Loader2, ArrowRight, ShieldCheck, AlertTriangle, Lightbulb, FileText } from 'lucide-react';
+import { CheckCircle2, Circle, Loader2, ShieldCheck, AlertTriangle, Lightbulb, FileText } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 
@@ -75,7 +75,7 @@ export function ProgressTracker({ currentAgent, agentStatus, progress, elapsedMs
                 <Progress value={progress} className="h-2" />
 
                 <div className="space-y-2">
-                    {steps.map((step, index) => {
+                    {steps.map((step) => {
                         const status = getStepStatus(step.id);
                         const isRunning = status === 'running';
                         const isCompleted = status === 'completed';
@@ -84,11 +84,11 @@ export function ProgressTracker({ currentAgent, agentStatus, progress, elapsedMs
                             <div
                                 key={step.id}
                                 className={`flex items-center gap-4 p-3 rounded-lg transition-all duration-300 ${isRunning ? 'bg-primary/5 border border-primary/20 scale-[1.02]' :
-                                        isCompleted ? 'bg-muted/30' : 'opacity-50'
+                                    isCompleted ? 'bg-muted/30' : 'opacity-50'
                                     }`}
                             >
                                 <div className={`p-2 rounded-full ${isRunning ? 'bg-primary text-primary-foreground' :
-                                        isCompleted ? 'bg-green-500 text-white' : 'bg-muted text-muted-foreground'
+                                    isCompleted ? 'bg-green-500 text-white' : 'bg-muted text-muted-foreground'
                                     }`}>
                                     {isCompleted ? (
                                         <CheckCircle2 className="h-5 w-5" />

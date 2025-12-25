@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertCircle, CheckCircle, ChevronLeft, ChevronRight, Shield, Loader2 } from 'lucide-react';
-import { useAnalyzeJHA } from '@/lib/api/use-api';
+import { useAnalyzeJHA } from '@/hooks/use-api';
 
 export function NewJHAWizard() {
     const router = useRouter();
@@ -26,8 +26,9 @@ export function NewJHAWizard() {
 
     const analyzeJHA = useAnalyzeJHA();
 
-    const card = JHA_FORM_SCHEMA.cards[currentCard];
+    const card = JHA_FORM_SCHEMA.cards[currentCard]!;
     const progress = ((currentCard + 1) / JHA_FORM_SCHEMA.cards.length) * 100;
+    const nextCard = JHA_FORM_SCHEMA.cards[currentCard + 1];
 
     const validateCard = (): boolean => {
         const errors: Record<string, string> = {};
@@ -157,11 +158,12 @@ export function NewJHAWizard() {
                 }
             };
 
-            const response = await analyzeJHA.mutateAsync(requestData);
+            const response = await analyzeJHA.mutateAsync(requestData as any);
 
             // Navigate to results page
-            if (response?.id) {
-                router.push(`/jha/${response.id}`);
+            const analysisId = (response as any)?.id;
+            if (analysisId) {
+                router.push(`/jha/${analysisId}`);
             }
         } catch (error) {
             console.error('Analysis submission failed:', error);
@@ -338,7 +340,7 @@ export function NewJHAWizard() {
 
                     {currentCard < JHA_FORM_SCHEMA.cards.length - 1 ? (
                         <Button onClick={handleNext} className="gap-2">
-                            Next: {JHA_FORM_SCHEMA.cards[currentCard + 1].title.split(' ')[0]}
+                            Next: {nextCard?.title?.split(' ')[0] || 'Card'}
                             <ChevronRight className="h-4 w-4" />
                         </Button>
                     ) : (
@@ -384,10 +386,10 @@ export function NewJHAWizard() {
                         }}
                         disabled={idx > currentCard}
                         className={`w-3 h-3 rounded-full transition-colors ${idx === currentCard
-                                ? 'bg-primary'
-                                : idx < currentCard
-                                    ? 'bg-primary/50 cursor-pointer hover:bg-primary/70'
-                                    : 'bg-muted cursor-not-allowed'
+                            ? 'bg-primary'
+                            : idx < currentCard
+                                ? 'bg-primary/50 cursor-pointer hover:bg-primary/70'
+                                : 'bg-muted cursor-not-allowed'
                             }`}
                     />
                 ))}

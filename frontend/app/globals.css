@@ -3,121 +3,135 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Stone/Slate Theme - Dark, Modern, Professional */
-/* Sophisticated dark palette with subtle textures and depth */
+/* Mint Green & Emerald Theme - Fresh, Professional, Safety-Focused */
+/* Light mint green accents with dark emerald sidebar/menu */
 
 :root {
-  /* Backgrounds - Dark slate with depth */
-  --background: 222.2 47.4% 11.2%;
-  /* slate-900 */
-  --foreground: 210 40% 98%;
-  /* near-white */
+  /* Backgrounds - Deep emerald with depth */
+  --background: 160 30% 8%;
+  /* very dark emerald */
+  --foreground: 150 20% 95%;
+  /* near-white with green tint */
 
-  /* Cards - Slightly lighter slate for elevation */
-  --card: 215.3 25% 16.9%;
-  /* slate-800 */
-  --card-foreground: 210 40% 98%;
-  --card-border: 215.3 19.3% 34.5%;
-  /* slate-600 for subtle highlight */
+  /* Cards - Slightly lighter emerald for elevation */
+  --card: 160 25% 12%;
+  /* dark emerald */
+  --card-foreground: 150 20% 95%;
+  --card-border: 158 25% 25%;
+  /* emerald border */
 
   /* Popovers */
-  --popover: 215.3 25% 16.9%;
-  --popover-foreground: 210 40% 98%;
+  --popover: 160 25% 12%;
+  --popover-foreground: 150 20% 95%;
 
-  /* Primary - Medium slate (professional, neutral) */
-  --primary: 215.4 16.3% 46.9%;
-  /* slate-500 #64748b */
-  --primary-foreground: 210 40% 98%;
+  /* Primary - Light mint green (main accent) */
+  --primary: 156 72% 67%;
+  /* mint green #6ee7b7 */
+  --primary-foreground: 160 30% 8%;
+  /* dark text on mint */
 
-  /* Secondary - Deeper slate for contrast */
-  --secondary: 215.3 19.3% 34.5%;
-  /* slate-600 #475569 */
-  --secondary-foreground: 210 40% 98%;
+  /* Secondary - Medium emerald for contrast */
+  --secondary: 158 64% 32%;
+  /* emerald #059669 */
+  --secondary-foreground: 150 20% 95%;
 
-  /* Muted - Dark slate for subtle backgrounds */
-  --muted: 217.2 32.6% 17.9%;
-  /* slate-800 */
-  --muted-foreground: 215 20.2% 65.1%;
-  /* slate-400 */
+  /* Muted - Dark emerald for subtle backgrounds */
+  --muted: 160 25% 15%;
+  /* dark emerald */
+  --muted-foreground: 152 30% 60%;
+  /* muted mint */
 
-  /* Accent - Subtle construction orange (use sparingly) */
+  /* Accent - Construction orange (keep for alerts/highlights) */
   --accent: 24.6 95% 53.1%;
   /* orange-500 #f97316 */
-  --accent-foreground: 222.2 47.4% 11.2%;
+  --accent-foreground: 160 30% 8%;
 
   /* Destructive - Alert red */
   --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 40% 98%;
+  --destructive-foreground: 150 20% 95%;
 
-  /* Borders - Subtle slate */
-  --border: 217.2 32.6% 17.9%;
-  /* slate-800 */
-  --input: 217.2 32.6% 17.9%;
-  --ring: 215.4 16.3% 46.9%;
-  /* slate-500 */
+  /* Borders - Subtle emerald */
+  --border: 160 20% 18%;
+  /* dark emerald border */
+  --input: 160 20% 18%;
+  --ring: 156 72% 67%;
+  /* mint green ring */
 
-  /* Chart colors - stone palette with orange accent */
+  /* Chart colors - emerald palette with orange accent */
   --chart-1: 24.6 95% 53.1%;
   /* orange */
-  --chart-2: 215.4 16.3% 46.9%;
-  /* slate */
-  --chart-3: 217.2 91.2% 59.8%;
-  /* blue */
+  --chart-2: 156 72% 67%;
+  /* mint green */
+  --chart-3: 158 64% 52%;
+  /* emerald */
   --chart-4: 142.1 76.2% 36.3%;
   /* green */
-  --chart-5: 262.1 83.3% 57.8%;
-  /* purple */
+  --chart-5: 152 60% 45%;
+  /* teal */
 
   /* Radius - subtle, professional */
   --radius: 0.5rem;
 
+  /* Sidebar - Dark Notre Dame Emerald */
+  --sidebar: 158 50% 12%;
+  /* Notre Dame green dark */
+  --sidebar-foreground: 150 20% 95%;
+  --sidebar-primary: 156 72% 67%;
+  /* mint accent */
+  --sidebar-primary-foreground: 160 30% 8%;
+  --sidebar-accent: 158 64% 32%;
+  /* emerald */
+  --sidebar-accent-foreground: 150 20% 95%;
+  --sidebar-border: 158 30% 20%;
+  --sidebar-ring: 156 72% 67%;
+
   /* Bottom Nav - mobile-first */
   --bottom-nav-height: 4rem;
   /* 64px */
-  --bottom-nav-bg: 215.3 25% 16.9%;
-  /* slate-800 */
-  --bottom-nav-border: 215.3 19.3% 34.5%;
-  /* slate-600 */
+  --bottom-nav-bg: 158 50% 12%;
+  /* Notre Dame emerald */
+  --bottom-nav-border: 158 30% 25%;
+  /* emerald border */
 }
 
-/* Light mode - lighter stone/slate tones (optional) */
+/* Light mode - mint green and emerald tones */
 .light {
-  --background: 210 20% 98%;
-  /* slate-50 */
-  --foreground: 222.2 47.4% 11.2%;
-  /* slate-900 */
+  --background: 150 30% 97%;
+  /* very light mint */
+  --foreground: 160 30% 10%;
+  /* dark emerald text */
 
   --card: 0 0% 100%;
   /* white */
-  --card-foreground: 222.2 47.4% 11.2%;
+  --card-foreground: 160 30% 10%;
 
   --popover: 0 0% 100%;
-  --popover-foreground: 222.2 47.4% 11.2%;
+  --popover-foreground: 160 30% 10%;
 
-  --primary: 215.4 16.3% 46.9%;
-  /* slate-500 */
-  --primary-foreground: 210 40% 98%;
+  --primary: 158 64% 32%;
+  /* emerald #059669 */
+  --primary-foreground: 150 20% 95%;
 
-  --secondary: 215.3 19.3% 34.5%;
-  /* slate-600 */
-  --secondary-foreground: 210 40% 98%;
+  --secondary: 156 72% 67%;
+  /* mint green */
+  --secondary-foreground: 160 30% 10%;
 
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
+  --muted: 150 20% 94%;
+  --muted-foreground: 158 30% 40%;
 
   --accent: 24.6 95% 53.1%;
   /* orange-500 */
   --accent-foreground: 0 0% 100%;
 
   --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 40% 98%;
+  --destructive-foreground: 150 20% 95%;
 
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-  --ring: 215.4 16.3% 46.9%;
+  --border: 150 20% 88%;
+  --input: 150 20% 88%;
+  --ring: 158 64% 32%;
 
   --bottom-nav-bg: 0 0% 100%;
-  --bottom-nav-border: 214.3 31.8% 91.4%;
+  --bottom-nav-border: 150 20% 88%;
 }
 
 @theme inline {
@@ -194,9 +208,9 @@
     z-index: -1;
     opacity: 0.03;
     background:
-      radial-gradient(circle at 20% 50%, rgba(100, 116, 139, 0.4) 0%, transparent 50%),
+      radial-gradient(circle at 20% 50%, rgba(16, 185, 129, 0.4) 0%, transparent 50%),
       radial-gradient(circle at 80% 80%, rgba(248, 113, 22, 0.3) 0%, transparent 50%),
-      radial-gradient(circle at 40% 20%, rgba(71, 85, 105, 0.4) 0%, transparent 50%);
+      radial-gradient(circle at 40% 20%, rgba(5, 150, 105, 0.4) 0%, transparent 50%);
     animation: subtleFloat 20s ease-in-out infinite;
   }
 

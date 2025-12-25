@@ -1,7 +1,8 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useJHADetails } from '@/hooks/use-api';
+import { useJHADetails, useJHAProgress } from '@/hooks/use-api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +10,7 @@ import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Shield, FileText, Down
 import { format } from 'date-fns';
 import { OSHAComplianceSection } from '@/components/jha/OSHAComplianceSection';
 import { ActionPlanSection } from '@/components/jha/ActionPlanSection';
+import { ProgressTracker } from '@/components/jha/progress-tracker';
 
 export default function JHADetailPage() {
     const params = useParams();
@@ -47,37 +49,31 @@ export default function JHADetailPage() {
 
     // Handle processing/error/failed states
     // @ts-ignore - status field not in strict type definition yet
-    if (jha.status === 'processing' || jha.status === 'error' || jha.status === 'failed' || jha.status === 'broken') {
+    if (jha.status === 'processing' || jha.status === 'queued') {
+        return <ProcessingView analysisId={id} onComplete={() => window.location.reload()} />;
+    }
+
+    // @ts-ignore
+    if (jha.status === 'error' || jha.status === 'failed' || jha.status === 'broken') {
         return (
             <div className="flex h-[50vh] flex-col items-center justify-center gap-4">
+                <div className="rounded-full bg-orange-500/10 p-4">
+                    <AlertTriangle className="h-8 w-8 text-orange-500" />
+                </div>
+                <h2 className="text-xl font-semibold">Analysis Incomplete</h2>
+                <p className="max-w-md text-center text-muted-foreground">
+                    The analysis could not be fully completed. Some data may be missing.
+                </p>
                 {/* @ts-ignore */}
-                {jha.status === 'processing' ? (
-                    <>
-                        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                        <h2 className="text-xl font-semibold">Analysis in Progress</h2>
-                        <p className="text-muted-foreground">Please wait while agents complete their assessment...</p>
-                    </>
-                ) : (
-                    <>
-                        <div className="rounded-full bg-orange-500/10 p-4">
-                            <AlertTriangle className="h-8 w-8 text-orange-500" />
-                        </div>
-                        <h2 className="text-xl font-semibold">Analysis Incomplete</h2>
-                        <p className="max-w-md text-center text-muted-foreground">
-                            The analysis could not be fully completed. Some data may be missing.
-                        </p>
+                {jha.error && (
+                    <div className="mt-2 rounded bg-muted p-2 text-xs font-mono">
                         {/* @ts-ignore */}
-                        {jha.error && (
-                            <div className="mt-2 rounded bg-muted p-2 text-xs font-mono">
-                                {/* @ts-ignore */}
-                                {jha.error}
-                            </div>
-                        )}
-                        <Button variant="outline" onClick={() => router.push('/jha')}>
-                            Return to History
-                        </Button>
-                    </>
+                        {jha.error}
+                    </div>
                 )}
+                <Button variant="outline" onClick={() => router.push('/jha')}>
+                    Return to History
+                </Button>
             </div>
         );
     }
@@ -461,6 +457,37 @@ export default function JHADetailPage() {
                             <ActionPlanSection actionItems={jha.agent_outputs.agent4_final_report.actionItems || []} />
                         </CardContent>
                     </Card>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// Processing View Component - shows SSE-powered progress tracker
+function ProcessingView({ analysisId, onComplete }: { analysisId: string; onComplete: () => void }) {
+    const progress = useJHAProgress(analysisId);
+
+    useEffect(() => {
+        if (progress.status === 'completed') {
+            // Small delay to show completion before reloading
+            const timer = setTimeout(onComplete, 1000);
+            return () => clearTimeout(timer);
+        }
+        return undefined;
+    }, [progress.status, onComplete]);
+
+    return (
+        <div className="flex h-[70vh] flex-col items-center justify-center p-4">
+            <ProgressTracker
+                currentAgent={progress.currentAgent}
+                agentStatus={progress.agentStatus}
+                progress={progress.progress}
+                elapsedMs={progress.elapsedMs}
+            />
+
+            {progress.status === 'error' && progress.error && (
+                <div className="mt-4 max-w-md p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-500 text-sm">
+                    {progress.error}
                 </div>
             )}
         </div>

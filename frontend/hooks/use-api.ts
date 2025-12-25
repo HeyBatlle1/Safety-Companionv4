@@ -82,3 +82,103 @@ export function useJHAHealth() {
         staleTime: 30 * 1000, // Health check is fresh for 30 seconds
     });
 }
+
+// JHA Progress SSE Hook
+import { useState, useEffect } from 'react';
+
+export interface JHAProgressState {
+    status: 'connecting' | 'processing' | 'completed' | 'error';
+    currentAgent: string;
+    agentStatus: string;
+    progress: number;
+    elapsedMs: number;
+    finalReport: any | null;
+    error: string | null;
+}
+
+export function useJHAProgress(analysisId: string | null) {
+    const [state, setState] = useState<JHAProgressState>({
+        status: 'connecting',
+        currentAgent: 'system',
+        agentStatus: 'initializing',
+        progress: 0,
+        elapsedMs: 0,
+        finalReport: null,
+        error: null,
+    });
+
+    const queryClient = useQueryClient();
+
+    useEffect(() => {
+        if (!analysisId) return;
+
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const url = `${baseUrl}/api/v1/jha/${analysisId}/progress`;
+
+        console.log(`[SSE] Connecting to: ${url}`);
+        const eventSource = new EventSource(url);
+
+        eventSource.onopen = () => {
+            console.log('[SSE] Connection opened');
+            setState(prev => ({ ...prev, status: 'processing' }));
+        };
+
+        eventSource.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                console.log('[SSE] Message:', data);
+
+                if (data.status === 'completed') {
+                    setState({
+                        status: 'completed',
+                        currentAgent: 'completed',
+                        agentStatus: 'done',
+                        progress: 100,
+                        elapsedMs: data.elapsed_ms || 0,
+                        finalReport: data.final_report || null,
+                        error: null,
+                    });
+                    // Invalidate queries to refresh data
+                    queryClient.invalidateQueries({ queryKey: ['jhaDetails', analysisId] });
+                    eventSource.close();
+                } else if (data.status === 'error' || data.status === 'failed') {
+                    setState({
+                        status: 'error',
+                        currentAgent: data.current_agent || 'unknown',
+                        agentStatus: 'error',
+                        progress: data.progress || 0,
+                        elapsedMs: data.elapsed_ms || 0,
+                        finalReport: null,
+                        error: data.error || 'Analysis failed',
+                    });
+                    eventSource.close();
+                } else {
+                    setState({
+                        status: 'processing',
+                        currentAgent: data.current_agent || 'system',
+                        agentStatus: data.agent_status || 'processing',
+                        progress: data.progress || 0,
+                        elapsedMs: data.elapsed_ms || 0,
+                        finalReport: null,
+                        error: null,
+                    });
+                }
+            } catch (e) {
+                console.error('[SSE] Parse error:', e);
+            }
+        };
+
+        eventSource.onerror = (error) => {
+            console.error('[SSE] Error:', error);
+            // Don't set error state for connection issues, might just be the stream ending
+            eventSource.close();
+        };
+
+        return () => {
+            console.log('[SSE] Closing connection');
+            eventSource.close();
+        };
+    }, [analysisId, queryClient]);
+
+    return state;
+}

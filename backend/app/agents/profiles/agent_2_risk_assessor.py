@@ -10,7 +10,9 @@ Max Tokens: 16,000
 """
 
 import json
+import os
 from typing import Dict, Any, Optional, List
+import asyncpg
 from app.services.gemini_client import GeminiClient
 
 
@@ -19,7 +21,7 @@ class Agent2RiskAssessor:
     OSHA Risk Assessor with BLS Data Integration
     
     Calculates quantitative risk scores using:
-    - Industry injury rates (BLS data)
+    - Industry injury rates (BLS data from NeonDB)
     - Hazard type multipliers (OSHA Fatal Four)
     - Control adequacy multipliers
     - Weather multipliers
@@ -32,13 +34,19 @@ class Agent2RiskAssessor:
         self.temperature = 0.7  # Analytical reasoning
         self.max_tokens = 16000  # 2x increased for detailed OSHA analysis
         
+        # NeonDB connection string
+        self.neon_url = os.getenv(
+            "DATABASE_URL",
+            "postgresql://neondb_owner:npg_qGUi6S1NEZar@ep-steep-sun-a5q75vzf-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require"
+        )
+        
         # Default OSHA/BLS data for construction (fallback)
         self.default_osha_data = {
             "naics_code": "23",
             "industry_name": "Construction",
-            "injury_rate": 3.5,  # Per 100 workers annually
-            "total_cases": 174700,
-            "data_source": "BLS 2023"
+            "injury_rate": 2.5,  # Per 100 workers annually (BLS 2023)
+            "total_cases": 195300,
+            "data_source": "BLS_Table_1_2023"
         }
     
     async def get_osha_data(self, naics_code: str) -> Dict[str, Any]:
@@ -48,14 +56,55 @@ class Agent2RiskAssessor:
         Returns industry injury rates and statistics.
         Falls back to construction baseline if not found.
         """
-        # TODO: Implement NeonDB query when osha_injury_rates table is added
-        # SQL:
-        # SELECT naics_code, industry_name, injury_rate, total_cases, data_source
-        # FROM osha_injury_rates
-        # WHERE naics_code = $1
-        
-        # For now, use construction baseline
-        return self.default_osha_data
+        try:
+            conn = await asyncpg.connect(self.neon_url)
+            
+            # Query for exact match first
+            row = await conn.fetchrow(
+                """
+                SELECT naics_code, industry_name, injury_rate, total_cases, data_source
+                FROM osha_injury_rates
+                WHERE naics_code = $1 AND data_source LIKE 'BLS_Table%'
+                LIMIT 1
+                """,
+                naics_code
+            )
+            
+            # If no exact match, try parent NAICS codes
+            if not row and len(naics_code) > 2:
+                # Try progressively shorter NAICS codes (23815 -> 2381 -> 238 -> 23)
+                for length in [4, 3, 2]:
+                    if len(naics_code) >= length:
+                        parent_code = naics_code[:length]
+                        row = await conn.fetchrow(
+                            """
+                            SELECT naics_code, industry_name, injury_rate, total_cases, data_source
+                            FROM osha_injury_rates
+                            WHERE naics_code = $1 AND data_source LIKE 'BLS_Table%'
+                            LIMIT 1
+                            """,
+                            parent_code
+                        )
+                        if row:
+                            break
+            
+            await conn.close()
+            
+            if row:
+                return {
+                    "naics_code": row["naics_code"],
+                    "industry_name": row["industry_name"],
+                    "injury_rate": float(row["injury_rate"]) if row["injury_rate"] else 2.5,
+                    "total_cases": row["total_cases"],
+                    "data_source": row["data_source"]
+                }
+            
+            # Fallback to default
+            return self.default_osha_data
+            
+        except Exception as e:
+            print(f"⚠️ NeonDB query failed: {e}, using fallback")
+            return self.default_osha_data
     
     async def assess_risk(
         self,

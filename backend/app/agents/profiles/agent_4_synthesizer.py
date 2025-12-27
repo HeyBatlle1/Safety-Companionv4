@@ -35,50 +35,88 @@ class Agent4Synthesizer:
         weather_data: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        EXACT V1 LOGIC (from lines 711-755):
+        EXACT V1 LOGIC (from lines 1359-1407):
         
         Decision tree:
         1. If dataQuality == 'LOW' → NO_GO
-        2. If windSpeed > 30 mph → STOP_WORK
-        3. If topHazard.riskScore >= 95 → STOP_WORK (EXTREME)
-        4. If topHazard.riskScore >= 75 → GO_WITH_CONDITIONS (HIGH)
-        5. If missingCritical.length > 5 → NO_GO
-        6. Otherwise → GO
+        2. If windSpeed > 20 mph (OSHA crane limit) → STOP_WORK
+        3. If temperature < 32°F or > 95°F → Add condition
+        4. If topHazard.riskScore > 85 AND riskLevel == EXTREME → STOP_WORK
+        5. If prediction.confidence == HIGH AND probability > 70 → STOP_WORK
+        6. If missingCritical.length > 5 → NO_GO
+        7. If topHazard.riskScore > 70 AND inadequateControls → Add conditions
+        8. If topHazard.riskScore >= 75 → GO_WITH_CONDITIONS (HIGH)
+        9. Otherwise → GO
         """
         # Get top hazard
         hazards = risk.get("hazards", [])
         top_hazard = hazards[0] if hazards else {"riskScore": 0}
         
-        stop_work_reasons = []
         conditions = []
         
-        # Data quality check
+        # 1. DATA QUALITY: LOW = NO_GO
         if validation.get("dataQuality") == "LOW":
             return {
                 "decision": "NO_GO",
-                "reasons": ["Insufficient data quality for safe operations"],
+                "reasons": [f"Insufficient data quality (score: {validation.get('qualityScore', 0)}/10)"],
                 "conditions": []
             }
         
-        # Weather check
+        # 2. WEATHER: Wind > 20 mph (OSHA crane limit)
         wind_speed = weather_data.get("windSpeed", 0)
-        if wind_speed > 30:
+        if wind_speed > 20:
             return {
                 "decision": "STOP_WORK",
-                "reasons": [f"Wind speed {wind_speed} mph exceeds safe limit (30 mph)"],
+                "reasons": [f"Wind speed {wind_speed} mph exceeds OSHA safe limit (20 mph for crane operations)"],
                 "conditions": []
             }
         
-        # EXTREME risk = immediate stop
+        # 3. WEATHER: Temperature extremes
+        temperature = weather_data.get("temperature", 70)
+        if temperature < 32:
+            conditions.append(f"Implement cold stress prevention plan (temp: {temperature}°F)")
+        elif temperature > 95:
+            conditions.append(f"Implement heat stress prevention plan (temp: {temperature}°F)")
+        
+        # 4. RISK: Extreme risk score + level (V1 lines 1381-1386)
         risk_score = top_hazard.get("riskScore", 0)
-        if risk_score >= 95:
+        risk_level = top_hazard.get("riskLevel", "")
+        if risk_score > 85 and risk_level == "EXTREME":
             return {
                 "decision": "STOP_WORK",
-                "reasons": ["EXTREME risk level (95+) requires immediate stop-work"],
+                "reasons": [f"EXTREME risk detected: {top_hazard.get('name', 'Unknown hazard')} ({risk_score}/100)"],
                 "conditions": []
             }
         
-        # HIGH risk = go with conditions
+        # 5. PREDICTION: High confidence incident (V1 lines 1389-1393)
+        pred_confidence = prediction.get("confidence", "")
+        pred_probability = prediction.get("probability", 0)
+        pred_name = prediction.get("incidentName", "incident")
+        pred_timeframe = prediction.get("timeframe", "next 4 hours")
+        
+        if pred_confidence == "HIGH" and pred_probability > 70:
+            return {
+                "decision": "STOP_WORK",
+                "reasons": [f"High-confidence prediction ({pred_probability}%) of {pred_name} in {pred_timeframe}"],
+                "conditions": []
+            }
+        
+        # 6. Too many missing fields
+        missing_critical = validation.get("missingCritical", [])
+        if len(missing_critical) > 5:
+            return {
+                "decision": "NO_GO",
+                "reasons": ["Too many critical fields missing (>5)"],
+                "conditions": []
+            }
+        
+        # 7. CONTROLS: Inadequate controls for high-risk work (V1 lines 1396-1400)
+        inadequate_controls = top_hazard.get("inadequateControls", [])
+        if risk_score > 70 and len(inadequate_controls) > 0:
+            for control in inadequate_controls[:2]:  # Top 2
+                conditions.append(f"Address control gap: {control}")
+        
+        # 8. HIGH risk = go with conditions
         if risk_score >= 75:
             conditions.append("Additional controls must be implemented before proceeding")
             recommended_controls = top_hazard.get("recommendedControls", [])[:3]
@@ -90,16 +128,15 @@ class Agent4Synthesizer:
                 "conditions": conditions
             }
         
-        # Too many missing fields
-        missing_critical = validation.get("missingCritical", [])
-        if len(missing_critical) > 5:
+        # 9. If we have conditions from temperature, return GO_WITH_CONDITIONS
+        if len(conditions) > 0:
             return {
-                "decision": "NO_GO",
-                "reasons": ["Too many critical fields missing (>5)"],
-                "conditions": []
+                "decision": "GO_WITH_CONDITIONS",
+                "reasons": ["Weather conditions require additional precautions"],
+                "conditions": conditions
             }
         
-        # Otherwise GO
+        # 10. Otherwise GO
         return {
             "decision": "GO",
             "reasons": ["Risk levels acceptable with current controls"],
@@ -166,59 +203,92 @@ class Agent4Synthesizer:
         """
         Assess emergency response readiness.
         
-        Checks for:
-        - Emergency evacuation plan present
-        - Assembly point identified
-        - First aid kit location
-        - Emergency contacts
-        - Rescue plan for top hazard
+        Enhanced to search nested checklist sections like V1 (lines 1449-1499).
         """
         gaps = []
         recommendations = []
         
-        # Check for emergency plan
-        emergency_plan = checklist_data.get("emergencyPlan", "")
-        if not emergency_plan or emergency_plan.lower() in ["n/a", "none", ""]:
-            gaps.append("No emergency evacuation plan documented")
-            recommendations.append("Document emergency evacuation routes and procedures")
+        # Helper: Search all checklist fields for keyword
+        def has_keyword_in_checklist(keyword: str) -> bool:
+            """Search all sections/responses for keyword"""
+            keyword_lower = keyword.lower()
+            
+            # Check top-level fields
+            for key, value in checklist_data.items():
+                if isinstance(value, str) and keyword_lower in value.lower():
+                    return True
+            
+            # Check nested job_info
+            job_info = checklist_data.get("jobInfo", {})
+            for value in job_info.values():
+                if isinstance(value, str) and keyword_lower in value.lower():
+                    return True
+            
+            # Check hazards array
+            for hazard in checklist_data.get("hazards", []):
+                for value in hazard.values():
+                    if isinstance(value, str) and keyword_lower in value.lower():
+                        return True
+            
+            # Check control measures
+            controls = checklist_data.get("controlMeasures", {})
+            for key, value in controls.items():
+                if isinstance(value, str) and keyword_lower in value.lower():
+                    return True
+                elif isinstance(value, list):
+                    for item in value:
+                        if isinstance(item, str) and keyword_lower in item.lower():
+                            return True
+            
+            return False
         
-        # Check for assembly point
-        assembly = checklist_data.get("assemblyPoint", "")
-        if not assembly:
-            gaps.append("No assembly point identified")
-            recommendations.append("Designate emergency assembly location")
+        # Check for rescue plan
+        has_rescue = has_keyword_in_checklist("rescue")
         
         # Check for first aid
-        first_aid = checklist_data.get("firstAidKit", "")
-        if not first_aid:
-            gaps.append("First aid kit location not documented")
-            recommendations.append("Document first aid kit location and contents")
+        has_first_aid = has_keyword_in_checklist("first aid")
         
         # Check for emergency contacts
-        contacts = checklist_data.get("emergencyContacts", "")
-        if not contacts:
-            gaps.append("Emergency contacts not listed")
-            recommendations.append("Post emergency contact numbers at work site")
+        has_emergency_contact = has_keyword_in_checklist("emergency contact") or \
+                                has_keyword_in_checklist("911")
         
-        # Check for rescue plan (especially for fall hazards)
-        if top_hazard.get("category") == "Falls":
-            rescue = checklist_data.get("rescuePlan", "")
-            if not rescue:
-                gaps.append("No rescue plan for fall protection")
-                recommendations.append("Develop rescue plan for prompt retrieval of fallen workers")
+        # Check for evacuation
+        has_evacuation = has_keyword_in_checklist("evacuation") or \
+                         has_keyword_in_checklist("assembly point")
         
-        # Determine readiness level
-        if len(gaps) == 0:
-            readiness = "ADEQUATE"
-        elif len(gaps) <= 2:
-            readiness = "PARTIAL"
-        else:
-            readiness = "INADEQUATE"
+        # Assess rescue capability for fall/confined space hazards
+        hazard_name = top_hazard.get("name", "").lower()
+        rescue_capability = "NOT_REQUIRED"
+        
+        if "fall" in hazard_name or "confined space" in hazard_name:
+            rescue_capability = "ADEQUATE" if has_rescue else "INADEQUATE"
+            if not has_rescue:
+                gaps.append("No documented fall/confined space rescue plan (OSHA 1926.502(d)(20) requires 6-minute rescue capability)")
+                recommendations.append("Develop and document rescue plan with equipment and trained personnel")
+        
+        # First aid
+        if not has_first_aid:
+            gaps.append("First aid kit location and trained personnel not documented")
+            recommendations.append("Document first aid kit location, contents, and trained personnel names")
+        
+        # Emergency contacts
+        if not has_emergency_contact:
+            gaps.append("Emergency contact information not documented (911, hospital, site emergency coordinator)")
+            recommendations.append("List all emergency contacts with phone numbers and roles")
+        
+        # Evacuation
+        if not has_evacuation:
+            gaps.append("Evacuation routes and assembly points not documented")
+            recommendations.append("Map evacuation routes and designate assembly location")
         
         return {
-            "readinessLevel": readiness,
+            "rescueCapability": rescue_capability,
+            "firstAidPresent": has_first_aid,
+            "emergencyContactsPresent": has_emergency_contact,
+            "evacuationPlanPresent": has_evacuation,
             "gaps": gaps,
-            "recommendations": recommendations
+            "recommendations": recommendations,
+            "readinessLevel": "FULL" if len(gaps) == 0 else ("PARTIAL" if len(gaps) <= 2 else "INSUFFICIENT")
         }
     
     def analyze_weather_impact(
@@ -342,6 +412,43 @@ class Agent4Synthesizer:
         
         return items
     
+    def determine_required_approvals(
+        self,
+        go_no_go: Dict[str, Any],
+        risk: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Determine required approval signatures based on decision and risk.
+        
+        V1 Logic (Lines 1622-1641):
+        - GO: Site Supervisor only
+        - GO_WITH_CONDITIONS: + Competent Person
+        - NO_GO/STOP_WORK: + Safety Manager + Project Manager
+        - EXTREME/HIGH risk: + Safety Manager
+        """
+        approvals = {"Site Supervisor"}  # Always required
+        
+        decision = go_no_go.get("decision", "GO")
+        
+        # GO_WITH_CONDITIONS: Add Competent Person
+        if decision == "GO_WITH_CONDITIONS":
+            approvals.add("Competent Person")
+        
+        # NO_GO or STOP_WORK: Escalate to full management chain
+        if decision in ["NO_GO", "STOP_WORK"]:
+            approvals.update(["Competent Person", "Safety Manager", "Project Manager"])
+        
+        # EXTREME/HIGH risk: Add Safety Manager
+        overall_risk = risk.get("riskSummary", {}).get("overallRiskLevel", "")
+        if overall_risk in ["EXTREME", "HIGH"]:
+            approvals.add("Safety Manager")
+        
+        return {
+            "requiredSignatures": sorted(list(approvals)),  # Remove duplicates, sort
+            "competentPersonReview": decision != "GO",
+            "managementReview": decision in ["NO_GO", "STOP_WORK"]
+        }
+    
     async def synthesize_report(
         self,
         validation: Dict[str, Any],
@@ -400,7 +507,7 @@ class Agent4Synthesizer:
                 "decision": go_no_go.get("decision"),
                 "overallRiskLevel": risk.get("riskSummary", {}).get("overallRiskLevel", "UNKNOWN"),
                 "topThreats": risk.get("topThreats", []),
-                "criticalActions": [item["action"] for item in action_items[:3]],
+                "criticalActions": [item["action"] for item in action_items if item.get("priority") == "CRITICAL"],
                 "incidentProbability": prediction.get("probability", 0)
             },
             "dataQuality": {
@@ -427,5 +534,6 @@ class Agent4Synthesizer:
             "emergencyReadiness": emergency_readiness,
             "actionItems": action_items,
             "recommendedInterventions": prediction.get("interventions", {}),
-            "goNoGo": go_no_go
+            "goNoGo": go_no_go,
+            "approvals": self.determine_required_approvals(go_no_go, risk)
         }

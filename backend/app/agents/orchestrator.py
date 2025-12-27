@@ -21,6 +21,7 @@ from app.agents.profiles.agent_3_incident_predictor import Agent3IncidentPredict
 from app.agents.profiles.agent_4_synthesizer import Agent4Synthesizer
 from app.models.analysis import AnalysisHistory
 from app.api.v1.jha_stream import push_progress
+from app.services.report_formatter import ReportFormatter
 
 
 class SafetyAnalysisOrchestrator:
@@ -248,10 +249,14 @@ class SafetyAnalysisOrchestrator:
                 "elapsed_ms": int(execution_time)
             })
             
+            # Generate markdown report from Agent 4 output
+            markdown_report = ReportFormatter.format_structured_jha_report(final_report)
+            
             return {
                 "id": analysis_id,
                 "created_at": datetime.now().isoformat(),
                 "report": final_report,
+                "markdown": markdown_report,  # Professional formatted report
                 "agent1": validation,
                 "agent2": risk,
                 "agent3": prediction,

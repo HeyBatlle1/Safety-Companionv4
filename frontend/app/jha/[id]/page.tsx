@@ -3,14 +3,13 @@
 import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useJHADetails, useJHAProgress } from '@/hooks/use-api';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Shield, FileText, Download } from 'lucide-react';
 import { format } from 'date-fns';
-import { OSHAComplianceSection } from '@/components/jha/OSHAComplianceSection';
-import { ActionPlanSection } from '@/components/jha/ActionPlanSection';
 import { ProgressTracker } from '@/components/jha/progress-tracker';
+import { Agent1Card, Agent2Card, Agent3Card, Agent4Card } from '@/components/analysis';
 
 export default function JHADetailPage() {
     const params = useParams();
@@ -254,210 +253,23 @@ export default function JHADetailPage() {
                 )}
             </div>
 
-            {/* Agent 1: Validation Results */}
+            {/* Agent 1: Data Quality Assessment */}
             {jha.agent_outputs?.agent1_validation && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <CheckCircle2 className="h-5 w-5 text-accent" />
-                            Validation Analysis
-                        </CardTitle>
-                        <CardDescription>Data quality and completeness check</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted/50 p-4">
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Quality Score</p>
-                                <p className="text-lg font-semibold">{jha.agent_outputs.agent1_validation.validation?.qualityScore}/10</p>
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Status</p>
-                                <Badge variant={jha.agent_outputs.agent1_validation.validation?.reviewStatus === 'APPROVED' ? 'default' : 'destructive'}>
-                                    {jha.agent_outputs.agent1_validation.validation?.reviewStatus}
-                                </Badge>
-                            </div>
-                        </div>
-
-                        {jha.agent_outputs.agent1_validation.missingCritical?.length > 0 && (
-                            <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4">
-                                <h4 className="mb-2 font-medium text-destructive">Missing Critical Items</h4>
-                                <ul className="list-inside list-disc space-y-1 text-sm">
-                                    {jha.agent_outputs.agent1_validation.missingCritical.map((item: string, i: number) => (
-                                        <li key={i}>{item}</li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                <Agent1Card data={jha.agent_outputs.agent1_validation} />
             )}
 
             {/* Agent 2: Risk Assessment */}
             {jha.agent_outputs?.agent2_risk_assessment && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <AlertTriangle className="h-5 w-5 text-orange-500" />
-                            Risk Assessment
-                        </CardTitle>
-                        <CardDescription>Identified hazards and risk levels</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="space-y-4">
-                            {jha.agent_outputs.agent2_risk_assessment.riskProfile?.hazards?.map((hazard: any, i: number) => (
-                                <div key={i} className="rounded-lg border bg-card p-4">
-                                    <div className="mb-2 flex items-start justify-between">
-                                        <div>
-                                            <h4 className="font-semibold">{hazard.name}</h4>
-                                            <p className="text-sm text-muted-foreground">{hazard.category}</p>
-                                        </div>
-                                        <Badge variant={hazard.riskLevel === 'EXTREME' || hazard.riskLevel === 'HIGH' ? 'destructive' : 'secondary'}>
-                                            {hazard.riskLevel}
-                                        </Badge>
-                                    </div>
-                                    <div className="grid gap-2 text-sm sm:grid-cols-2">
-                                        <div>
-                                            <span className="font-medium">Problem: </span>
-                                            {hazard.inadequateControls?.[0]}
-                                        </div>
-                                        <div>
-                                            <span className="font-medium">Recommendation: </span>
-                                            {hazard.recommendedControls?.[0]}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
+                <Agent2Card data={jha.agent_outputs.agent2_risk_assessment.riskProfile || jha.agent_outputs.agent2_risk_assessment} />
             )}
 
-            {/* Agent 3: Swiss Cheese & OSHA Analysis */}
+            {/* Agent 3: Swiss Cheese & Incident Prediction */}
             {jha.agent_outputs?.agent3_swiss_cheese && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Shield className="h-5 w-5 text-purple-600" />
-                            Swiss Cheese & OSHA Analysis
-                        </CardTitle>
-                        <CardDescription>Incident prediction and barrier analysis</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        {/* Incident Prediction */}
-                        <div className="rounded-lg bg-muted/50 p-4">
-                            <h4 className="font-semibold text-lg">{jha.agent_outputs.agent3_swiss_cheese.incidentPrediction?.incidentName}</h4>
-                            <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                <div>Prediction: <span className="font-bold">{(jha.agent_outputs.agent3_swiss_cheese.incidentPrediction?.probabilityNext4Hours || 0) * 100}%</span> probability in next 4h</div>
-                                <div className="flex items-center gap-2">
-                                    Severity:
-                                    <Badge variant={jha.agent_outputs.agent3_swiss_cheese.incidentPrediction?.severity === 'Fatal' || jha.agent_outputs.agent3_swiss_cheese.incidentPrediction?.severity === 'Critical' ? 'destructive' : 'default'}>
-                                        {jha.agent_outputs.agent3_swiss_cheese.incidentPrediction?.severity}
-                                    </Badge>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Holes Alignment */}
-                        <div>
-                            <h4 className="mb-2 font-medium">Swiss Cheese Model Alignment</h4>
-                            <div className="grid gap-2 text-sm border-l-2 border-purple-200 pl-4">
-                                <p><span className="font-semibold">Organizational:</span> {jha.agent_outputs.agent3_swiss_cheese.swissCheeseAlignment?.organizationalHole}</p>
-                                <p><span className="font-semibold">Supervision:</span> {jha.agent_outputs.agent3_swiss_cheese.swissCheeseAlignment?.supervisionHole}</p>
-                                <p><span className="font-semibold">Unsafe Act:</span> {jha.agent_outputs.agent3_swiss_cheese.swissCheeseAlignment?.actHole}</p>
-                            </div>
-                        </div>
-
-                        {/* Defense Failures (OSHA Gaps) */}
-                        <div>
-                            <h4 className="mb-2 font-medium flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-orange-500" /> Defense Failures (OSHA Gaps)</h4>
-                            <div className="space-y-2">
-                                {jha.agent_outputs.agent3_swiss_cheese.causalChain?.defenseFailures?.map((fail: any, i: number) => (
-                                    <div key={i} className="rounded border p-3 text-sm bg-card">
-                                        <div className="font-semibold">{fail.barrier}</div>
-                                        <div className="text-destructive font-medium">{fail.failureMode}</div>
-                                        <div className="text-xs text-muted-foreground mt-1">"{fail.evidence}"</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Interventions */}
-                        <div>
-                            <h4 className="mb-2 font-medium">Recommended Interventions</h4>
-                            <div className="space-y-2">
-                                {jha.agent_outputs.agent3_swiss_cheese.interventions?.map((action: any, i: number) => (
-                                    <div key={i} className="flex items-start gap-2 text-sm">
-                                        <CheckCircle2 className="mt-0.5 h-4 w-4 text-green-500 shrink-0" />
-                                        <span><span className="font-semibold">{action.timeframe}:</span> {action.action}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                <Agent3Card data={jha.agent_outputs.agent3_swiss_cheese} />
             )}
-            {/* Agent 4: Synthesized Plan (Action Items & Compliance) */}
+            {/* Agent 4: Synthesized Action Plan & Compliance */}
             {jha.agent_outputs?.agent4_final_report && (
-                <div className="grid gap-6 md:grid-cols-2">
-                    {/* Compliance & Emergency */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Shield className="h-5 w-5 text-blue-600" />
-                                Compliance & Readiness
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            {/* Compliance Status */}
-                            <OSHAComplianceSection
-                                overallStatus={jha.agent_outputs.agent4_final_report.complianceStatus?.overallStatus || 'UNKNOWN'}
-                                identifiedGaps={jha.agent_outputs.agent4_final_report.complianceStatus?.identifiedGaps || []}
-                            />
-
-                            {/* Emergency Readiness */}
-                            <div>
-                                <h4 className="mb-2 font-medium">Emergency Readiness</h4>
-                                <div className="grid grid-cols-2 gap-2 text-sm mb-2">
-                                    <div className="flex items-center gap-2">
-                                        <span className={jha.agent_outputs.agent4_final_report.emergencyReadiness?.rescueCapability === 'ADEQUATE' ? "text-green-600" : "text-red-600"}>
-                                            {jha.agent_outputs.agent4_final_report.emergencyReadiness?.rescueCapability === 'ADEQUATE' ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-                                        </span>
-                                        Rescue Capable
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className={jha.agent_outputs.agent4_final_report.emergencyReadiness?.firstAid ? "text-green-600" : "text-red-600"}>
-                                            {jha.agent_outputs.agent4_final_report.emergencyReadiness?.firstAid ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-                                        </span>
-                                        First Aid
-                                    </div>
-                                </div>
-                                {jha.agent_outputs.agent4_final_report.emergencyReadiness?.gaps?.length > 0 && (
-                                    <div className="rounded border border-orange-200 bg-orange-50 p-2 text-xs text-orange-800">
-                                        <span className="font-semibold block mb-1">Missing Components:</span>
-                                        <ul className="list-disc list-inside">
-                                            {jha.agent_outputs.agent4_final_report.emergencyReadiness.gaps.map((gap: string, i: number) => (
-                                                <li key={i}>{gap}</li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Prioritized Action Plan */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <FileText className="h-5 w-5 text-primary" />
-                                Action Plan
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <ActionPlanSection actionItems={jha.agent_outputs.agent4_final_report.actionItems || []} />
-                        </CardContent>
-                    </Card>
-                </div>
+                <Agent4Card data={jha.agent_outputs.agent4_final_report} />
             )}
         </div>
     );

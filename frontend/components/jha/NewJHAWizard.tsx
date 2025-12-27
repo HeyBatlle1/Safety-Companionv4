@@ -147,7 +147,6 @@ export function NewJHAWizard() {
                         top_three_hazards: formData.top_three_hazards,
                         existing_controls: formData.existing_controls,
                         work_environment: formData.work_environment,
-                        weather_monitoring: formData.weather_monitoring,
                         ground_protection: formData.ground_protection,
                     },
                     card4_crew_schedule: {

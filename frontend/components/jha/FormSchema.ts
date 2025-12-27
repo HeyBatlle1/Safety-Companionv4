@@ -72,7 +72,7 @@ export const JHA_FORM_SCHEMA: JHAFormSchema = {
                         { name: 'crewSize', label: 'Crew Size', type: 'number', required: true },
                         { name: 'supervisor', label: 'Onsite Supervisor Name', type: 'text', required: true }
                     ],
-                    hint: 'This information helps identify applicable OSHA standards and industry baseline risks.'
+                    hint: '📋 EXAMPLE: Project Name: "Downtown Tower Glass Replacement", Location: "450 Main Street, Boston MA 02108", Height: 120, Work Type: Glass & Glazing Installation, Duration: 14, Crew Size: 8, Supervisor: "Mike Johnson"'
                 },
 
                 {
@@ -82,7 +82,7 @@ export const JHA_FORM_SCHEMA: JHAFormSchema = {
                     required: true,
                     minLength: 150,
                     placeholder: 'Describe your emergency evacuation plan, assembly point, emergency contacts, first aid resources, and onsite rescue capabilities...',
-                    hint: 'V1 flagged: "No emergency evacuation plan documented", "No assembly point identified", "First aid kit location not documented", "Emergency contacts not listed". Be specific: include assembly point ADDRESS, emergency contact NAMES and PHONE NUMBERS, first aid kit LOCATION, and rescue equipment/personnel available.',
+                    hint: '📋 EXAMPLE: Emergency assembly point is the parking lot at 452 Main Street (east side of building). Emergency contacts: Mike Johnson (Site Supervisor) 617-555-1234, Fire Dept 911, Boston Medical Center 617-638-6000. First aid kit located in job trailer and on each floor in the red supply box. Rescue equipment includes a tripod rescue system, 2 rescue harnesses, and a stokes basket. Competent rescue person: Carlos Martinez (trained in suspension trauma and rescue).',
                     validationRules: [
                         { keyword: 'assembly', message: 'Include specific assembly point location' },
                         { keyword: 'contact', message: 'Include emergency contact names and phone numbers' },
@@ -97,7 +97,7 @@ export const JHA_FORM_SCHEMA: JHAFormSchema = {
                     required: true,
                     minLength: 100,
                     placeholder: 'List competent persons by specialty (fall protection, crane operations, electrical, excavation, etc.). Include names, certifications (OSHA 10/30, crane operator, qualified rigger, etc.), and responsibilities...',
-                    hint: 'V1 output analyzed: "Verify that all workers have received the required training (OSHA 10, OSHA 30, fall protection, crane safety, etc.)". List each competent person with their certification type and specialization. Example: "John Smith - OSHA 30, Competent Person Fall Protection; Jane Doe - NCCCO Crane Operator Certification"',
+                    hint: '📋 EXAMPLE: Mike Johnson - OSHA 30, Site Supervisor, Competent Person for Fall Protection. Carlos Martinez - OSHA 30, Competent Person Crane Operations, NCCCO Certified Crane Operator #456789. Sarah Williams - OSHA 10, Qualified Rigger, Signal Person certified. Tom Brown - OSHA 30, Competent Person Scaffolding, 15 years experience. All workers have current OSHA 10 certification.',
                     validationRules: [
                         { keyword: 'OSHA', message: 'Include OSHA certification levels (10/30)' },
                         { keyword: 'fall|crane|electrical|excavation', message: 'Specify competent person specialty areas' }
@@ -111,7 +111,7 @@ export const JHA_FORM_SCHEMA: JHAFormSchema = {
                     required: true,
                     minLength: 80,
                     placeholder: 'When was the last toolbox talk? Has the JHA been reviewed with the crew? Who signed off? Are there any safety concerns that have been raised?...',
-                    hint: 'V1 recommended: "Conduct daily toolbox talks to discuss specific hazards and safe work practices for the day\'s activities" and "Review and update the JHA/AHA regularly". Document when crew was briefed, who attended, and any concerns raised.',
+                    hint: '📋 EXAMPLE: Daily toolbox talk held at 6:45 AM today (12/27/2025) led by Mike Johnson. All 8 crew members attended and signed the attendance sheet. Topics covered: wind conditions forecast for afternoon (15-20mph), proper harness inspection procedure, communication protocol for crane operations. JHA reviewed with crew on Monday 12/23. Safety concern raised by Carlos: swing stage cable showing wear on west side unit - replaced before work began.',
                     validationRules: [
                         { keyword: 'toolbox|meeting|briefing', message: 'Include when safety meeting occurred' }
                     ]
@@ -124,7 +124,7 @@ export const JHA_FORM_SCHEMA: JHAFormSchema = {
                     required: true,
                     minLength: 80,
                     placeholder: 'What permits have been obtained? Are you familiar with applicable OSHA standards (1926 Subpart M, N, etc.)? Any known violations from previous jobs?...',
-                    hint: 'V1 assessed compliance with: "OSHA 1926 Subpart N (Cranes & Derricks)", "OSHA 1926 Subpart M (Fall Protection)", "ANSI/IWCA I-14.1 (Window Cleaning Safety)". List permits (building, crane, electrical, etc.) and confirm familiarity with relevant OSHA standards.',
+                    hint: '📋 EXAMPLE: Building permit #BP-2024-5678 obtained. Crane operation permit from City of Boston valid through 1/15/2025. Familiar with OSHA 1926 Subpart M (Fall Protection) - 6ft trigger height, 5000lb anchor requirement. Familiar with OSHA 1926 Subpart N (Cranes) - annual inspection requirements, load chart review. Familiar with ANSI/IWCA I-14.1 for suspended platform operations. No previous OSHA violations on record.',
                     validationRules: [
                         { keyword: 'permit|OSHA', message: 'Specify permits obtained and OSHA standards reviewed' }
                     ]
@@ -145,7 +145,7 @@ export const JHA_FORM_SCHEMA: JHAFormSchema = {
                     required: true,
                     minLength: 120,
                     placeholder: 'List all major equipment (tower cranes, spider cranes, boom lifts, swing stages, scaffolding, etc.). For each piece: Manufacturer, Model, Load Capacity, Last Inspection Date...',
-                    hint: 'V1 flagged: "Equipment last inspected 90 days ago (30-day max required)" and noted "Tower crane, spider crane". Be specific: "Tower Crane - Liebherr 71 EC-B, 4-ton capacity, inspected 12/20/2025; Spider Crane - Jekko SPX527, 2.7-ton capacity, inspected 12/23/2025"',
+                    hint: '📋 EXAMPLE: Tower Crane - Liebherr 71 EC-B 5, 4-ton max capacity at 130ft radius, annual inspection completed 11/15/2024, monthly inspection 12/15/2024 by ABC Crane Inspection. Spider Crane - Jekko SPX532, 2.7-ton capacity, inspected 12/20/2024. Swing Stage - Spider SC1500, 1500lb capacity, inspected 12/22/2024. JLG 600S Boom Lift, 500lb basket capacity, inspected 12/01/2024.',
                     validationRules: [
                         { keyword: 'crane|lift|scaffold|stage', message: 'Include equipment type' },
                         { keyword: 'inspect', message: 'Include last inspection dates' },
@@ -160,7 +160,7 @@ export const JHA_FORM_SCHEMA: JHAFormSchema = {
                     required: true,
                     minLength: 150,
                     placeholder: 'Describe your fall protection system: PFAS types (full-body harness, shock-absorbing lanyard, self-retracting lifeline), anchor points, inspection schedule, competent person for inspections, rescue plan and equipment...',
-                    hint: 'V1 identified: "Fall Hazards: Working at height is a primary risk. While fall protection is mentioned, specific details are crucial" and noted "PFAS inspection: Visual inspections alone are insufficient". Specify: PFAS type and manufacturer, anchor point locations and ratings (5,000 lbs minimum), inspection frequency (daily pre-use + competent person inspections), rescue plan with timeframe (<6 minutes), rescue equipment available.',
+                    hint: '📋 EXAMPLE: Full-body harnesses: 3M DBI-SALA ExoFit X300 for all workers, inspected daily by worker before use, weekly by competent person (Mike Johnson). Shock-absorbing lanyards: 3M 6ft twin-leg with rebar hooks. Self-retracting lifelines: DBI-SALA Nano-Lok 9ft on each swing stage. Anchor points: engineered beam clamps rated 5000lbs on steel I-beams, certified by structural engineer 12/10/2024. Rescue plan: suspension trauma rescue within 6 minutes, tripod rescue system available on each floor, Carlos Martinez trained in rescue procedures.',
                     validationRules: [
                         { keyword: 'harness|lanyard|lifeline', message: 'Specify PFAS equipment types' },
                         { keyword: 'anchor', message: 'Include anchor point details and ratings' },
@@ -176,7 +176,7 @@ export const JHA_FORM_SCHEMA: JHAFormSchema = {
                     required: true,
                     minLength: 100,
                     placeholder: 'What materials are being handled (glass panels, steel beams, etc.)? Dimensions and weights? How are materials stored on site? Storage location and securing methods?...',
-                    hint: 'V1 noted: "Glass Handling: Large glass panels pose a risk of cuts, crushing injuries, and dropped object hazards" and questioned: "\'Dry wood crate\' is not descriptive enough. Is the storage area level, secure, and protected from the elements? How are the crates secured to prevent tipping?" Be specific about material specs, storage location, ground conditions, and anti-tip measures.',
+                    hint: '📋 EXAMPLE: Glass panels: Insulated glass units (IGU), 10ft x 6ft, approximately 450lbs each. Steel mullions: 12ft lengths, 85lbs each. All glass stored in A-frame racks on level compacted gravel pad on north side of building. Racks secured with ratchet straps to ground anchors. Caulk and sealants stored in job trailer, MSDS sheets on file. Exclusion zone marked around glass storage area.',
                     validationRules: [
                         { keyword: 'glass|steel|material', message: 'Specify material types' },
                         { keyword: 'feet|ft|inches|lbs|pounds', message: 'Include dimensions and weights' },
@@ -191,7 +191,7 @@ export const JHA_FORM_SCHEMA: JHAFormSchema = {
                     required: true,
                     minLength: 100,
                     placeholder: 'List specific PPE required with ratings/standards: hard hats (Type I/II, Class E/G), safety glasses (ANSI Z87.1), cut-resistant gloves (Level X), high-visibility vests, steel-toe boots, specialized PPE (arc flash, fall arrest, etc.)...',
-                    hint: 'V1 referenced: "ANSI Z87.1 (Eye and Face Protection): Referenced in the equipment section, ensuring all workers are wearing proper ANSI Z87.1 rated eye protection" and noted "\'Cut gloves\' are good, but specify the cut level rating needed". Be specific: "Hard hats: Type I, Class E; Safety glasses: ANSI Z87.1+; Cut gloves: ANSI A4 Level; High-vis vests: ANSI 107 Class 2"',
+                    hint: '📋 EXAMPLE: Hard hats: MSA V-Gard Type I Class E. Safety glasses: 3M SecureFit ANSI Z87.1+ rated. Cut-resistant gloves: Mechanix CutResist A4 Level for glass handling. High-vis vests: ANSI 107 Class 2 for all workers. Steel-toe boots: ASTM F2413-18 rated. Fall protection: full-body harness as described above. Hearing protection: 3M E-A-R plugs NRR 32dB for crane operations.',
                     validationRules: [
                         { keyword: 'ANSI|Type|Class|Level', message: 'Include PPE ratings and standards' },
                         { keyword: 'hard hat|safety glasses|gloves|vest|boots', message: 'List all required PPE types' }
@@ -205,7 +205,7 @@ export const JHA_FORM_SCHEMA: JHAFormSchema = {
                     required: true,
                     minLength: 80,
                     placeholder: 'Crane operator certifications (NCCCO, etc.)? Signal person qualified? Rigger certifications? Are load charts present and reviewed? Equipment rated for the loads?...',
-                    hint: 'V1 action items included: "Verify Crane Operator Qualifications: Confirm that the crane operator(s) are certified and qualified to operate the specific type of crane being used" and "Review Rigging Plan: Ensure a qualified rigger has developed and approved the rigging plan". Document operator certs, signal person qualifications, rigging plan approval, and load chart review.',
+                    hint: '📋 EXAMPLE: Crane operator: Carlos Martinez, NCCCO Certified TLL (Tower Crane) #456789, CCO Certification valid through 8/2025. Signal person: Sarah Williams, NCCCO Certified Signal Person #234567. Qualified rigger: Tom Brown, NCCCO Rigger #789012. Load charts for Liebherr 71 EC-B posted in crane cab and reviewed daily. All lifts pre-planned using load chart - heaviest lift is 450lb glass panel at 85ft radius (well within 2.4-ton capacity at that radius).',
                     validationRules: [
                         { keyword: 'NCCCO|certified|qualified', message: 'Include operator certifications' },
                         { keyword: 'load chart|capacity', message: 'Confirm load charts present and reviewed' }
@@ -227,7 +227,7 @@ export const JHA_FORM_SCHEMA: JHAFormSchema = {
                     required: true,
                     minLength: 200,
                     placeholder: 'List the 3 highest-risk hazards with SPECIFIC details. For each: exact height/distance, equipment involved, materials, environmental conditions. Example: "1. Fall from 30ft swing stage while installing 12ft × 8ft glass panels during 28mph winds. 2. Glass panel dropped on ground worker from tower crane rigging failure..."',
-                    hint: 'V1 identified specific hazards: "Fall from swing stage during wind", "Crane operation with tower/spider cranes", "Glass handling - cuts/crushing/dropped objects". DO NOT say generic "fall hazard" - say "Fall from [HEIGHT] while [ACTIVITY] using [EQUIPMENT] during [CONDITIONS]". Agent 2 uses this to calculate risk scores with OSHA Fatal Four multipliers (Falls ×2.8, Struck-by ×1.6).',
+                    hint: '📋 EXAMPLE: 1. Fall from 120ft swing stage while installing 10ft x 6ft glass panels (450lbs each) in 18mph wind gusts. Risk: worker loses balance while positioning panel, falls outside platform guardrail. 2. Struck-by falling glass panel during tower crane lift - rigging failure or wind gust causes panel to swing into worker on floor below. 3. Crushing injury during glass panel installation - panel slips from suction cups and crushes worker hands/feet against frame.',
                     validationRules: [
                         { keyword: 'feet|ft|height', message: 'Include specific heights/distances' },
                         { keyword: 'while|during|using', message: 'Include activity context and conditions' },
@@ -242,7 +242,7 @@ export const JHA_FORM_SCHEMA: JHAFormSchema = {
                     required: true,
                     minLength: 200,
                     placeholder: 'For EACH of the 3 hazards above, list controls using the Hierarchy of Controls (Elimination > Substitution > Engineering > Administrative > PPE). Example: "Hazard 1 - Fall from swing stage: Engineering: guardrails on swing stage platform, fall arrest anchor points; Administrative: daily weather monitoring, work stoppage at 25mph; PPE: full-body harness with shock-absorbing lanyard..."',
-                    hint: 'V1 assessed controls: "Control Adequacy Multiplier: Comprehensive (3+ levels of hierarchy): ×0.3, Adequate (2 levels): ×0.7, Minimal (PPE only): ×1.5, None identified: ×3.0". Agent 2 scores risk based on control adequacy. List controls by hierarchy level for each hazard. V1 flagged: "PPE-only approach (should have engineering)" as inadequate.',
+                    hint: '📋 EXAMPLE: Hazard 1 (Fall from swing stage): Engineering - guardrails on all sides of swing stage platform, fall arrest anchor points at each position. Administrative - weather monitoring, work stops at 25mph sustained wind, toolbox talk on fall prevention. PPE - full-body harness with shock-absorbing lanyard, 100% tie-off required. Hazard 2 (Struck-by): Engineering - tag lines on all crane loads, exclusion zone below lift. Administrative - lift plan reviewed, qualified rigger on every lift. Hazard 3 (Crushing): Engineering - suction cup lifters rated 2x panel weight, panel cart for transport. PPE - steel-toe boots, cut-resistant gloves.',
                     validationRules: [
                         { keyword: 'elimination|engineering|administrative|PPE', message: 'Organize controls by hierarchy' },
                         { keyword: 'guardrail|anchor|monitor|harness|procedure', message: 'Include specific control measures' }
@@ -256,7 +256,7 @@ export const JHA_FORM_SCHEMA: JHAFormSchema = {
                     required: true,
                     minLength: 120,
                     placeholder: 'Working at height? How high? Near power lines? How far? In confined space? Near traffic or public areas? How close is the public? Any overhead hazards? Underground utilities?...',
-                    hint: 'V1 assessed: "Working at height with glass installation presents significant fall hazards" and noted "The public must be protected from falling objects". Specify: exact working height, distance to power lines (if applicable), public proximity and protection measures, underground utility locate status (call 811 completion), overhead hazards.',
+                    hint: '📋 EXAMPLE: Working at heights between 80-120 feet on building exterior. No power lines within 100ft. Public sidewalk on east side of building 25ft from work zone - protected by barricades and overhead netting. Underground utility locate completed via 811 on 12/15/2024 - no conflicts found. Active traffic on Main Street controlled by flaggers during crane operations. Adjacent occupied building 40ft west - windows covered with protective film.',
                     validationRules: [
                         { keyword: 'feet|ft|height', message: 'Include working heights' },
                         { keyword: 'power line|utility|811', message: 'Address utility proximity if applicable' },
@@ -264,21 +264,6 @@ export const JHA_FORM_SCHEMA: JHAFormSchema = {
                     ]
                 },
 
-                {
-                    id: 'weather_monitoring',
-                    label: 'Weather Conditions & Monitoring Plan',
-                    type: 'textarea',
-                    required: true,
-                    minLength: 150,
-                    placeholder: 'Current conditions: temperature, wind speed, precipitation. Weather monitoring method: onsite anemometer, weather service, weather app? Work stoppage triggers: what wind speed? What temperature extremes? Who monitors? How are workers alerted?...',
-                    hint: 'V1 flagged: "Review Wind Speed Limitations: Verify that current and forecasted wind conditions are within the safe operating limits specified by ANSI/IWCA I-14.1 and crane manufacturer recommendations. Establish a clear protocol for stopping work if wind speeds exceed these limits." and "Weather Conditions: Wind, temperature extremes, and precipitation can significantly impact the safety of glass installation, especially at height." Specify current conditions, monitoring equipment, specific thresholds (e.g., "25mph sustained winds = stop work"), and alert protocol.',
-                    validationRules: [
-                        { keyword: 'wind|temperature|precipitation', message: 'Include current weather conditions' },
-                        { keyword: 'mph|degrees|°F', message: 'Include specific measurements' },
-                        { keyword: 'anemometer|monitor|alert', message: 'Describe monitoring method and alerts' },
-                        { keyword: 'stop|suspend|threshold|limit', message: 'Include work stoppage triggers' }
-                    ]
-                },
 
                 {
                     id: 'ground_protection',
@@ -287,7 +272,7 @@ export const JHA_FORM_SCHEMA: JHAFormSchema = {
                     required: true,
                     minLength: 150,
                     placeholder: 'How are ground-level workers and public protected from falling objects? Barricades type and location? Exclusion zone size? Warning signage? Controlled access? Who monitors the area below? Overhead protection (canopies)?...',
-                    hint: 'V1 CRITICAL GAP: "The response for \'Ground Level Protection Systems\' is missing. This is critical. The public must be protected from falling objects and other hazards. Implement barriers, signage, and controlled access zones to prevent unauthorized entry into the work area." and immediate action item: "Ground Level Protection: Barriers, signage, and controlled access zones must be implemented to prevent unauthorized entry into the area below the glass installation." Be specific about barricade type (jersey barriers, fencing), exclusion zone size (minimum distance), signage types, access control methods.',
+                    hint: '📋 EXAMPLE: 50ft exclusion zone established around building perimeter with 6ft chain-link fencing and jersey barriers at entry points. Warning signs posted every 25ft: "DANGER - Overhead Work - Hard Hat Area - Authorized Personnel Only". Debris netting installed at floors 3, 6, and 9 to catch any dropped materials. Full-time safety watch (Tom Brown) monitors ground level during all crane operations with air horn for emergency alerts. Pedestrian walkway on east side has covered canopy rated for 150lbs/sqft impact.',
                     validationRules: [
                         { keyword: 'barricade|barrier|fence', message: 'Describe physical barriers' },
                         { keyword: 'feet|ft|zone', message: 'Include exclusion zone dimensions' },
@@ -311,7 +296,7 @@ export const JHA_FORM_SCHEMA: JHAFormSchema = {
                     required: true,
                     minLength: 120,
                     placeholder: 'Average crew experience level? How many workers have >5 years experience? How many are new (<1 year)? Have workers done this specific task before? Any language barriers on crew? Specialized skills?...',
-                    hint: 'V1 risk scoring: "Worker Experience Multiplier: Expert (>5 years): ×0.6, Experienced (2-5 years): ×1.0, New (<1 year): ×2.1". Agent 2 adjusts risk probability based on experience. Agent 3 uses this for Swiss Cheese causal chain: "New workers are 2.1× more likely to make errors". Specify experience distribution and any language/communication issues.',
+                    hint: '📋 EXAMPLE: 8-person crew. Experience breakdown: 3 workers with >10 years glass installation experience (Mike, Carlos, Tom), 3 workers with 3-5 years experience, 2 workers with <1 year experience (assigned to ground-level material handling only, not elevated work). All workers have done curtain wall installation before except the 2 new workers. No language barriers - all English speaking. Specialized skills: Carlos is trained spider crane operator, Sarah is qualified rigger.',
                     validationRules: [
                         { keyword: 'year|experience|new|veteran', message: 'Describe crew experience levels' },
                         { keyword: 'language|communication', message: 'Address language barriers if present' }
@@ -325,7 +310,7 @@ export const JHA_FORM_SCHEMA: JHAFormSchema = {
                     required: true,
                     minLength: 100,
                     placeholder: 'Are you behind schedule? Is there deadline pressure (weather window closing, owner move-in date, contractual penalties)? Are workers doing overtime? How many hours per day? How many consecutive days worked without a day off?...',
-                    hint: 'V1 Swiss Cheese Model: "Organizational Influences (Latent Conditions): Schedule Pressure Analysis" and Agent 3 calculates: "Fatigue Risk: if hours > 12 or days > 14: CRITICAL, if hours > 10 or days > 10: HIGH" and adjusts probability: "+ Production pressure: ${overtime !== \'Not specified\' ? \'+20%\' : \'0%\'}". Schedule pressure is a root cause in incident prediction. Be honest about deadlines and overtime.',
+                    hint: '📋 EXAMPLE: Currently on schedule - no deadline pressure. Standard 8-hour days (7AM-3:30PM), no overtime planned. Workers have had 2 days off in last 7 days (weekend). If weather delays occur, may need to extend to 10-hour days next week to meet building enclosure deadline of 1/15/2025. No contractual penalties for delay. Owner is flexible on timeline.',
                     validationRules: [
                         { keyword: 'hours|overtime|consecutive|days', message: 'Include work hours and consecutive days' },
                         { keyword: 'deadline|schedule|behind|pressure', message: 'Address schedule pressure honestly' }
@@ -339,7 +324,7 @@ export const JHA_FORM_SCHEMA: JHAFormSchema = {
                     required: true,
                     minLength: 100,
                     placeholder: 'Who is the onsite supervisor (name)? Is a competent person present at all times? How often are safety inspections conducted (daily, weekly)? Are daily toolbox talks held? Who leads them? Is there active safety oversight?...',
-                    hint: 'V1 Swiss Cheese: "Unsafe Supervision (Active Failures): Competent person designated? Adequate oversight? Hazard recognition training?" and recommended: "Competent Person Designation: Designate a competent person(s) to oversee fall protection, crane operations, and rigging." Document supervisor presence, inspection frequency, toolbox talk schedule.',
+                    hint: '📋 EXAMPLE: Mike Johnson is onsite supervisor, present 100% of workday. Carlos Martinez is competent person for fall protection and crane operations. Daily safety inspections at 6:30AM before work starts and 2PM before afternoon shift. Toolbox talks held daily at 6:45AM led by Mike - topics rotate based on day activities. Weekly formal inspection by safety manager every Friday. All inspections documented in safety log book.',
                     validationRules: [
                         { keyword: 'supervisor|competent person|oversight', message: 'Identify supervisor and competent persons' },
                         { keyword: 'daily|inspection|toolbox', message: 'Include inspection and meeting frequency' }
@@ -353,7 +338,7 @@ export const JHA_FORM_SCHEMA: JHAFormSchema = {
                     required: true,
                     minLength: 100,
                     placeholder: 'Any near-misses on this job? Any previous incidents or injuries (first aid, recordable, lost time)? Equipment failures? Safety concerns raised by workers? Similar incidents on past jobs?...',
-                    hint: 'V1 Swiss Cheese: "Leading Indicators: Near-Miss: \'Load swung within 3 feet of worker yesterday in similar conditions\'" and "OSHA Pattern Match: similarIncidents, matchConfidence, citationsExpected". Agent 3 uses incident history to increase prediction confidence and identify recurring failure patterns. Document any close calls, equipment issues, or safety concerns - this data is CRITICAL for prediction.',
+                    hint: '📋 EXAMPLE: One near-miss on 12/20/2024: glass panel swung within 4 feet of worker during lift when wind gusted to 22mph - operation stopped immediately, reviewed lift plan with crew. No injuries on this project. One first-aid incident on previous job (cut finger, bandaged onsite). Concern raised by Tom Brown about swing stage cable wear - inspected and replaced 12/22/2024. No OSHA citations on any previous company projects.',
                     validationRules: [
                         { keyword: 'near-miss|incident|injury|concern|failure', message: 'Document any incidents or concerns' }
                     ]
@@ -366,7 +351,7 @@ export const JHA_FORM_SCHEMA: JHAFormSchema = {
                     required: true,
                     minLength: 100,
                     placeholder: 'How do workers communicate (two-way radios, hand signals, verbal)? Is there a designated signal person for crane operations? How are weather alerts communicated? Emergency communication protocol? Radio channels/frequencies?...',
-                    hint: 'V1 assessed: "Signal person identified and qualified" for crane operations and recommended: "Review the attached emergency response plan to ensure it includes clear communication protocols". Communication failures are a common Swiss Cheese layer. Document communication methods, crane signal person qualifications, emergency protocol, and how alerts are distributed.',
+                    hint: '📋 EXAMPLE: Two-way radios (Motorola T800) for all crew members, Channel 1 for operations, Channel 2 for emergencies only. Sarah Williams is designated signal person for crane operations using OSHA standard hand signals. Voice communication via radio for crane ops when visual signals insufficient. Weather alerts sent via text message to all crew from Mike Johnson who monitors weather.com hourly. Emergency protocol: 3 long air horn blasts = evacuate to assembly point. Radio check every morning at 6:45AM.',
                     validationRules: [
                         { keyword: 'radio|signal|communication|alert', message: 'Describe communication methods' },
                         { keyword: 'signal person|spotter|crane', message: 'Identify signal person for crane ops if applicable' }

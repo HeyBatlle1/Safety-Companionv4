@@ -43,6 +43,22 @@ export function useRecentJHAs(limit: number = 10, offset: number = 0) {
     });
 }
 
+// Saved Reports Query (only explicitly saved reports)
+export function useSavedReports(limit: number = 50, offset: number = 0) {
+    return useQuery({
+        queryKey: ['savedReports', limit, offset],
+        queryFn: async () => {
+            const response = await fetch(`/api/v1/reports/saved?limit=${limit}&offset=${offset}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch saved reports');
+            }
+            const data = await response.json();
+            return data;
+        },
+        retry: 1,
+    });
+}
+
 // JHA Details Query
 export function useJHADetails(id: string, options?: { refetchInterval?: number | false | ((data: any) => number | false) }) {
     return useQuery({

@@ -65,18 +65,30 @@ export function SiteConditionsWidget() {
         setError(null);
 
         try {
-            // Step 1: Get location
-            const locationData = await getLocation();
-            setLocation(locationData);
-
-            // Step 2: Get weather for that location
-            if (locationData.address) {
-                const city = locationData.address.split(',')[0]?.trim() || 'Unknown';
-                const weatherData = await getWeather(city);
-                setWeather(weatherData);
+            // Step 1: Try to get location
+            let city = 'Indianapolis'; // Default fallback
+            try {
+                const locationData = await getLocation();
+                setLocation(locationData);
+                if (locationData.address) {
+                    city = locationData.address.split(',')[0]?.trim() || 'Indianapolis';
+                }
+            } catch (locationError: any) {
+                console.log('Geolocation failed, using default city:', locationError.message);
+                // Set a placeholder location
+                setLocation({
+                    latitude: 39.7684,
+                    longitude: -86.1581,
+                    accuracy: 0,
+                    address: 'Indianapolis, IN (default)'
+                });
             }
+
+            // Step 2: Get weather for that location (always try this!)
+            const weatherData = await getWeather(city);
+            setWeather(weatherData);
         } catch (err: any) {
-            setError(err.message);
+            setError(err.message || 'Unable to load conditions');
         } finally {
             setLoading(false);
         }

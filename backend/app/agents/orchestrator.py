@@ -230,6 +230,12 @@ class SafetyAnalysisOrchestrator:
                 }
             }
             
+            # Generate markdown report from Agent 4 output BEFORE saving
+            markdown_report = ReportFormatter.format_structured_jha_report(final_report)
+            
+            # Add markdown to complete_analysis so it's saved to DB
+            complete_analysis["markdown_report"] = markdown_report
+            
             # Update analysis record if provided
             if analysis_record:
                 analysis_record.response = json.dumps(complete_analysis)
@@ -248,12 +254,6 @@ class SafetyAnalysisOrchestrator:
                 "progress": 100,
                 "elapsed_ms": int(execution_time)
             })
-            
-            # Generate markdown report from Agent 4 output
-            markdown_report = ReportFormatter.format_structured_jha_report(final_report)
-            
-            # Add markdown to complete_analysis for the response
-            complete_analysis["markdown_report"] = markdown_report
             
             return {
                 "id": analysis_id,

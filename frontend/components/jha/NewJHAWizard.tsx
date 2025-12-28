@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { JHA_FORM_SCHEMA, Question, FormField } from './FormSchema';
+import { testDataGenerators, generateAllTestData } from './testDataGenerator';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -14,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle, CheckCircle, ChevronLeft, ChevronRight, Shield, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, ChevronLeft, ChevronRight, Shield, Loader2, Dices } from 'lucide-react';
 import { useAnalyzeJHA } from '@/hooks/use-api';
 
 export function NewJHAWizard() {
@@ -29,6 +30,23 @@ export function NewJHAWizard() {
     const card = JHA_FORM_SCHEMA.cards[currentCard]!;
     const progress = ((currentCard + 1) / JHA_FORM_SCHEMA.cards.length) * 100;
     const nextCard = JHA_FORM_SCHEMA.cards[currentCard + 1];
+
+    // Fill current card with random test data
+    const fillCardWithTestData = () => {
+        const generator = testDataGenerators[currentCard as keyof typeof testDataGenerators];
+        if (generator) {
+            const testData = generator();
+            setFormData(prev => ({ ...prev, ...testData }));
+            setValidationErrors({});
+        }
+    };
+
+    // Fill ALL cards with test data (for quick full-form testing)
+    const fillAllCardsWithTestData = () => {
+        const allData = generateAllTestData();
+        setFormData(allData);
+        setValidationErrors({});
+    };
 
     const validateCard = (): boolean => {
         const errors: Record<string, string> = {};
@@ -315,12 +333,39 @@ export function NewJHAWizard() {
             {/* Card */}
             <Card className="border-border/50">
                 <CardHeader className="border-b border-border/50">
-                    <CardTitle className="flex items-center gap-2">
-                        <span className="bg-primary/20 text-primary px-2 py-1 rounded text-sm">
-                            {currentCard + 1}
-                        </span>
-                        {card.title}
-                    </CardTitle>
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2">
+                            <span className="bg-primary/20 text-primary px-2 py-1 rounded text-sm">
+                                {currentCard + 1}
+                            </span>
+                            {card.title}
+                        </CardTitle>
+                        {/* Test Data Buttons */}
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={fillCardWithTestData}
+                                className="gap-1.5 text-xs bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/30 hover:border-purple-500/50 text-purple-600 dark:text-purple-400"
+                                title="Fill this card with random test data"
+                            >
+                                <Dices className="h-3.5 w-3.5" />
+                                Fill Card
+                            </Button>
+                            {currentCard === 0 && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={fillAllCardsWithTestData}
+                                    className="gap-1.5 text-xs bg-gradient-to-r from-green-500/10 to-emerald-500/10 border-green-500/30 hover:border-green-500/50 text-green-600 dark:text-green-400"
+                                    title="Fill ALL cards with test data for quick testing"
+                                >
+                                    <Dices className="h-3.5 w-3.5" />
+                                    Fill All
+                                </Button>
+                            )}
+                        </div>
+                    </div>
                     <CardDescription>{card.description}</CardDescription>
                 </CardHeader>
 

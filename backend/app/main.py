@@ -6,6 +6,7 @@ from app.api.v1.admin import router as admin_router
 from app.api.v1.jha_suggestions import router as suggestions_router
 from app.api.v1.weather import router as weather_router
 from app.api.v1.jha_stream import router as jha_stream_router
+from app.api.v1.reports import router as reports_router
 from app.schemas.jha import JHAAnalysisRequest
 from app.core.deps import get_jha_service
 from app.services.jha_service import JHAService
@@ -34,6 +35,7 @@ app.include_router(admin_router, prefix="/api/v1")
 app.include_router(suggestions_router, prefix="/api/v1/jha", tags=["jha-suggestions"])
 app.include_router(weather_router, prefix="/api/v1", tags=["weather"])
 app.include_router(jha_stream_router, prefix="/api/v1", tags=["jha-stream"])
+app.include_router(reports_router, prefix="/api/v1", tags=["reports"])
 
 
 # Legacy compatibility routes for old frontend

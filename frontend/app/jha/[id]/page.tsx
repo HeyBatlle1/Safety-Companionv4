@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Shield, FileText, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { ProgressTracker } from '@/components/jha/progress-tracker';
-import { Agent1Card, Agent2Card, Agent3Card, Agent4Card } from '@/components/analysis';
+import { Agent1Card, Agent2Card, Agent3Card, Agent4Card, FullReportModule } from '@/components/analysis';
 
 export default function JHADetailPage() {
     const params = useParams();
@@ -270,6 +270,15 @@ export default function JHADetailPage() {
             {/* Agent 4: Synthesized Action Plan & Compliance */}
             {jha.agent_outputs?.agent4_final_report && (
                 <Agent4Card data={jha.agent_outputs.agent4_final_report} />
+            )}
+
+            {/* Full Report Module - Complete formatted report with actions */}
+            {jha.markdown_report && (
+                <FullReportModule
+                    markdown={jha.markdown_report}
+                    analysisId={jha.id}
+                    projectName={jha.project_name}
+                />
             )}
         </div>
     );

@@ -60,6 +60,29 @@ export function useSavedReports(limit: number = 50, offset: number = 0) {
     });
 }
 
+// Delete Report Mutation (removes from saved reports)
+export function useDeleteReport() {
+    const queryClient = useQueryClient();
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+    return useMutation({
+        mutationFn: async (reportId: string) => {
+            const response = await fetch(`${apiUrl}/api/v1/reports/${reportId}`, {
+                method: 'DELETE',
+            });
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to delete report');
+            }
+            return response.json();
+        },
+        onSuccess: () => {
+            // Invalidate saved reports to refresh the list
+            queryClient.invalidateQueries({ queryKey: ['savedReports'] });
+        },
+    });
+}
+
 // JHA Details Query
 export function useJHADetails(id: string, options?: { refetchInterval?: number | false | ((data: any) => number | false) }) {
     return useQuery({

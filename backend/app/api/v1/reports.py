@@ -13,7 +13,7 @@ from datetime import datetime
 import json
 
 from app.core.deps import get_db
-from app.models.analysis import AnalysisHistory
+from app.models.analysis import AnalysisHistory, AgentOutput
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
@@ -275,4 +275,108 @@ async def download_report(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to download report: {str(e)}"
+        )
+
+
+@router.delete("/{analysis_id}")
+async def delete_report(
+    analysis_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Remove a report from saved reports.
+    
+    This removes the saved_to_reports flag but does NOT delete the analysis.
+    The analysis can still be accessed via the JHA routes.
+    """
+    try:
+        # Get the analysis
+        result = await db.execute(
+            select(AnalysisHistory).where(AnalysisHistory.id == analysis_id)
+        )
+        analysis = result.scalar_one_or_none()
+        
+        if not analysis:
+            raise HTTPException(status_code=404, detail="Report not found")
+        
+        # Parse response and remove saved flag
+        try:
+            response_data = json.loads(analysis.response) if analysis.response else {}
+        except json.JSONDecodeError:
+            response_data = {}
+        
+        # Check if it was even saved
+        if not response_data.get("saved_to_reports"):
+            raise HTTPException(status_code=404, detail="Report is not in saved reports")
+        
+        # Remove saved flags
+        response_data["saved_to_reports"] = False
+        response_data["unsaved_at"] = datetime.utcnow().isoformat()
+        
+        # Update the record
+        analysis.response = json.dumps(response_data)
+        
+        await db.commit()
+        
+        print(f"🗑️ Report unsaved for analysis {analysis_id}")
+        
+        return {
+            "status": "deleted",
+            "message": "Report has been removed from saved reports",
+            "analysisId": analysis_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Delete report failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete report: {str(e)}"
+        )
+
+
+@router.delete("/{analysis_id}/permanent")
+async def permanently_delete_report(
+    analysis_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Permanently delete a report and its analysis.
+    
+    WARNING: This is irreversible. The analysis data will be completely removed.
+    """
+    try:
+        from sqlalchemy import delete
+        
+        # Delete associated agent outputs first
+        await db.execute(
+            delete(AgentOutput).where(AgentOutput.analysis_id == analysis_id)
+        )
+        
+        # Delete the analysis
+        result = await db.execute(
+            delete(AnalysisHistory).where(AnalysisHistory.id == analysis_id)
+        )
+        
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Report not found")
+        
+        await db.commit()
+        
+        print(f"🗑️ Report permanently deleted: {analysis_id}")
+        
+        return {
+            "status": "permanently_deleted",
+            "message": "Report has been permanently deleted",
+            "analysisId": analysis_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Permanent delete failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to permanently delete report: {str(e)}"
         )

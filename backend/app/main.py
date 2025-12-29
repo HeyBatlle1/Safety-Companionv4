@@ -7,6 +7,7 @@ from app.api.v1.jha_suggestions import router as suggestions_router
 from app.api.v1.weather import router as weather_router
 from app.api.v1.jha_stream import router as jha_stream_router
 from app.api.v1.reports import router as reports_router
+from app.api.v1.jha_vision import router as vision_router
 from app.schemas.jha import JHAAnalysisRequest
 from app.core.deps import get_jha_service
 from app.services.jha_service import JHAService
@@ -36,6 +37,7 @@ app.include_router(suggestions_router, prefix="/api/v1/jha", tags=["jha-suggesti
 app.include_router(weather_router, prefix="/api/v1", tags=["weather"])
 app.include_router(jha_stream_router, prefix="/api/v1", tags=["jha-stream"])
 app.include_router(reports_router, prefix="/api/v1", tags=["reports"])
+app.include_router(vision_router, prefix="/api/v1", tags=["jha-vision"])
 
 
 # Legacy compatibility routes for old frontend
@@ -49,9 +51,10 @@ async def root():
         "status": "online",
         "version": "3.0.0",
         "features": [
-            "4-agent JHA analysis pipeline",
+            "5-agent JHA analysis pipeline",
             "OSHA-compliant risk assessment",
             "Swiss Cheese incident prediction",
+            "Multimodal vision analysis (Agent 5)",
             "Real-time safety alerts"
         ]
     }

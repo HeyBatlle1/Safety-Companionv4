@@ -15,11 +15,12 @@ class Settings(BaseSettings):
 
     # External APIs (AT LEAST ONE REQUIRED)
     gemini_api_key: str | None = None  # Direct Gemini (fallback)
+    google_api_key: str | None = None  # Alias for GOOGLE_API_KEY env var (vision)
     openrouter_api_key: str | None = None  # OpenRouter (preferred)
 
     # External APIs (OPTIONAL)
     google_maps_api_key: str | None = None
-    anthropic_api_key: str | None = None  # Optional - for when LLC account is ready
+    anthropic_api_key: str | None = None  # Anthropic Claude (production vision)
     openweather_api_key: str | None = None  # Weather data for smart cards
 
     # Security

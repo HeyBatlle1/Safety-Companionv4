@@ -7,7 +7,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js%2015-000000?logo=next.js&logoColor=white)](https://nextjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)](https://python.org/)
-[![Google Gemini](https://img.shields.io/badge/Gemini%202.0-8E75B2?logo=google&logoColor=white)](https://ai.google.dev/)
+[![Google Gemini](https://img.shields.io/badge/Gemini%202.5-8E75B2?logo=google&logoColor=white)](https://ai.google.dev/)
 
 **Built by HayHunt Solutions LLC**
 

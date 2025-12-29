@@ -7,21 +7,21 @@
 /* Light mint green accents with dark emerald sidebar/menu */
 
 :root {
-  /* Backgrounds - Deep emerald with depth */
-  --background: 160 30% 8%;
-  /* very dark emerald */
+  /* Backgrounds - Deep emerald with depth (2 clicks lighter) */
+  --background: 160 28% 14%;
+  /* lighter emerald background */
   --foreground: 150 20% 95%;
   /* near-white with green tint */
 
   /* Cards - Slightly lighter emerald for elevation */
-  --card: 160 25% 12%;
-  /* dark emerald */
+  --card: 160 25% 18%;
+  /* lighter dark emerald */
   --card-foreground: 150 20% 95%;
-  --card-border: 158 25% 25%;
+  --card-border: 158 25% 28%;
   /* emerald border */
 
   /* Popovers */
-  --popover: 160 25% 12%;
+  --popover: 160 25% 18%;
   --popover-foreground: 150 20% 95%;
 
   /* Primary - Light mint green (main accent) */
@@ -30,14 +30,14 @@
   --primary-foreground: 160 30% 8%;
   /* dark text on mint */
 
-  /* Secondary - Medium emerald for contrast */
-  --secondary: 158 64% 32%;
-  /* emerald #059669 */
+  /* Secondary - Medium emerald for contrast (2 clicks brighter) */
+  --secondary: 158 64% 42%;
+  /* brighter emerald */
   --secondary-foreground: 150 20% 95%;
 
   /* Muted - Dark emerald for subtle backgrounds */
-  --muted: 160 25% 15%;
-  /* dark emerald */
+  --muted: 160 25% 20%;
+  /* adjusted muted */
   --muted-foreground: 152 30% 60%;
   /* muted mint */
 

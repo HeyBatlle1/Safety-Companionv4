@@ -66,7 +66,7 @@ const CAPTURE_CATEGORIES = [
         id: 'materials' as const,
         label: 'Materials',
         icon: Package,
-        color: 'bg-purple-500 hover:bg-purple-600',
+        color: 'bg-rose-800 hover:bg-rose-900',
         description: 'Storage & staging',
         examples: 'Glass panels, lumber'
     }
@@ -206,7 +206,7 @@ export function VisionCapture({
             case 'site': return 'bg-blue-100 text-blue-800 border-blue-200';
             case 'equipment': return 'bg-orange-100 text-orange-800 border-orange-200';
             case 'ppe': return 'bg-green-100 text-green-800 border-green-200';
-            case 'materials': return 'bg-purple-100 text-purple-800 border-purple-200';
+            case 'materials': return 'bg-rose-100 text-rose-800 border-rose-200';
             default: return 'bg-gray-100 text-gray-800 border-gray-200';
         }
     };

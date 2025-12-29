@@ -10,7 +10,7 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-background" style={{ backgroundColor: '#141414', color: '#F8F9FA' }}>
             {/* Header - minimal on mobile */}
             <Header />
 

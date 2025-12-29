@@ -31,19 +31,19 @@ export default function JHADetailPage() {
     // Check if id is 'new' which would be the wizard route
     if (id === 'new') return null;
 
-    const { data: jha, isLoading, isError, refetch } = useJHADetails(id);
+    const { data: jha, isLoading, isError } = useJHADetails(id);
 
     // Button states
     const [isSaving, setIsSaving] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
-    const [isEmailing, setIsEmailing] = useState(false);
 
     // Save to Reports
     const handleSaveToReports = async () => {
         setIsSaving(true);
         try {
-            const response = await fetch('/api/v1/reports/save', {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+            const response = await fetch(`${apiUrl}/api/v1/reports/save`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

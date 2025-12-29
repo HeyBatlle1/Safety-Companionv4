@@ -45,10 +45,11 @@ export function useRecentJHAs(limit: number = 10, offset: number = 0) {
 
 // Saved Reports Query (only explicitly saved reports)
 export function useSavedReports(limit: number = 50, offset: number = 0) {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     return useQuery({
         queryKey: ['savedReports', limit, offset],
         queryFn: async () => {
-            const response = await fetch(`/api/v1/reports/saved?limit=${limit}&offset=${offset}`);
+            const response = await fetch(`${apiUrl}/api/v1/reports/saved?limit=${limit}&offset=${offset}`);
             if (!response.ok) {
                 throw new Error('Failed to fetch saved reports');
             }

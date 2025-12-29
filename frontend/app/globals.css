@@ -12,125 +12,133 @@
  * Colorblind accessible (always pair color with icon/text)
  */
 
-:root {
-  /* ═══════════════════════════════════════════════════════════════════
-   * BACKGROUNDS - Professional deep navy (not black, easier on eyes)
-   * ═══════════════════════════════════════════════════════════════════ */
-  --background: 222 47% 11%;
-  /* #0F172A deep navy */
-  --foreground: 210 40% 96%;
-  /* #F1F5F9 off-white */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * TAILWIND 4 THEME REGISTRATION
+ * ═══════════════════════════════════════════════════════════════════════════ */
+@theme {
+  --color-background: hsl(222 47% 11%);
+  --color-foreground: hsl(210 40% 96%);
 
-  /* Cards - Slate for elevation */
+  --color-card: hsl(217 33% 17%);
+  --color-card-foreground: hsl(210 40% 96%);
+
+  --color-popover: hsl(217 33% 17%);
+  --color-popover-foreground: hsl(210 40% 96%);
+
+  --color-primary: hsl(199 89% 48%);
+  --color-primary-foreground: hsl(222 47% 11%);
+
+  --color-secondary: hsl(217 19% 35%);
+  --color-secondary-foreground: hsl(210 40% 96%);
+
+  --color-muted: hsl(217 33% 22%);
+  --color-muted-foreground: hsl(215 20% 65%);
+
+  --color-accent: hsl(21 90% 48%);
+  --color-accent-foreground: hsl(210 40% 96%);
+
+  --color-destructive: hsl(0 84% 50%);
+  --color-destructive-foreground: hsl(210 40% 96%);
+
+  --color-border: hsl(217 19% 27%);
+  --color-input: hsl(217 19% 27%);
+  --color-ring: hsl(199 89% 48%);
+
+  /* Safety Colors */
+  --color-safety-go: hsl(142 76% 36%);
+  --color-safety-stop: hsl(0 84% 50%);
+  --color-safety-caution: hsl(38 92% 50%);
+
+  /* Chart colors */
+  --color-chart-1: hsl(0 84% 50%);
+  --color-chart-2: hsl(21 90% 48%);
+  --color-chart-3: hsl(38 92% 50%);
+  --color-chart-4: hsl(142 76% 36%);
+  --color-chart-5: hsl(199 89% 48%);
+
+  /* Sidebar */
+  --color-sidebar: hsl(222 47% 11%);
+  --color-sidebar-foreground: hsl(210 40% 96%);
+  --color-sidebar-primary: hsl(199 89% 48%);
+  --color-sidebar-primary-foreground: hsl(222 47% 11%);
+  --color-sidebar-accent: hsl(21 90% 48%);
+  --color-sidebar-accent-foreground: hsl(210 40% 96%);
+  --color-sidebar-border: hsl(217 19% 27%);
+  --color-sidebar-ring: hsl(199 89% 48%);
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * CSS CUSTOM PROPERTIES (for component library compatibility)
+ * ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* Backgrounds */
+  --background: 222 47% 11%;
+  --foreground: 210 40% 96%;
+
+  /* Cards */
   --card: 217 33% 17%;
-  /* #1E293B slate */
   --card-foreground: 210 40% 96%;
   --card-border: 217 19% 27%;
-  /* slate-600 */
 
   /* Popovers */
   --popover: 217 33% 17%;
   --popover-foreground: 210 40% 96%;
 
-  /* ═══════════════════════════════════════════════════════════════════
-   * SAFETY DECISION COLORS - ANSI Z535 Compliant
-   * These are THE critical colors. No ambiguity allowed.
-   * ═══════════════════════════════════════════════════════════════════ */
-
-  /* GO - ANSI Safety Green */
-  --safety-go: 142 76% 36%;
-  /* #16A34A - bright safety green */
-  --safety-go-glow: 142 76% 36% / 50%;
-
-  /* NO GO - ANSI Danger Red */
-  --safety-stop: 0 84% 50%;
-  /* #DC2626 - bright danger red */
-  --safety-stop-glow: 0 84% 50% / 50%;
-
-  /* CAUTION - ANSI Warning Yellow/Amber */
-  --safety-caution: 38 92% 50%;
-  /* #F59E0B - warning amber */
-  --safety-caution-glow: 38 92% 50% / 50%;
-
-  /* ═══════════════════════════════════════════════════════════════════
-   * PRIORITY COLORS - Action item severity
-   * ═══════════════════════════════════════════════════════════════════ */
-  --priority-critical: 0 84% 50%;
-  /* #DC2626 red */
-  --priority-critical-bg: 0 84% 50% / 10%;
-
-  --priority-high: 21 90% 48%;
-  /* #EA580C orange */
-  --priority-high-bg: 21 90% 48% / 10%;
-
-  --priority-medium: 38 92% 50%;
-  /* #F59E0B yellow */
-  --priority-medium-bg: 38 92% 50% / 10%;
-
-  --priority-low: 199 89% 48%;
-  /* #0EA5E9 blue */
-  --priority-low-bg: 199 89% 48% / 10%;
-
-  /* ═══════════════════════════════════════════════════════════════════
-   * UI COLORS - Standard interface elements
-   * ═══════════════════════════════════════════════════════════════════ */
-
-  /* Primary - Clean blue for interactive elements */
+  /* Primary */
   --primary: 199 89% 48%;
-  /* #0EA5E9 sky blue */
   --primary-foreground: 222 47% 11%;
 
-  /* Secondary - Slate for less important elements */
+  /* Secondary */
   --secondary: 217 19% 35%;
-  /* slate-600 */
   --secondary-foreground: 210 40% 96%;
 
-  /* Muted - Subtle backgrounds */
+  /* Muted */
   --muted: 217 33% 22%;
   --muted-foreground: 215 20% 65%;
 
-  /* Accent - For highlights (orange for construction) */
+  /* Accent */
   --accent: 21 90% 48%;
-  /* #EA580C construction orange */
   --accent-foreground: 210 40% 96%;
 
-  /* Destructive - For errors/delete actions */
+  /* Destructive */
   --destructive: 0 84% 50%;
   --destructive-foreground: 210 40% 96%;
 
-  /* Borders */
+  /* Borders/Input */
   --border: 217 19% 27%;
   --input: 217 19% 27%;
   --ring: 199 89% 48%;
 
-  /* ═══════════════════════════════════════════════════════════════════
-   * CAPTURE CATEGORY COLORS - Vision UI
-   * ═══════════════════════════════════════════════════════════════════ */
-  --category-site: 199 89% 48%;
-  /* Blue - site overview */
-  --category-equipment: 21 90% 48%;
-  /* Orange - equipment */
-  --category-ppe: 142 76% 36%;
-  /* Green - PPE */
-  --category-materials: 280 67% 44%;
-  /* Purple - materials */
-
-  /* Chart colors */
-  --chart-1: 0 84% 50%;
-  /* red */
-  --chart-2: 21 90% 48%;
-  /* orange */
-  --chart-3: 38 92% 50%;
-  /* yellow */
-  --chart-4: 142 76% 36%;
-  /* green */
-  --chart-5: 199 89% 48%;
-  /* blue */
-
   /* Radius */
   --radius: 0.5rem;
 
-  /* Sidebar - Deep navy */
+  /* Safety Colors */
+  --safety-go: 142 76% 36%;
+  --safety-go-glow: 142 76% 36% / 50%;
+  --safety-stop: 0 84% 50%;
+  --safety-stop-glow: 0 84% 50% / 50%;
+  --safety-caution: 38 92% 50%;
+  --safety-caution-glow: 38 92% 50% / 50%;
+
+  /* Priority Colors */
+  --priority-critical: 0 84% 50%;
+  --priority-critical-bg: 0 84% 50% / 10%;
+  --priority-high: 21 90% 48%;
+  --priority-high-bg: 21 90% 48% / 10%;
+  --priority-medium: 38 92% 50%;
+  --priority-medium-bg: 38 92% 50% / 10%;
+  --priority-low: 199 89% 48%;
+  --priority-low-bg: 199 89% 48% / 10%;
+
+  /* Bottom Nav */
+  --bottom-nav-height: 4rem;
+
+  /* Sidebar */
   --sidebar: 222 47% 11%;
   --sidebar-foreground: 210 40% 96%;
   --sidebar-primary: 199 89% 48%;
@@ -139,32 +147,11 @@
   --sidebar-accent-foreground: 210 40% 96%;
   --sidebar-border: 217 19% 27%;
   --sidebar-ring: 199 89% 48%;
-
-  /* Bottom Nav */
-  --bottom-nav-height: 4rem;
-  --bottom-nav-bg: 222 47% 11%;
-  --bottom-nav-border: 217 19% 27%;
 }
 
-/* Light mode - same palette, just inverted for readability */
-.light {
-  --background: 210 40% 98%;
-  --foreground: 222 47% 11%;
-  --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
-  --card-border: 215 20% 85%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 222 47% 11%;
-  --muted: 215 20% 95%;
-  --muted-foreground: 217 19% 45%;
-  --border: 215 20% 85%;
-  --input: 215 20% 85%;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
- * SAFETY SIGNAGE STYLES
- * Based on OSHA signage - bold, clear, no-nonsense
- * ═══════════════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * SAFETY SIGNAGE STYLES - OSHA compliant
+ * ═══════════════════════════════════════════════════════════════════════════ */
 
 /* Decision banners with glow effects */
 .decision-go {
@@ -194,7 +181,6 @@
     inset 0 1px 0 hsl(38 92% 60% / 30%);
   border: 2px solid hsl(38 92% 60%);
   color: hsl(222 47% 11%);
-  /* Black text for yellow background */
 }
 
 /* Priority action items */
@@ -258,11 +244,11 @@
   box-shadow: 0 4px 12px hsl(0 72% 35% / 30%);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════════════
  * UTILITY CLASSES
- * ═══════════════════════════════════════════════════════════════════════ */
+ * ═══════════════════════════════════════════════════════════════════════════ */
 
-/* High contrast text for safety-critical info */
+/* High contrast text */
 .text-high-contrast {
   color: hsl(210 40% 98%);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -284,7 +270,7 @@
   filter: drop-shadow(0 0 4px hsl(38 92% 50% / 50%));
 }
 
-/* Touch targets for field workers */
+/* Touch targets */
 .touch-target-lg {
   min-height: 48px;
   min-width: 48px;
@@ -295,7 +281,7 @@
   min-width: 64px;
 }
 
-/* Bottom nav height utility */
+/* Bottom nav height */
 .bottom-nav-height {
   height: var(--bottom-nav-height);
 }
@@ -319,21 +305,35 @@
   background: hsl(217 19% 45%);
 }
 
-/* Selection color */
+/* Selection */
 ::selection {
   background: hsl(199 89% 48% / 30%);
   color: hsl(210 40% 98%);
 }
 
-/* Focus visible for accessibility */
+/* Focus visible */
 :focus-visible {
   outline: 2px solid hsl(199 89% 48%);
   outline-offset: 2px;
 }
 
-/* Reduced motion preference */
+/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .decision-stop {
     animation: none;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * FORCE DARK BACKGROUND (fallback)
+ * ═══════════════════════════════════════════════════════════════════════════ */
+html,
+body {
+  background-color: hsl(222 47% 11%) !important;
+  color: hsl(210 40% 96%) !important;
+}
+
+.dark {
+  background-color: hsl(222 47% 11%);
+  color: hsl(210 40% 96%);
 }

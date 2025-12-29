@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -9,9 +9,9 @@ import {
     Sparkle,
     Info,
     CaretDown,
-    ClipboardText
+    ClipboardText,
+    Eye
 } from '@phosphor-icons/react';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -80,14 +80,16 @@ export default function VisionUpdatePage() {
                 </Link>
                 <div className="flex-1">
                     <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-                        <Camera weight="bold" size={28} className="text-gray-400" />
-                        Visual Safety Check
+                        <div className="p-1.5 rounded-xl bg-gradient-to-br from-violet-400 via-purple-300 to-fuchsia-500 shadow-lg shadow-violet-400/30">
+                            <Eye weight="fill" size={24} className="text-white" />
+                        </div>
+                        Agent 5
                     </h1>
                     <p className="text-sm text-gray-400">
-                        AI-powered inspection • Agent 5
+                        AI Vision Inspector • Real-time hazard detection
                     </p>
                 </div>
-                <Badge className="hidden sm:flex gap-1 bg-gray-700 text-gray-300 border-gray-600">
+                <Badge className="hidden sm:flex gap-1 bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 text-violet-300 border-violet-500/30">
                     <Sparkle weight="fill" size={14} />
                     AI Vision
                 </Badge>
@@ -188,10 +190,10 @@ export default function VisionUpdatePage() {
                                                             </p>
                                                         </div>
                                                         <Badge className={`text-xs ${jha.urgency_level === 'LOW'
-                                                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                                                                : jha.urgency_level === 'MEDIUM'
-                                                                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-                                                                    : 'bg-red-500/20 text-red-400 border-red-500/30'
+                                                            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                                            : jha.urgency_level === 'MEDIUM'
+                                                                ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                                                                : 'bg-red-500/20 text-red-400 border-red-500/30'
                                                             }`}>
                                                             {jha.urgency_level}
                                                         </Badge>

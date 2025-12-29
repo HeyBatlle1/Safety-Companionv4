@@ -1,17 +1,18 @@
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  FileText,
-  Shield,
-  AlertTriangle,
+  ClipboardText,
+  ShieldCheck,
+  Warning,
   ArrowRight,
   Clock,
   Plus,
-  Camera
-} from "lucide-react";
+  Camera,
+  ChartLineUp,
+  Lightning
+} from "@phosphor-icons/react";
 import Link from "next/link";
 import { useRecentJHAs } from "@/hooks/use-api";
 import { formatDistanceToNow } from "date-fns";
@@ -19,6 +20,7 @@ import { StatsCard } from "@/components/dashboard/StatsCard";
 import { ActivityChart } from "@/components/dashboard/ActivityChart";
 import { ComplianceGauge } from "@/components/dashboard/ComplianceGauge";
 import { SiteConditionsWidget } from "@/components/dashboard/SiteConditionsWidget";
+import { PrimaryButton, SecondaryButton } from "@/components/ui/phosphor-buttons";
 
 export default function DashboardPage() {
   const { data: recentJHAs, isLoading } = useRecentJHAs(50);
@@ -51,35 +53,37 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-6 pb-20">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-high-contrast">
-            Safety Dashboard
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            {new Date().toLocaleDateString('en-US', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            })}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/vision">
-            <Button variant="outline" className="touch-target-lg">
-              <Camera className="h-4 w-4 mr-2" />
-              Quick Scan
-            </Button>
-          </Link>
-          <Link href="/jha/new">
-            <Button className="touch-target-lg">
-              <Plus className="h-4 w-4 mr-2" />
-              New JHA
-            </Button>
-          </Link>
+    <div className="space-y-6 pb-24">
+      {/* Header with gradient */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 p-6 border border-gray-700/50">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_-20%,rgba(59,130,246,0.2),transparent)]" />
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
+              <ChartLineUp weight="bold" size={36} className="text-blue-400" />
+              Safety Dashboard
+            </h1>
+            <p className="text-gray-400 mt-1">
+              {new Date().toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Link href="/vision">
+              <SecondaryButton icon={Camera}>
+                Quick Scan
+              </SecondaryButton>
+            </Link>
+            <Link href="/jha/new">
+              <PrimaryButton icon={Plus}>
+                New JHA
+              </PrimaryButton>
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -95,7 +99,7 @@ export default function DashboardPage() {
           <StatsCard
             title="Total JHAs"
             value={totalSubmissions}
-            icon={FileText}
+            icon={ClipboardText}
             variant="primary"
             trend="up"
             trendValue="+12% this week"
@@ -103,7 +107,7 @@ export default function DashboardPage() {
           <StatsCard
             title="Approved"
             value={approvedCount}
-            icon={Shield}
+            icon={ShieldCheck}
             variant="success"
           />
           <StatsCard
@@ -115,33 +119,34 @@ export default function DashboardPage() {
           <StatsCard
             title="High Risk"
             value={highRiskCount}
-            icon={AlertTriangle}
+            icon={Lightning}
             variant="danger"
           />
-        </div >
-      </div >
+        </div>
+      </div>
 
       {/* Charts Row */}
-      < div className="grid grid-cols-1 lg:grid-cols-3 gap-4" >
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
           <ActivityChart data={getWeeklyData()} />
         </div>
         <div>
           <ComplianceGauge score={avgCompliance} />
         </div>
-      </div >
+      </div>
 
       {/* Recent Activity */}
-      < Card >
+      <Card className="bg-gray-800/50 border-gray-700">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Recent JHA Analyses</CardTitle>
-            <CardDescription>Your latest safety assessments</CardDescription>
+            <CardTitle className="text-white">Recent JHA Analyses</CardTitle>
+            <CardDescription className="text-gray-400">Your latest safety assessments</CardDescription>
           </div>
           <Link href="/jha">
-            <Button variant="ghost" size="sm">
-              View All <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700/50 transition-colors text-sm font-medium">
+              View All
+              <ArrowRight weight="bold" size={16} />
+            </button>
           </Link>
         </CardHeader>
         <CardContent>
@@ -149,31 +154,40 @@ export default function DashboardPage() {
             {isLoading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
+                  <div key={i} className="flex items-center justify-between border-b border-gray-700 pb-4 last:border-0 last:pb-0">
                     <div className="space-y-2">
-                      <div className="h-4 w-48 animate-pulse rounded bg-muted"></div>
-                      <div className="h-3 w-24 animate-pulse rounded bg-muted"></div>
+                      <div className="h-4 w-48 animate-pulse rounded bg-gray-700"></div>
+                      <div className="h-3 w-24 animate-pulse rounded bg-gray-700"></div>
                     </div>
-                    <div className="h-6 w-16 animate-pulse rounded bg-muted"></div>
+                    <div className="h-6 w-16 animate-pulse rounded bg-gray-700"></div>
                   </div>
                 ))}
               </div>
             ) : recentJHAs && recentJHAs.length > 0 ? (
               recentJHAs.slice(0, 5).map((item) => (
                 <Link key={item.id} href={`/jha/${item.id}`} className="block group">
-                  <div className="flex items-center justify-between border-b pb-4 transition-colors group-hover:bg-accent/5 last:border-0 last:pb-0">
+                  <div className="flex items-center justify-between border-b border-gray-700/50 pb-4 transition-colors group-hover:bg-white/5 rounded-lg px-2 -mx-2 last:border-0 last:pb-0">
                     <div className="space-y-1">
-                      <p className="font-medium leading-none group-hover:text-primary">{item.project_name}</p>
-                      <p className="text-sm text-muted-foreground">{formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}</p>
+                      <p className="font-medium text-white group-hover:text-blue-400 transition-colors">{item.project_name}</p>
+                      <p className="text-sm text-gray-500">{formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge
-                        variant={item.risk_score > 70 ? 'destructive' : item.risk_score > 40 ? 'secondary' : 'default'}
-                        className="tabular-nums"
+                        className={`tabular-nums ${item.risk_score > 70
+                            ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                            : item.risk_score > 40
+                              ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                              : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                          }`}
                       >
                         Risk: {item.risk_score}
                       </Badge>
-                      <Badge variant={item.urgency_level === 'CRITICAL' || item.urgency_level === 'HIGH' ? 'destructive' : 'outline'}>
+                      <Badge
+                        className={`${item.urgency_level === 'CRITICAL' || item.urgency_level === 'HIGH'
+                            ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                            : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                          }`}
+                      >
                         {item.urgency_level}
                       </Badge>
                     </div>
@@ -181,13 +195,17 @@ export default function DashboardPage() {
                 </Link>
               ))
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                No recent analyses found. Start your first JHA!
+              <div className="text-center py-8">
+                <ClipboardText weight="light" size={48} className="text-gray-600 mx-auto mb-3" />
+                <p className="text-gray-400">No recent analyses found.</p>
+                <Link href="/jha/new" className="text-blue-400 hover:underline text-sm mt-1 inline-block">
+                  Start your first JHA →
+                </Link>
               </div>
             )}
           </div>
         </CardContent>
-      </Card >
-    </div >
+      </Card>
+    </div>
   );
 }

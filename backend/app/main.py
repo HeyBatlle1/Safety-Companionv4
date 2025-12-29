@@ -17,7 +17,7 @@ app = FastAPI(
     title=settings.app_name,
     debug=settings.debug,
     description="Safety Companion API - Python Backend with Multi-Agent JHA Analysis",
-    version="2.0.0-python"
+    version="3.0.0"
 )
 
 # CORS middleware
@@ -47,7 +47,7 @@ async def root():
     return {
         "message": "Safety Companion API",
         "status": "online",
-        "version": "2.0.0-python",
+        "version": "3.0.0",
         "features": [
             "4-agent JHA analysis pipeline",
             "OSHA-compliant risk assessment",
@@ -62,7 +62,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "safety-companion-api",
-        "version": "2.0.0-python",
+        "version": "3.0.0",
         "agents": {
             "orchestration": "ready",
             "gemini_integration": "ready",

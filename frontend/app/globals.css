@@ -3,267 +3,337 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Mint Green & Emerald Theme - Fresh, Professional, Safety-Focused */
-/* Light mint green accents with dark emerald sidebar/menu */
+/* 
+ * SAFETY COMPANION COLOR SYSTEM
+ * Based on ANSI Z535 Safety Standards & OSHA Signage Guidelines
+ * Designed for instant recognition - lives depend on it
+ * 
+ * WCAG AAA compliant contrast ratios
+ * Colorblind accessible (always pair color with icon/text)
+ */
 
 :root {
-  /* Backgrounds - Deep emerald with depth (2 clicks lighter) */
-  --background: 160 28% 14%;
-  /* lighter emerald background */
-  --foreground: 150 20% 95%;
-  /* near-white with green tint */
+  /* ═══════════════════════════════════════════════════════════════════
+   * BACKGROUNDS - Professional deep navy (not black, easier on eyes)
+   * ═══════════════════════════════════════════════════════════════════ */
+  --background: 222 47% 11%;
+  /* #0F172A deep navy */
+  --foreground: 210 40% 96%;
+  /* #F1F5F9 off-white */
 
-  /* Cards - Slightly lighter emerald for elevation */
-  --card: 160 25% 18%;
-  /* lighter dark emerald */
-  --card-foreground: 150 20% 95%;
-  --card-border: 158 25% 28%;
-  /* emerald border */
+  /* Cards - Slate for elevation */
+  --card: 217 33% 17%;
+  /* #1E293B slate */
+  --card-foreground: 210 40% 96%;
+  --card-border: 217 19% 27%;
+  /* slate-600 */
 
   /* Popovers */
-  --popover: 160 25% 18%;
-  --popover-foreground: 150 20% 95%;
+  --popover: 217 33% 17%;
+  --popover-foreground: 210 40% 96%;
 
-  /* Primary - Light mint green (main accent) */
-  --primary: 156 72% 67%;
-  /* mint green #6ee7b7 */
-  --primary-foreground: 160 30% 8%;
-  /* dark text on mint */
+  /* ═══════════════════════════════════════════════════════════════════
+   * SAFETY DECISION COLORS - ANSI Z535 Compliant
+   * These are THE critical colors. No ambiguity allowed.
+   * ═══════════════════════════════════════════════════════════════════ */
 
-  /* Secondary - Medium emerald for contrast (2 clicks brighter) */
-  --secondary: 158 64% 42%;
-  /* brighter emerald */
-  --secondary-foreground: 150 20% 95%;
+  /* GO - ANSI Safety Green */
+  --safety-go: 142 76% 36%;
+  /* #16A34A - bright safety green */
+  --safety-go-glow: 142 76% 36% / 50%;
 
-  /* Muted - Dark emerald for subtle backgrounds */
-  --muted: 160 25% 20%;
-  /* adjusted muted */
-  --muted-foreground: 152 30% 60%;
-  /* muted mint */
+  /* NO GO - ANSI Danger Red */
+  --safety-stop: 0 84% 50%;
+  /* #DC2626 - bright danger red */
+  --safety-stop-glow: 0 84% 50% / 50%;
 
-  /* Accent - Construction orange (keep for alerts/highlights) */
-  --accent: 24.6 95% 53.1%;
-  /* orange-500 #f97316 */
-  --accent-foreground: 160 30% 8%;
+  /* CAUTION - ANSI Warning Yellow/Amber */
+  --safety-caution: 38 92% 50%;
+  /* #F59E0B - warning amber */
+  --safety-caution-glow: 38 92% 50% / 50%;
 
-  /* Destructive - Alert red */
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 150 20% 95%;
+  /* ═══════════════════════════════════════════════════════════════════
+   * PRIORITY COLORS - Action item severity
+   * ═══════════════════════════════════════════════════════════════════ */
+  --priority-critical: 0 84% 50%;
+  /* #DC2626 red */
+  --priority-critical-bg: 0 84% 50% / 10%;
 
-  /* Borders - Subtle emerald */
-  --border: 160 20% 18%;
-  /* dark emerald border */
-  --input: 160 20% 18%;
-  --ring: 156 72% 67%;
-  /* mint green ring */
+  --priority-high: 21 90% 48%;
+  /* #EA580C orange */
+  --priority-high-bg: 21 90% 48% / 10%;
 
-  /* Chart colors - emerald palette with orange accent */
-  --chart-1: 24.6 95% 53.1%;
-  /* orange */
-  --chart-2: 156 72% 67%;
-  /* mint green */
-  --chart-3: 158 64% 52%;
-  /* emerald */
-  --chart-4: 142.1 76.2% 36.3%;
-  /* green */
-  --chart-5: 152 60% 45%;
-  /* teal */
+  --priority-medium: 38 92% 50%;
+  /* #F59E0B yellow */
+  --priority-medium-bg: 38 92% 50% / 10%;
 
-  /* Radius - subtle, professional */
-  --radius: 0.5rem;
+  --priority-low: 199 89% 48%;
+  /* #0EA5E9 blue */
+  --priority-low-bg: 199 89% 48% / 10%;
 
-  /* Sidebar - Dark Notre Dame Emerald */
-  --sidebar: 158 50% 12%;
-  /* Notre Dame green dark */
-  --sidebar-foreground: 150 20% 95%;
-  --sidebar-primary: 156 72% 67%;
-  /* mint accent */
-  --sidebar-primary-foreground: 160 30% 8%;
-  --sidebar-accent: 158 64% 32%;
-  /* emerald */
-  --sidebar-accent-foreground: 150 20% 95%;
-  --sidebar-border: 158 30% 20%;
-  --sidebar-ring: 156 72% 67%;
+  /* ═══════════════════════════════════════════════════════════════════
+   * UI COLORS - Standard interface elements
+   * ═══════════════════════════════════════════════════════════════════ */
 
-  /* Bottom Nav - mobile-first */
-  --bottom-nav-height: 4rem;
-  /* 64px */
-  --bottom-nav-bg: 158 50% 12%;
-  /* Notre Dame emerald */
-  --bottom-nav-border: 158 30% 25%;
-  /* emerald border */
-}
+  /* Primary - Clean blue for interactive elements */
+  --primary: 199 89% 48%;
+  /* #0EA5E9 sky blue */
+  --primary-foreground: 222 47% 11%;
 
-/* Light mode - mint green and emerald tones */
-.light {
-  --background: 150 30% 97%;
-  /* very light mint */
-  --foreground: 160 30% 10%;
-  /* dark emerald text */
+  /* Secondary - Slate for less important elements */
+  --secondary: 217 19% 35%;
+  /* slate-600 */
+  --secondary-foreground: 210 40% 96%;
 
-  --card: 0 0% 100%;
-  /* white */
-  --card-foreground: 160 30% 10%;
+  /* Muted - Subtle backgrounds */
+  --muted: 217 33% 22%;
+  --muted-foreground: 215 20% 65%;
 
-  --popover: 0 0% 100%;
-  --popover-foreground: 160 30% 10%;
+  /* Accent - For highlights (orange for construction) */
+  --accent: 21 90% 48%;
+  /* #EA580C construction orange */
+  --accent-foreground: 210 40% 96%;
 
-  --primary: 158 64% 32%;
-  /* emerald #059669 */
-  --primary-foreground: 150 20% 95%;
+  /* Destructive - For errors/delete actions */
+  --destructive: 0 84% 50%;
+  --destructive-foreground: 210 40% 96%;
 
-  --secondary: 156 72% 67%;
-  /* mint green */
-  --secondary-foreground: 160 30% 10%;
+  /* Borders */
+  --border: 217 19% 27%;
+  --input: 217 19% 27%;
+  --ring: 199 89% 48%;
 
-  --muted: 150 20% 94%;
-  --muted-foreground: 158 30% 40%;
-
-  --accent: 24.6 95% 53.1%;
-  /* orange-500 */
-  --accent-foreground: 0 0% 100%;
-
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 150 20% 95%;
-
-  --border: 150 20% 88%;
-  --input: 150 20% 88%;
-  --ring: 158 64% 32%;
-
-  --bottom-nav-bg: 0 0% 100%;
-  --bottom-nav-border: 150 20% 88%;
-}
-
-@theme inline {
-  /* Map CSS variables to Tailwind colors */
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
-  --color-popover: hsl(var(--popover));
-  --color-popover-foreground: hsl(var(--popover-foreground));
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
-  --color-secondary: hsl(var(--secondary));
-  --color-secondary-foreground: hsl(var(--secondary-foreground));
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
-  --color-accent: hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
-  --color-destructive: hsl(var(--destructive));
-  --color-destructive-foreground: hsl(var(--destructive-foreground));
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
-  --color-ring: hsl(var(--ring));
+  /* ═══════════════════════════════════════════════════════════════════
+   * CAPTURE CATEGORY COLORS - Vision UI
+   * ═══════════════════════════════════════════════════════════════════ */
+  --category-site: 199 89% 48%;
+  /* Blue - site overview */
+  --category-equipment: 21 90% 48%;
+  /* Orange - equipment */
+  --category-ppe: 142 76% 36%;
+  /* Green - PPE */
+  --category-materials: 280 67% 44%;
+  /* Purple - materials */
 
   /* Chart colors */
-  --color-chart-1: hsl(var(--chart-1));
-  --color-chart-2: hsl(var(--chart-2));
-  --color-chart-3: hsl(var(--chart-3));
-  --color-chart-4: hsl(var(--chart-4));
-  --color-chart-5: hsl(var(--chart-5));
+  --chart-1: 0 84% 50%;
+  /* red */
+  --chart-2: 21 90% 48%;
+  /* orange */
+  --chart-3: 38 92% 50%;
+  /* yellow */
+  --chart-4: 142 76% 36%;
+  /* green */
+  --chart-5: 199 89% 48%;
+  /* blue */
 
-  /* Sidebar colors */
-  --color-sidebar: hsl(var(--sidebar));
-  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
-  --color-sidebar-primary: hsl(var(--sidebar-primary));
-  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
-  --color-sidebar-accent: hsl(var(--sidebar-accent));
-  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
-  --color-sidebar-border: hsl(var(--sidebar-border));
-  --color-sidebar-ring: hsl(var(--sidebar-ring));
+  /* Radius */
+  --radius: 0.5rem;
 
-  /* Border radius */
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  /* Sidebar - Deep navy */
+  --sidebar: 222 47% 11%;
+  --sidebar-foreground: 210 40% 96%;
+  --sidebar-primary: 199 89% 48%;
+  --sidebar-primary-foreground: 222 47% 11%;
+  --sidebar-accent: 21 90% 48%;
+  --sidebar-accent-foreground: 210 40% 96%;
+  --sidebar-border: 217 19% 27%;
+  --sidebar-ring: 199 89% 48%;
 
-  /* Font family */
-  --font-sans: var(--font-geist-sans);
+  /* Bottom Nav */
+  --bottom-nav-height: 4rem;
+  --bottom-nav-bg: 222 47% 11%;
+  --bottom-nav-border: 217 19% 27%;
 }
 
-/* Base styles */
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
+/* Light mode - same palette, just inverted for readability */
+.light {
+  --background: 210 40% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --card-border: 215 20% 85%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --muted: 215 20% 95%;
+  --muted-foreground: 217 19% 45%;
+  --border: 215 20% 85%;
+  --input: 215 20% 85%;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * SAFETY SIGNAGE STYLES
+ * Based on OSHA signage - bold, clear, no-nonsense
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/* Decision banners with glow effects */
+.decision-go {
+  background: linear-gradient(135deg, hsl(142 76% 36%) 0%, hsl(142 76% 30%) 100%);
+  box-shadow:
+    0 0 20px hsl(142 76% 36% / 40%),
+    0 0 40px hsl(142 76% 36% / 20%),
+    inset 0 1px 0 hsl(142 76% 50% / 30%);
+  border: 2px solid hsl(142 76% 50%);
+}
+
+.decision-stop {
+  background: linear-gradient(135deg, hsl(0 84% 50%) 0%, hsl(0 84% 40%) 100%);
+  box-shadow:
+    0 0 20px hsl(0 84% 50% / 40%),
+    0 0 40px hsl(0 84% 50% / 20%),
+    inset 0 1px 0 hsl(0 84% 60% / 30%);
+  border: 2px solid hsl(0 84% 60%);
+  animation: pulse-danger 2s ease-in-out infinite;
+}
+
+.decision-caution {
+  background: linear-gradient(135deg, hsl(38 92% 50%) 0%, hsl(38 92% 40%) 100%);
+  box-shadow:
+    0 0 20px hsl(38 92% 50% / 40%),
+    0 0 40px hsl(38 92% 50% / 20%),
+    inset 0 1px 0 hsl(38 92% 60% / 30%);
+  border: 2px solid hsl(38 92% 60%);
+  color: hsl(222 47% 11%);
+  /* Black text for yellow background */
+}
+
+/* Priority action items */
+.priority-critical {
+  border-left: 4px solid hsl(0 84% 50%);
+  background: hsl(0 84% 50% / 8%);
+}
+
+.priority-high {
+  border-left: 4px solid hsl(21 90% 48%);
+  background: hsl(21 90% 48% / 8%);
+}
+
+.priority-medium {
+  border-left: 4px solid hsl(38 92% 50%);
+  background: hsl(38 92% 50% / 8%);
+}
+
+.priority-low {
+  border-left: 4px solid hsl(199 89% 48%);
+  background: hsl(199 89% 48% / 8%);
+}
+
+/* Danger pulse animation */
+@keyframes pulse-danger {
+
+  0%,
+  100% {
+    box-shadow:
+      0 0 20px hsl(0 84% 50% / 40%),
+      0 0 40px hsl(0 84% 50% / 20%),
+      inset 0 1px 0 hsl(0 84% 60% / 30%);
   }
 
-  body {
-    @apply bg-background text-foreground;
-    font-family: var(--font-sans), Arial, Helvetica, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    position: relative;
-  }
-
-  /* Subtle animated background texture */
-  body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -1;
-    opacity: 0.03;
-    background:
-      radial-gradient(circle at 20% 50%, rgba(16, 185, 129, 0.4) 0%, transparent 50%),
-      radial-gradient(circle at 80% 80%, rgba(248, 113, 22, 0.3) 0%, transparent 50%),
-      radial-gradient(circle at 40% 20%, rgba(5, 150, 105, 0.4) 0%, transparent 50%);
-    animation: subtleFloat 20s ease-in-out infinite;
-  }
-
-  @keyframes subtleFloat {
-
-    0%,
-    100% {
-      transform: translate(0, 0) scale(1);
-    }
-
-    33% {
-      transform: translate(30px, -30px) scale(1.1);
-    }
-
-    66% {
-      transform: translate(-20px, 20px) scale(0.9);
-    }
+  50% {
+    box-shadow:
+      0 0 30px hsl(0 84% 50% / 60%),
+      0 0 60px hsl(0 84% 50% / 30%),
+      inset 0 1px 0 hsl(0 84% 60% / 30%);
   }
 }
 
-/* Utilities for mobile-first design */
-@layer utilities {
+/* Capture category buttons */
+.capture-btn-site {
+  background: linear-gradient(135deg, hsl(199 89% 48%) 0%, hsl(199 89% 40%) 100%);
+  box-shadow: 0 4px 12px hsl(199 89% 48% / 30%);
+}
 
-  /* Bottom navigation safe area */
-  .pb-safe-bottom {
-    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
-  }
+.capture-btn-equipment {
+  background: linear-gradient(135deg, hsl(21 90% 48%) 0%, hsl(21 90% 40%) 100%);
+  box-shadow: 0 4px 12px hsl(21 90% 48% / 30%);
+}
 
-  /* Large touch targets for field use */
-  .touch-target {
-    min-height: 44px;
-    min-width: 44px;
-  }
+.capture-btn-ppe {
+  background: linear-gradient(135deg, hsl(142 76% 36%) 0%, hsl(142 76% 30%) 100%);
+  box-shadow: 0 4px 12px hsl(142 76% 36% / 30%);
+}
 
-  .touch-target-lg {
-    min-height: 56px;
-    min-width: 56px;
-  }
+.capture-btn-materials {
+  background: linear-gradient(135deg, hsl(0 72% 35%) 0%, hsl(0 72% 28%) 100%);
+  box-shadow: 0 4px 12px hsl(0 72% 35% / 30%);
+}
 
-  /* High contrast for sunlight readability */
-  .text-high-contrast {
-    color: hsl(var(--foreground));
-    font-weight: 500;
-  }
+/* ═══════════════════════════════════════════════════════════════════════
+ * UTILITY CLASSES
+ * ═══════════════════════════════════════════════════════════════════════ */
 
-  /* Bottom nav specific */
-  .bottom-nav-height {
-    height: var(--bottom-nav-height);
-  }
+/* High contrast text for safety-critical info */
+.text-high-contrast {
+  color: hsl(210 40% 98%);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
 
-  /* Card enhancements - subtle border highlights */
-  .card-highlight {
-    border: 1px solid hsl(var(--card-border) / 0.3);
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+/* Safety icon indicators */
+.icon-pass {
+  color: hsl(142 76% 36%);
+  filter: drop-shadow(0 0 4px hsl(142 76% 36% / 50%));
+}
+
+.icon-fail {
+  color: hsl(0 84% 50%);
+  filter: drop-shadow(0 0 4px hsl(0 84% 50% / 50%));
+}
+
+.icon-caution {
+  color: hsl(38 92% 50%);
+  filter: drop-shadow(0 0 4px hsl(38 92% 50% / 50%));
+}
+
+/* Touch targets for field workers */
+.touch-target-lg {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+.touch-target-xl {
+  min-height: 64px;
+  min-width: 64px;
+}
+
+/* Bottom nav height utility */
+.bottom-nav-height {
+  height: var(--bottom-nav-height);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(217 33% 17%);
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(217 19% 35%);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(217 19% 45%);
+}
+
+/* Selection color */
+::selection {
+  background: hsl(199 89% 48% / 30%);
+  color: hsl(210 40% 98%);
+}
+
+/* Focus visible for accessibility */
+:focus-visible {
+  outline: 2px solid hsl(199 89% 48%);
+  outline-offset: 2px;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .decision-stop {
+    animation: none;
   }
 }

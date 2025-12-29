@@ -9,7 +9,8 @@ import {
   AlertTriangle,
   ArrowRight,
   Clock,
-  Plus
+  Plus,
+  Camera
 } from "lucide-react";
 import Link from "next/link";
 import { useRecentJHAs } from "@/hooks/use-api";
@@ -66,12 +67,20 @@ export default function DashboardPage() {
             })}
           </p>
         </div>
-        <Link href="/jha/new">
-          <Button className="touch-target-lg">
-            <Plus className="h-4 w-4 mr-2" />
-            New JHA Analysis
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/vision">
+            <Button variant="outline" className="touch-target-lg">
+              <Camera className="h-4 w-4 mr-2" />
+              Quick Scan
+            </Button>
+          </Link>
+          <Link href="/jha/new">
+            <Button className="touch-target-lg">
+              <Plus className="h-4 w-4 mr-2" />
+              New JHA
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Site Conditions & Stats Row */}

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Gauge, ClipboardCheck, ScrollText, BarChart4, UserCircle2 } from 'lucide-react';
+import { Gauge, ClipboardCheck, ScrollText, BarChart4, Camera } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
@@ -7,27 +7,28 @@ const navItems = [
   {
     label: 'Dashboard',
     href: '/',
-    icon: Gauge, // Speedometer/gauge for monitoring
+    icon: Gauge,
   },
   {
     label: 'New JHA',
     href: '/jha/new',
-    icon: ClipboardCheck, // Clipboard with checkmark for creating JHAs
+    icon: ClipboardCheck,
+  },
+  {
+    label: 'Vision',
+    href: '/vision',
+    icon: Camera,
+    highlight: true,  // Make this stand out
   },
   {
     label: 'History',
     href: '/jha',
-    icon: ScrollText, // Scroll/document for history
+    icon: ScrollText,
   },
   {
     label: 'Reports',
     href: '/reports',
-    icon: BarChart4, // Advanced bar chart for analytics
-  },
-  {
-    label: 'Profile',
-    href: '/profile',
-    icon: UserCircle2, // User circle for profile
+    icon: BarChart4,
   },
 ];
 
@@ -41,6 +42,7 @@ export function BottomNav() {
           const Icon = item.icon;
           const isActive = pathname === item.href ||
             (item.href !== '/' && pathname.startsWith(item.href));
+          const isHighlight = 'highlight' in item && item.highlight;
 
           return (
             <Link
@@ -50,10 +52,18 @@ export function BottomNav() {
                 'flex flex-col items-center justify-center gap-1 touch-target-lg flex-1 transition-colors',
                 isActive
                   ? 'text-accent'
-                  : 'text-muted-foreground hover:text-foreground'
+                  : isHighlight
+                    ? 'text-primary hover:text-primary/80'
+                    : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <Icon className="h-5 w-5" />
+              <div className={cn(
+                'p-1.5 rounded-lg transition-colors',
+                isHighlight && !isActive && 'bg-primary/10',
+                isHighlight && isActive && 'bg-primary/20'
+              )}>
+                <Icon className="h-5 w-5" />
+              </div>
               <span className="text-xs font-medium">{item.label}</span>
             </Link>
           );

@@ -14,6 +14,7 @@ from app.core.database import engine, Base
 from app.models.agent_config import AgentConfiguration, AgentPerformanceLog
 from app.models.analysis import AnalysisHistory, AgentOutput
 from app.models.jha_updates import JHAUpdate
+from app.models.eap import EAPQuestionnaire, GeneratedEAP
 # Commented out to avoid FK constraint errors for now
 # from app.models.safety import SafetyReport, RiskAssessment
 from app.models.user import User

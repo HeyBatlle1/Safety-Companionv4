@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Gauge, ClipboardCheck, ScrollText, BarChart4, Camera } from 'lucide-react';
+import { Gauge, ClipboardCheck, ScrollText, BarChart4, Camera, Shield } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
@@ -10,7 +10,7 @@ const navItems = [
     icon: Gauge,
   },
   {
-    label: 'New JHA',
+    label: 'JHA',
     href: '/jha/new',
     icon: ClipboardCheck,
   },
@@ -21,9 +21,10 @@ const navItems = [
     highlight: true,  // Make this stand out
   },
   {
-    label: 'History',
-    href: '/jha',
-    icon: ScrollText,
+    label: 'EAP',
+    href: '/eap',
+    icon: Shield,
+    highlight: true,  // New feature highlight
   },
   {
     label: 'Reports',

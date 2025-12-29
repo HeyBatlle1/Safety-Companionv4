@@ -4,285 +4,353 @@
 @custom-variant dark (&:is(.dark *));
 
 /* 
- * SAFETY COMPANION COLOR SYSTEM
- * Staggered Slate Palette - Cards POP, Clear Visual Hierarchy
+ * SAFETY COMPANION - READABLE DARK THEME
  * 
- * Layer 1 (deepest): Background #1E293B
- * Layer 2 (cards):   #334155 - POPS against background
- * Layer 3 (highlights): #475569 - For hover states, accents
- * Layer 4 (text-muted): #94A3B8
- * Layer 5 (text): #F1F5F9
+ * Problem: Dark colors drowning out content
+ * Solution: LIGHTER slate shades, BRIGHT accent colors
+ * 
+ * Layer System (from light to dark):
+ * - Cards: #3B4A5C (lightest - they POP)
+ * - Muted: #2D3A48 
+ * - Background: #1A242F (darker base)
+ * - Nav: #151D26 (darkest)
  */
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * TAILWIND 4 THEME REGISTRATION
- * ═══════════════════════════════════════════════════════════════════════════ */
-@theme {
-  /* Staggered Slate Background System */
-  --color-background: #1E293B;
-  --color-foreground: #F1F5F9;
-
-  /* Cards - Lighter slate, POPS against background */
-  --color-card: #334155;
-  --color-card-foreground: #F1F5F9;
-
-  /* Popovers - Same as cards */
-  --color-popover: #334155;
-  --color-popover-foreground: #F1F5F9;
-
-  /* Primary - Teal for interactive (pops on slate) */
-  --color-primary: #14B8A6;
-  --color-primary-foreground: #0F172A;
-
-  /* Secondary - Mid slate for hover states */
-  --color-secondary: #475569;
-  --color-secondary-foreground: #F1F5F9;
-
-  /* Muted - Subtle backgrounds within cards */
-  --color-muted: #3D4F61;
-  --color-muted-foreground: #94A3B8;
-
-  /* Accent - Construction orange */
-  --color-accent: #EA580C;
-  --color-accent-foreground: #FFFFFF;
-
-  /* Destructive */
-  --color-destructive: #DC2626;
-  --color-destructive-foreground: #FFFFFF;
-
-  /* Borders - Visible but subtle */
-  --color-border: #475569;
-  --color-input: #475569;
-  --color-ring: #14B8A6;
-
-  /* Sidebar */
-  --color-sidebar: #1E293B;
-  --color-sidebar-foreground: #F1F5F9;
-  --color-sidebar-border: #475569;
-
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
- * CSS VARIABLES FOR SHADCN COMPONENTS
+ * CSS VARIABLES - READABLE DARK THEME
  * ═══════════════════════════════════════════════════════════════════════════ */
 :root {
-  --background: #1E293B;
-  --foreground: #F1F5F9;
-  --card: #334155;
-  --card-foreground: #F1F5F9;
-  --popover: #334155;
-  --popover-foreground: #F1F5F9;
-  --primary: #14B8A6;
-  --primary-foreground: #0F172A;
-  --secondary: #475569;
-  --secondary-foreground: #F1F5F9;
-  --muted: #3D4F61;
-  --muted-foreground: #94A3B8;
-  --accent: #EA580C;
-  --accent-foreground: #FFFFFF;
-  --destructive: #DC2626;
+  /* Background layers */
+  --background: #1A242F;
+  --foreground: #FFFFFF;
+
+  /* Cards - MUCH LIGHTER than background */
+  --card: #2D3A48;
+  --card-foreground: #FFFFFF;
+
+  /* Popover */
+  --popover: #2D3A48;
+  --popover-foreground: #FFFFFF;
+
+  /* Primary - Bright teal */
+  --primary: #2DD4BF;
+  --primary-foreground: #0A0A0A;
+
+  /* Secondary - Lighter slate for buttons */
+  --secondary: #4A5B6D;
+  --secondary-foreground: #FFFFFF;
+
+  /* Muted - For subtle backgrounds */
+  --muted: #3B4A5C;
+  --muted-foreground: #B8C4D0;
+
+  /* Accent - Bright orange */
+  --accent: #FB923C;
+  --accent-foreground: #0A0A0A;
+
+  /* Destructive */
+  --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
-  --border: #475569;
-  --input: #475569;
-  --ring: #14B8A6;
+
+  /* Borders - Visible! */
+  --border: #4A5B6D;
+  --input: #4A5B6D;
+  --ring: #2DD4BF;
+
+  /* Radius */
   --radius: 0.5rem;
-  --sidebar: #1E293B;
-  --sidebar-foreground: #F1F5F9;
-  --sidebar-border: #475569;
+
+  /* Sidebar/Nav */
+  --sidebar: #151D26;
+  --sidebar-foreground: #FFFFFF;
+  --sidebar-border: #4A5B6D;
+
+  /* Bottom nav */
   --bottom-nav-height: 4rem;
+
+  /* Chart colors - BRIGHT! */
+  --chart-1: #EF4444;
+  --chart-2: #FB923C;
+  --chart-3: #FBBF24;
+  --chart-4: #22C55E;
+  --chart-5: #2DD4BF;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * STAGGERED BACKGROUND SYSTEM - Cards POP
+ * BASE STYLES - Force readable dark theme
  * ═══════════════════════════════════════════════════════════════════════════ */
-
-/* Base page background - darkest layer */
-html,
-body {
-  background-color: #1E293B !important;
-  color: #F1F5F9 !important;
-  min-height: 100vh;
+html {
+  background-color: #1A242F !important;
+  color: #FFFFFF !important;
 }
 
-/* Cards - LIGHTER than background so they POP */
+body {
+  background-color: #1A242F !important;
+  color: #FFFFFF !important;
+  min-height: 100vh;
+  font-weight: 400;
+}
+
+/* Make all text readable */
+* {
+  color: inherit;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * CARDS - Light enough to POP against background
+ * ═══════════════════════════════════════════════════════════════════════════ */
 .bg-card,
 [data-slot="card"],
 .card {
-  background-color: #334155 !important;
-  border: 1px solid #475569 !important;
+  background-color: #2D3A48 !important;
+  border: 1px solid #4A5B6D !important;
+  border-radius: 0.75rem;
 }
 
-/* Background utility */
-.bg-background {
-  background-color: #1E293B !important;
+/* Card content text */
+[data-slot="card"] *,
+.card * {
+  color: #FFFFFF;
 }
 
-/* Muted sections within cards */
-.bg-muted {
-  background-color: #3D4F61 !important;
+/* Card titles should be bright */
+[data-slot="card-title"],
+.card h3,
+.card h4 {
+  color: #FFFFFF !important;
+  font-weight: 600;
 }
 
-/* Secondary elements */
-.bg-secondary {
-  background-color: #475569 !important;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
- * BORDERS - Visible separation
- * ═══════════════════════════════════════════════════════════════════════════ */
-.border,
-[class*="border-"] {
-  border-color: #475569;
-}
-
-/* Card borders - more visible */
-.border-border {
-  border-color: #475569 !important;
+/* Card descriptions lighter */
+[data-slot="card-description"] {
+  color: #B8C4D0 !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * TEXT COLORS - Clear hierarchy
+ * STATS CARDS - Values must be VERY visible
  * ═══════════════════════════════════════════════════════════════════════════ */
-.text-foreground {
-  color: #F1F5F9 !important;
+.card-highlight {
+  background-color: #2D3A48 !important;
+  border: 1px solid #4A5B6D !important;
 }
 
-.text-muted-foreground {
-  color: #94A3B8 !important;
+/* Big numbers in stats cards */
+.text-2xl,
+.text-3xl,
+.text-4xl {
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
 }
 
-/* High contrast for headers */
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  color: #F8FAFC;
+/* Stats card titles */
+.text-sm.font-medium {
+  color: #B8C4D0 !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * SAFETY DECISION BANNERS - OSHA standard, POPS on slate
+ * CHARTS - BRIGHT bar colors that show!
  * ═══════════════════════════════════════════════════════════════════════════ */
 
+/* Force chart bars to be visible teal */
+.recharts-bar-rectangle path {
+  fill: #2DD4BF !important;
+}
+
+/* Chart axis text */
+.recharts-cartesian-axis-tick text {
+  fill: #B8C4D0 !important;
+  font-size: 12px !important;
+}
+
+/* Chart grid lines - subtle but visible */
+.recharts-cartesian-grid line {
+  stroke: #4A5B6D !important;
+  stroke-opacity: 0.5 !important;
+}
+
+/* Tooltip */
+.recharts-tooltip-wrapper {
+  z-index: 100;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * COMPLIANCE GAUGE - Make the ring bright
+ * ═══════════════════════════════════════════════════════════════════════════ */
+.recharts-pie-sector path {
+  stroke-width: 0 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * NAVIGATION - Darker than content for visual separation
+ * ═══════════════════════════════════════════════════════════════════════════ */
+nav,
+header,
+footer {
+  background-color: #151D26 !important;
+  border-color: #4A5B6D !important;
+}
+
+/* Bottom nav border */
+nav.fixed {
+  border-top: 1px solid #4A5B6D !important;
+}
+
+/* Nav text */
+nav a,
+header a {
+  color: #B8C4D0 !important;
+}
+
+nav a.text-accent,
+nav a:hover,
+.text-primary {
+  color: #2DD4BF !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * BUTTONS - Visible and clickable
+ * ═══════════════════════════════════════════════════════════════════════════ */
+button,
+.btn {
+  font-weight: 500;
+}
+
+/* Primary buttons - bright teal */
+.bg-primary,
+button[class*="bg-primary"] {
+  background-color: #2DD4BF !important;
+  color: #0A0A0A !important;
+}
+
+/* Outline buttons - visible border */
+button[class*="variant-outline"],
+.btn-outline {
+  border: 2px solid #4A5B6D !important;
+  color: #FFFFFF !important;
+  background-color: transparent !important;
+}
+
+button[class*="variant-outline"]:hover {
+  background-color: #2D3A48 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * ALERTS AND BADGES - High contrast
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Danger badge/alert */
+.bg-red-500,
+.bg-destructive,
+[class*="bg-red"] {
+  background-color: #EF4444 !important;
+  color: #FFFFFF !important;
+}
+
+/* Warning badge */
+.bg-yellow-500,
+[class*="bg-yellow"] {
+  background-color: #FBBF24 !important;
+  color: #0A0A0A !important;
+}
+
+/* Success badge */
+.bg-green-500,
+[class*="bg-green"] {
+  background-color: #22C55E !important;
+  color: #FFFFFF !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * SAFETY DECISION BANNERS - OSHA compliant, GLOWING
+ * ═══════════════════════════════════════════════════════════════════════════ */
 .decision-go {
-  background: linear-gradient(135deg, #16A34A 0%, #15803D 100%) !important;
+  background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%) !important;
   box-shadow:
-    0 0 24px rgba(22, 163, 74, 0.5),
-    0 4px 16px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  border: 2px solid #22C55E !important;
-  color: white !important;
+    0 0 30px rgba(34, 197, 94, 0.6),
+    0 4px 20px rgba(0, 0, 0, 0.4);
+  border: 2px solid #4ADE80 !important;
+  color: #FFFFFF !important;
 }
 
 .decision-stop {
-  background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%) !important;
+  background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%) !important;
   box-shadow:
-    0 0 24px rgba(220, 38, 38, 0.5),
-    0 4px 16px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  border: 2px solid #EF4444 !important;
-  color: white !important;
+    0 0 30px rgba(239, 68, 68, 0.6),
+    0 4px 20px rgba(0, 0, 0, 0.4);
+  border: 2px solid #F87171 !important;
+  color: #FFFFFF !important;
   animation: pulse-danger 2s ease-in-out infinite;
 }
 
 .decision-caution {
-  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important;
+  background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%) !important;
   box-shadow:
-    0 0 24px rgba(245, 158, 11, 0.5),
-    0 4px 16px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  border: 2px solid #FBBF24 !important;
-  color: #0F172A !important;
+    0 0 30px rgba(251, 191, 36, 0.6),
+    0 4px 20px rgba(0, 0, 0, 0.4);
+  border: 2px solid #FCD34D !important;
+  color: #0A0A0A !important;
 }
 
 @keyframes pulse-danger {
 
   0%,
   100% {
-    box-shadow:
-      0 0 24px rgba(220, 38, 38, 0.5),
-      0 4px 16px rgba(0, 0, 0, 0.3),
-      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.6), 0 4px 20px rgba(0, 0, 0, 0.4);
   }
 
   50% {
-    box-shadow:
-      0 0 36px rgba(220, 38, 38, 0.7),
-      0 4px 20px rgba(0, 0, 0, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 50px rgba(239, 68, 68, 0.8), 0 4px 30px rgba(0, 0, 0, 0.5);
   }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * PRIORITY ACTIONS - Stand out on card backgrounds
+ * PRIORITY ITEMS - Colored borders, tinted backgrounds
  * ═══════════════════════════════════════════════════════════════════════════ */
 .priority-critical {
-  border-left: 4px solid #DC2626 !important;
-  background: rgba(220, 38, 38, 0.15) !important;
-  border-radius: 0.5rem;
+  border-left: 4px solid #EF4444 !important;
+  background: rgba(239, 68, 68, 0.15) !important;
 }
 
 .priority-high {
-  border-left: 4px solid #EA580C !important;
-  background: rgba(234, 88, 12, 0.15) !important;
-  border-radius: 0.5rem;
+  border-left: 4px solid #FB923C !important;
+  background: rgba(251, 146, 60, 0.15) !important;
 }
 
 .priority-medium {
-  border-left: 4px solid #F59E0B !important;
-  background: rgba(245, 158, 11, 0.15) !important;
-  border-radius: 0.5rem;
+  border-left: 4px solid #FBBF24 !important;
+  background: rgba(251, 191, 36, 0.15) !important;
 }
 
 .priority-low {
-  border-left: 4px solid #0EA5E9 !important;
-  background: rgba(14, 165, 233, 0.15) !important;
-  border-radius: 0.5rem;
+  border-left: 4px solid #2DD4BF !important;
+  background: rgba(45, 212, 191, 0.15) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * CAPTURE BUTTONS - Vibrant colors that POP on slate
+ * CAPTURE BUTTONS - BRIGHT and distinct
  * ═══════════════════════════════════════════════════════════════════════════ */
 .capture-btn-site {
-  background: linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%) !important;
-  box-shadow: 0 4px 16px rgba(14, 165, 233, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2);
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.5);
+  color: #FFFFFF !important;
 }
 
 .capture-btn-equipment {
-  background: linear-gradient(135deg, #EA580C 0%, #C2410C 100%) !important;
-  box-shadow: 0 4px 16px rgba(234, 88, 12, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2);
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  background: linear-gradient(135deg, #FB923C 0%, #EA580C 100%) !important;
+  box-shadow: 0 4px 20px rgba(251, 146, 60, 0.5);
+  color: #FFFFFF !important;
 }
 
 .capture-btn-ppe {
-  background: linear-gradient(135deg, #16A34A 0%, #15803D 100%) !important;
-  box-shadow: 0 4px 16px rgba(22, 163, 74, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2);
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%) !important;
+  box-shadow: 0 4px 20px rgba(34, 197, 94, 0.5);
+  color: #FFFFFF !important;
 }
 
 .capture-btn-materials {
-  background: linear-gradient(135deg, #BE123C 0%, #9F1239 100%) !important;
-  box-shadow: 0 4px 16px rgba(190, 18, 60, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2);
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-}
-
-/* Hover states - lift effect */
-.capture-btn-site:hover,
-.capture-btn-equipment:hover,
-.capture-btn-ppe:hover,
-.capture-btn-materials:hover {
-  transform: translateY(-2px);
-  transition: transform 0.2s ease;
+  background: linear-gradient(135deg, #E11D48 0%, #BE123C 100%) !important;
+  box-shadow: 0 4px 20px rgba(225, 29, 72, 0.5);
+  color: #FFFFFF !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -290,47 +358,42 @@ h6 {
  * ═══════════════════════════════════════════════════════════════════════════ */
 .icon-pass {
   color: #22C55E !important;
-  filter: drop-shadow(0 0 6px rgba(34, 197, 94, 0.6));
+  filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.7));
 }
 
 .icon-fail {
   color: #EF4444 !important;
-  filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.6));
+  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.7));
 }
 
 .icon-caution {
   color: #FBBF24 !important;
-  filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.6));
+  filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.7));
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * NAVIGATION - Matches background
+ * FORMS - Visible inputs
  * ═══════════════════════════════════════════════════════════════════════════ */
-nav,
-header,
-footer {
-  background-color: #1E293B !important;
-  border-color: #475569 !important;
+input,
+textarea,
+select {
+  background-color: #1A242F !important;
+  border: 2px solid #4A5B6D !important;
+  color: #FFFFFF !important;
+  border-radius: 0.5rem;
 }
 
-/* Bottom nav - subtle top border */
-nav.fixed {
-  border-top: 1px solid #475569;
+input::placeholder,
+textarea::placeholder {
+  color: #6B7A8C !important;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
- * BUTTONS - Primary pops, secondary subtle
- * ═══════════════════════════════════════════════════════════════════════════ */
-.btn-primary,
-button[class*="bg-primary"] {
-  background-color: #14B8A6 !important;
-  color: #0F172A !important;
-}
-
-.btn-outline,
-button[class*="variant-outline"] {
-  border-color: #475569 !important;
-  color: #F1F5F9 !important;
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: #2DD4BF !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.2) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -338,7 +401,26 @@ button[class*="variant-outline"] {
  * ═══════════════════════════════════════════════════════════════════════════ */
 .text-high-contrast {
   color: #FFFFFF !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.text-foreground {
+  color: #FFFFFF !important;
+}
+
+.text-muted-foreground {
+  color: #B8C4D0 !important;
+}
+
+.bg-background {
+  background-color: #1A242F !important;
+}
+
+.bg-muted {
+  background-color: #3B4A5C !important;
+}
+
+.border-border {
+  border-color: #4A5B6D !important;
 }
 
 .touch-target-lg {
@@ -355,36 +437,34 @@ button[class*="variant-outline"] {
   height: var(--bottom-nav-height);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
- * SCROLLBAR - Matches slate theme
- * ═══════════════════════════════════════════════════════════════════════════ */
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1E293B;
+  background: #1A242F;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #475569;
+  background: #4A5B6D;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #64748B;
+  background: #5C6E82;
 }
 
 /* Selection */
 ::selection {
-  background: rgba(20, 184, 166, 0.4);
+  background: rgba(45, 212, 191, 0.4);
   color: #FFFFFF;
 }
 
 /* Focus */
 :focus-visible {
-  outline: 2px solid #14B8A6;
+  outline: 2px solid #2DD4BF;
   outline-offset: 2px;
 }
 
@@ -393,35 +473,4 @@ button[class*="variant-outline"] {
   .decision-stop {
     animation: none;
   }
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
- * INPUT FIELDS - Visible on cards
- * ═══════════════════════════════════════════════════════════════════════════ */
-input,
-textarea,
-select {
-  background-color: #1E293B !important;
-  border-color: #475569 !important;
-  color: #F1F5F9 !important;
-}
-
-input::placeholder,
-textarea::placeholder {
-  color: #64748B !important;
-}
-
-input:focus,
-textarea:focus,
-select:focus {
-  border-color: #14B8A6 !important;
-  box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.2) !important;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
- * BADGES - Pop on any background
- * ═══════════════════════════════════════════════════════════════════════════ */
-.badge,
-[class*="badge"] {
-  font-weight: 600;
 }

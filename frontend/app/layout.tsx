@@ -25,10 +25,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" style={{ backgroundColor: '#1E293B' }}>
+    <html lang="en" className="dark" style={{ backgroundColor: '#1A242F' }}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
-        style={{ backgroundColor: '#1E293B', color: '#F1F5F9', minHeight: '100vh' }}
+        style={{ backgroundColor: '#1A242F', color: '#FFFFFF', minHeight: '100vh' }}
       >
         <Providers>
           <AppShell>{children}</AppShell>

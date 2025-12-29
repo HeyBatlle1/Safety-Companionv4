@@ -17,28 +17,31 @@ export function ActivityChart({ data }: ActivityChartProps) {
             <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={data}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#4A5B6D" opacity={0.5} />
                         <XAxis
                             dataKey="day"
-                            stroke="hsl(var(--muted-foreground))"
+                            stroke="#B8C4D0"
                             fontSize={12}
+                            tickLine={false}
                         />
                         <YAxis
-                            stroke="hsl(var(--muted-foreground))"
+                            stroke="#B8C4D0"
                             fontSize={12}
+                            tickLine={false}
+                            axisLine={false}
                         />
                         <Tooltip
                             contentStyle={{
-                                backgroundColor: 'hsl(var(--card))',
-                                border: '1px solid hsl(var(--border))',
+                                backgroundColor: '#2D3A48',
+                                border: '1px solid #4A5B6D',
                                 borderRadius: '8px',
-                                color: 'hsl(var(--foreground))'
+                                color: '#FFFFFF'
                             }}
-                            cursor={{ fill: 'hsl(var(--accent))' }}
+                            cursor={{ fill: 'rgba(45, 212, 191, 0.1)' }}
                         />
                         <Bar
                             dataKey="submissions"
-                            fill="hsl(var(--primary))"
+                            fill="#2DD4BF"
                             radius={[8, 8, 0, 0]}
                             animationDuration={1000}
                         />

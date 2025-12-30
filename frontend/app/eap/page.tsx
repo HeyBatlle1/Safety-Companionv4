@@ -720,11 +720,11 @@ export default function EAPGeneratorPage() {
             <Card className="border-slate-600 bg-slate-800/40">
                 <CardHeader>
                     <CardTitle className="text-white flex items-center gap-2">
-                        {(() => { const Icon = STEPS[currentStep - 1].icon; return <Icon className="h-5 w-5 text-teal-400" />; })()}
-                        {STEPS[currentStep - 1].title}
+                        {(() => { const Icon = STEPS[currentStep - 1]!.icon; return <Icon className="h-5 w-5 text-teal-400" />; })()}
+                        {STEPS[currentStep - 1]!.title}
                     </CardTitle>
                     <CardDescription className="text-slate-400">
-                        {STEPS[currentStep - 1].description}
+                        {STEPS[currentStep - 1]!.description}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

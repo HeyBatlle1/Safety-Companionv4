@@ -173,10 +173,10 @@ export default function EAPGeneratorPage() {
         }));
     };
 
-    const updateAlarmSystem = (index: number, field: string, value: string) => {
+    const updateAlarmSystem = (index: number, field: keyof typeof formData.alarm_systems[0], value: string) => {
         setFormData(prev => {
             const newAlarms = [...prev.alarm_systems];
-            newAlarms[index] = { ...newAlarms[index], [field]: value };
+            newAlarms[index] = { ...newAlarms[index], [field]: value } as { type: string; location: string; activation: string };
             return { ...prev, alarm_systems: newAlarms };
         });
     };
@@ -348,12 +348,12 @@ export default function EAPGeneratorPage() {
                                         type="button"
                                         onClick={() => toggleHazard(hazard.id)}
                                         className={`p-3 rounded-lg border text-left transition-all ${formData.hazards[hazard.id]
-                                                ? hazard.severity === 'critical'
-                                                    ? 'bg-red-500/20 border-red-500 text-red-300'
-                                                    : hazard.severity === 'high'
-                                                        ? 'bg-orange-500/20 border-orange-500 text-orange-300'
-                                                        : 'bg-teal-500/20 border-teal-500 text-teal-300'
-                                                : 'bg-slate-800/50 border-slate-600 text-slate-300 hover:border-slate-500'
+                                            ? hazard.severity === 'critical'
+                                                ? 'bg-red-500/20 border-red-500 text-red-300'
+                                                : hazard.severity === 'high'
+                                                    ? 'bg-orange-500/20 border-orange-500 text-orange-300'
+                                                    : 'bg-teal-500/20 border-teal-500 text-teal-300'
+                                            : 'bg-slate-800/50 border-slate-600 text-slate-300 hover:border-slate-500'
                                             }`}
                                     >
                                         <span className="text-sm font-medium">{hazard.label}</span>
@@ -691,17 +691,17 @@ export default function EAPGeneratorPage() {
                             <button
                                 onClick={() => isComplete && setCurrentStep(step.id)}
                                 className={`flex flex-col items-center min-w-[80px] p-2 rounded-lg transition-all ${isActive
-                                        ? 'bg-teal-500/20 text-teal-400'
-                                        : isComplete
-                                            ? 'text-emerald-400 cursor-pointer hover:bg-slate-700'
-                                            : 'text-slate-500'
+                                    ? 'bg-teal-500/20 text-teal-400'
+                                    : isComplete
+                                        ? 'text-emerald-400 cursor-pointer hover:bg-slate-700'
+                                        : 'text-slate-500'
                                     }`}
                             >
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-1 ${isActive
-                                        ? 'bg-teal-500 text-white'
-                                        : isComplete
-                                            ? 'bg-emerald-500 text-white'
-                                            : 'bg-slate-700 text-slate-400'
+                                    ? 'bg-teal-500 text-white'
+                                    : isComplete
+                                        ? 'bg-emerald-500 text-white'
+                                        : 'bg-slate-700 text-slate-400'
                                     }`}>
                                     {isComplete ? <CheckCircle className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
                                 </div>

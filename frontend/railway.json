@@ -4,7 +4,7 @@
         "builder": "RAILPACK"
     },
     "deploy": {
-        "startCommand": "node .next/standalone/server.js",
+        "startCommand": "npm run start -- -H 0.0.0.0 -p ${PORT:-3000}",
         "healthcheckPath": "/",
         "healthcheckTimeout": 300,
         "restartPolicyType": "ON_FAILURE",

@@ -20,6 +20,7 @@ from app.agents.profiles.agent_2_risk_assessor import Agent2RiskAssessor
 from app.agents.profiles.agent_3_incident_predictor import Agent3IncidentPredictor
 from app.agents.profiles.agent_4_synthesizer import Agent4Synthesizer
 from app.models.analysis import AnalysisHistory
+from app.models.jha_updates import JHAUpdate
 from app.api.v1.jha_stream import push_progress
 from app.services.report_formatter import ReportFormatter
 
@@ -583,6 +584,38 @@ class SafetyAnalysisOrchestrator:
         
         return result
     
+    async def _extract_variables_from_voice(self, voice_input: str) -> Dict[str, Any]:
+        """
+        Use Gemini to extract structured variables from voice input.
+        """
+        prompt = f"""
+        You are an expert construction safety analyst.
+        Extract structured variables from this field voice update:
+        "{voice_input}"
+
+        Return JSON with these fields:
+        - wind_speed: int (mph) or null
+        - temperature: int (F) or null
+        - precipitation: boolean or null
+        - crew_size: int or null
+        - equipment_changes: list[str] or null
+        - time_of_day: str or null
+        - visibility: str or null
+        - concern_keywords: list[str]
+
+        CRITICAL: Output ONLY valid JSON.
+        """
+
+        try:
+            return await self.gemini_client.generate(
+                prompt=prompt,
+                temperature=0.0, # Deterministic extraction
+                max_tokens=1000
+            )
+        except Exception as e:
+            print(f"⚠️ Failed to extract variables: {e}")
+            return {}
+
     async def execute_live_update(
         self,
         analysis_id,
@@ -591,11 +624,136 @@ class SafetyAnalysisOrchestrator:
         """
         Execute live update - re-runs Agents 2-4 with updated conditions.
         """
-        # TODO: Implement live update logic
-        return {
-            "status": "live_update_not_yet_implemented",
-            "analysis_id": str(analysis_id)
-        }
+        try:
+            # 1. Fetch original analysis
+            stmt = select(AnalysisHistory).where(AnalysisHistory.id == str(analysis_id))
+            result = await self.db.execute(stmt)
+            analysis_record = result.scalar_one_or_none()
+
+            if not analysis_record:
+                raise ValueError(f"Analysis {analysis_id} not found")
+
+            original_response = json.loads(analysis_record.response)
+            checklist_data = json.loads(analysis_record.request)
+
+            # 2. Extract variables from voice
+            voice_input = update_data.get("voice_input")
+            extracted = await self._extract_variables_from_voice(voice_input)
+
+            # 3. Update context
+            # Update checklist_data based on extracted variables
+            if extracted.get("crew_size"):
+                checklist_data["jobInfo"]["crewSize"] = extracted["crew_size"]
+                checklist_data["crewSize"] = extracted["crew_size"]
+
+            # Update weather
+            location = checklist_data.get("jobInfo", {}).get("location", "")
+            weather_data = await self._fetch_weather(location)
+
+            # Override weather with extracted data
+            if extracted.get("wind_speed") is not None:
+                weather_data["windSpeed"] = extracted["wind_speed"]
+            if extracted.get("temperature") is not None:
+                weather_data["temperature"] = extracted["temperature"]
+            if extracted.get("precipitation") is not None:
+                weather_data["conditions"] = "Rain/Snow" if extracted["precipitation"] else weather_data.get("conditions", "Clear")
+
+            # 4. Get previous validation (Agent 1 is skipped for speed)
+            validation = original_response.get("agent_outputs", {}).get("agent1_validation", {})
+
+            # 5. Re-run Agent 2
+            # Determine NAICS code
+            work_type = checklist_data.get("jobInfo", {}).get("workType", "").lower()
+            if "glaz" in work_type or "glass" in work_type:
+                naics_code = "23815"
+            elif "roof" in work_type:
+                naics_code = "23816"
+            elif "electric" in work_type:
+                naics_code = "23821"
+            else:
+                naics_code = "23"
+
+            risk = await self.agent_2.assess_risk(
+                validation=validation,
+                checklist_data=checklist_data,
+                weather_data=weather_data,
+                naics_code=naics_code
+            )
+
+            # 6. Re-run Agent 3
+            top_hazard = risk.get("hazards", [{}])[0]
+            osha_data = await self.agent_2.get_osha_data(naics_code)
+
+            prediction = await self.agent_3.predict_incident(
+                top_hazard=top_hazard,
+                checklist_data=checklist_data,
+                validation=validation,
+                weather_data=weather_data,
+                osha_data=osha_data
+            )
+
+            # 7. Calculate deltas and alerts
+            prev_risk_score = analysis_record.risk_score or 0
+            new_risk_score = top_hazard.get("riskScore", 0)
+            risk_delta = new_risk_score - prev_risk_score
+
+            requires_action = new_risk_score > 75 or risk_delta > 10
+
+            crew_alert = None
+            alert_severity = "info"
+
+            if requires_action:
+                crew_alert = f"⚠️ ALERT: Risk increased by {risk_delta}. New score: {new_risk_score}."
+                alert_severity = "warning"
+                if new_risk_score > 90:
+                    crew_alert = "🛑 STOP WORK: Critical risk levels detected."
+                    alert_severity = "critical"
+            elif extracted.get("wind_speed", 0) > 20:
+                 crew_alert = "⚠️ High Wind Alert: Check lifting restrictions."
+                 alert_severity = "warning"
+
+            # 8. Save JHAUpdate
+            user_id = str(update_data.get("user_id", "00000000-0000-0000-0000-000000000000"))
+
+            update_record = JHAUpdate(
+                original_jha_id=str(analysis_id),
+                user_id=user_id,
+                voice_input=voice_input,
+                extracted_variables=extracted,
+                previous_risk_score=prev_risk_score,
+                updated_risk_score=new_risk_score,
+                risk_delta=risk_delta,
+                crew_alert=crew_alert,
+                alert_severity=alert_severity,
+                requires_action=requires_action,
+                created_at=datetime.utcnow()
+            )
+            self.db.add(update_record)
+            await self.db.commit()
+            await self.db.refresh(update_record)
+
+            # 9. Return response
+            return {
+                "id": UUID(update_record.id),
+                "original_jha_id": UUID(str(analysis_id)),
+                "user_id": UUID(user_id),
+                "voice_input": voice_input,
+                "extracted_variables": extracted,
+                "previous_risk_score": prev_risk_score,
+                "updated_risk_score": new_risk_score,
+                "risk_delta": risk_delta,
+                "crew_alert": crew_alert,
+                "alert_severity": alert_severity,
+                "requires_action": requires_action,
+                "acknowledged": False,
+                "created_at": update_record.created_at
+            }
+
+        except Exception as e:
+            import traceback
+            print(f"❌ Live update failed: {e}")
+            print(traceback.format_exc())
+            raise e
 
 
 # Backwards compatibility alias

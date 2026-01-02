@@ -142,17 +142,18 @@ async def live_update(
         # TODO: Extract user_id from authentication
         user_id = UUID("00000000-0000-0000-0000-000000000000")
 
-        # TODO: Implement live update logic in JHAService
-        # For now, return placeholder
-        return JHALiveUpdateResponse(
-            id=UUID("00000000-0000-0000-0000-000000000001"),
-            original_jha_id=request.original_jha_id,
-            user_id=user_id,
-            voice_input=request.voice_input,
-            requires_action=False,
-            acknowledged=False,
-            created_at=datetime.utcnow()
+        # Call service to execute live update
+        result = await jha_service.live_update(
+            analysis_id=request.original_jha_id,
+            update_data={
+                "voice_input": request.voice_input,
+                "user_id": user_id,
+                "update_type": request.update_type
+            }
         )
+
+        # Convert dict to response model
+        return JHALiveUpdateResponse(**result)
 
     except ValueError as e:
         raise HTTPException(

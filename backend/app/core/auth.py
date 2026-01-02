@@ -23,7 +23,7 @@ settings = get_settings()
 security = HTTPBearer(auto_error=False)
 
 # Clerk JWKS endpoint for token verification
-CLERK_JWKS_URL = "https://capital-shrew-63.clerk.accounts.dev/.well-known/jwks.json"
+# Configured in settings (CLERK_JWKS_URL)
 
 
 class ClerkAuth:
@@ -35,7 +35,7 @@ class ClerkAuth:
     def get_jwk_client(cls) -> PyJWKClient:
         """Get or create JWKS client for Clerk"""
         if cls._jwk_client is None:
-            cls._jwk_client = PyJWKClient(CLERK_JWKS_URL)
+            cls._jwk_client = PyJWKClient(settings.clerk_jwks_url)
         return cls._jwk_client
     
     @classmethod

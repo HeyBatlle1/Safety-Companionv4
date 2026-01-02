@@ -6,12 +6,14 @@ Matches the V1 Node.js API endpoints.
 """
 
 from typing import Dict, Any
-from uuid import UUID
+from uuid import UUID, uuid4
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db, get_jha_service
+from app.core.auth import get_current_user
+from app.models.user import User
 from app.services.jha_service import JHAService
 from app.core.database import AsyncSessionLocal
 from app.models.analysis import AnalysisHistory
@@ -122,7 +124,8 @@ async def jha_update_legacy(
 @router.post("/live-update", response_model=JHALiveUpdateResponse)
 async def live_update(
     request: JHALiveUpdateRequest,
-    jha_service: JHAService = Depends(get_jha_service)
+    jha_service: JHAService = Depends(get_jha_service),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Update existing JHA with live field conditions.
@@ -139,13 +142,12 @@ async def live_update(
     - Generates crew alerts if risk threshold breached
     """
     try:
-        # TODO: Extract user_id from authentication
-        user_id = UUID("00000000-0000-0000-0000-000000000000")
+        user_id = UUID(current_user.id)
 
         # TODO: Implement live update logic in JHAService
         # For now, return placeholder
         return JHALiveUpdateResponse(
-            id=UUID("00000000-0000-0000-0000-000000000001"),
+            id=uuid4(),
             original_jha_id=request.original_jha_id,
             user_id=user_id,
             voice_input=request.voice_input,

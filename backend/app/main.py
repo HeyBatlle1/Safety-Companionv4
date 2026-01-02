@@ -10,6 +10,7 @@ from app.api.v1.jha_stream import router as jha_stream_router
 from app.api.v1.reports import router as reports_router
 from app.api.v1.jha_vision import router as vision_router
 from app.api.v1.eap import router as eap_router
+from app.api.v1.users import router as users_router
 from app.schemas.jha import JHAAnalysisRequest
 from app.core.deps import get_jha_service, get_db
 from app.services.jha_service import JHAService
@@ -41,6 +42,7 @@ app.include_router(jha_stream_router, prefix="/api/v1", tags=["jha-stream"])
 app.include_router(reports_router, prefix="/api/v1", tags=["reports"])
 app.include_router(vision_router, prefix="/api/v1", tags=["jha-vision"])
 app.include_router(eap_router, prefix="/api/v1", tags=["eap"])
+app.include_router(users_router, prefix="/api/v1", tags=["users"])
 
 
 # Legacy compatibility routes for old frontend

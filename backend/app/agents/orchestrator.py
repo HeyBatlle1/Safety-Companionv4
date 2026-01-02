@@ -12,14 +12,14 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, desc, text
 
 from app.services.gemini_client import GeminiClient
 from app.agents.profiles.agent_1_validator import Agent1Validator
 from app.agents.profiles.agent_2_risk_assessor import Agent2RiskAssessor
 from app.agents.profiles.agent_3_incident_predictor import Agent3IncidentPredictor
 from app.agents.profiles.agent_4_synthesizer import Agent4Synthesizer
-from app.models.analysis import AnalysisHistory
+from app.models.analysis import AnalysisHistory, AgentOutput
 from app.api.v1.jha_stream import push_progress
 from app.services.report_formatter import ReportFormatter
 
@@ -291,6 +291,64 @@ class SafetyAnalysisOrchestrator:
                 }
             }
     
+    async def _get_latest_agent_output(self, analysis_id: str, agent_id_prefix: str) -> Optional[Dict]:
+        """Fetch the latest output for a specific agent"""
+        try:
+            query = (
+                select(AgentOutput)
+                .where(
+                    AgentOutput.analysis_id == analysis_id,
+                    AgentOutput.agent_id.like(f"{agent_id_prefix}%")
+                )
+                .order_by(desc(AgentOutput.created_at))
+                .limit(1)
+            )
+            result = await self.db.execute(query)
+            record = result.scalar_one_or_none()
+            if record and record.output_data:
+                if isinstance(record.output_data, str):
+                    try:
+                        return json.loads(record.output_data)
+                    except json.JSONDecodeError:
+                        return {}
+                return record.output_data
+            return None
+        except Exception as e:
+            print(f"⚠️ Failed to fetch agent output: {e}")
+            return None
+
+    async def _parse_live_update(self, voice_input: str, original_checklist: Dict) -> Dict:
+        """Parse voice input into structured updates using Gemini"""
+        prompt = f"""
+        You are an expert Safety Coordinator.
+        Analyze this field update from a worker and extract changes to the Job Hazard Analysis.
+
+        Original Job Context:
+        Project: {original_checklist.get('projectName')}
+        Work Type: {original_checklist.get('workType')}
+        Hazards: {len(original_checklist.get('hazards', []))} existing hazards
+
+        Field Update (Voice Transcript):
+        "{voice_input}"
+
+        Return a JSON object with:
+        1. "weather_update": {{ "temperature": int/null, "windSpeed": int/null, "condition": str/null }} if weather mentioned
+        2. "checklist_updates": {{
+             "hazards": [ {{ "action": "ADD/REMOVE", "description": "...", "category": "..." }} ],
+             "crew_size": int/null,
+             "equipment": [ ... ]
+           }}
+        3. "risk_factors": list of new risk factors identified
+
+        Only include fields that are explicitly changed or mentioned in the update.
+        """
+
+        try:
+            return await self.gemini_client.generate(prompt, temperature=0.1, max_tokens=1000)
+        except Exception as e:
+            print(f"⚠️ Failed to parse live update: {e}")
+            return {}
+
     async def save_agent_output(
         self,
         analysis_id: str,
@@ -300,8 +358,6 @@ class SafetyAnalysisOrchestrator:
     ):
         """Save agent output to NeonDB agent_outputs table"""
         try:
-            from sqlalchemy import text
-            
             # Build execution metadata
             execution_metadata = {
                 "model": "gemini-2.5-flash",
@@ -490,6 +546,18 @@ class SafetyAnalysisOrchestrator:
             }
         }
 
+    def _derive_naics(self, checklist_data: Dict[str, Any]) -> tuple[str, str, float]:
+        """Derive NAICS code, industry name, and injury rate from checklist data"""
+        work_type = checklist_data.get("workType", "").lower()
+        if "glaz" in work_type or "glass" in work_type:
+            return "23815", "Glass and glazing contractors", 3.5
+        elif "roof" in work_type:
+            return "23816", "Roofing contractors", 4.7
+        elif "electric" in work_type:
+            return "23821", "Electrical contractors", 2.1
+        else:
+            return "23", "Construction", 2.5
+
     async def execute_full_analysis(
         self,
         request,
@@ -529,23 +597,7 @@ class SafetyAnalysisOrchestrator:
         weather_data = await self._fetch_weather(location)
         
         # NAICS code defaults based on work type
-        work_type = job_info.get("workType", "").lower()
-        if "glaz" in work_type or "glass" in work_type:
-            naics_code = "23815"
-            industry_name = "Glass and glazing contractors"
-            injury_rate = 3.5
-        elif "roof" in work_type:
-            naics_code = "23816"
-            industry_name = "Roofing contractors"
-            injury_rate = 4.7
-        elif "electric" in work_type:
-            naics_code = "23821"
-            industry_name = "Electrical contractors"
-            injury_rate = 2.1
-        else:
-            naics_code = "23"
-            industry_name = "Construction"
-            injury_rate = 2.5
+        naics_code, industry_name, injury_rate = self._derive_naics(checklist_data)
         
         # Get or create analysis record
         analysis_record = None
@@ -567,9 +619,26 @@ class SafetyAnalysisOrchestrator:
                 request=json.dumps(checklist_data)
             )
             self.db.add(analysis_record)
-            await self.db.commit()
-            await self.db.refresh(analysis_record)
+            # await self.db.commit() # Wait to commit until later to bundle updates
+            # await self.db.refresh(analysis_record)
         
+        # Update metadata with original checklist for live updates
+        if analysis_record:
+            try:
+                current_metadata = analysis_record.metadata_json or {}
+                if isinstance(current_metadata, str):
+                    current_metadata = json.loads(current_metadata)
+
+                current_metadata["original_checklist"] = checklist_data
+                analysis_record.metadata_json = current_metadata
+
+                # If we created the record above, we need to commit.
+                # If it existed, we also want to save this metadata update.
+                await self.db.commit()
+                await self.db.refresh(analysis_record)
+            except Exception as e:
+                print(f"⚠️ Failed to save checklist to metadata: {e}")
+
         # Run the analysis
         result = await self.analyze(
             checklist_data=checklist_data,
@@ -591,10 +660,142 @@ class SafetyAnalysisOrchestrator:
         """
         Execute live update - re-runs Agents 2-4 with updated conditions.
         """
-        # TODO: Implement live update logic
+        from uuid import uuid4
+        start_time = time.time()
+        print(f"🔄 Starting Live Update for {analysis_id}")
+
+        # 1. Fetch analysis record
+        query = select(AnalysisHistory).where(AnalysisHistory.id == str(analysis_id))
+        result = await self.db.execute(query)
+        analysis_record = result.scalar_one_or_none()
+
+        if not analysis_record:
+             raise ValueError(f"Analysis {analysis_id} not found")
+
+        # 2. Retrieve original data
+        metadata = analysis_record.metadata_json or {}
+        if isinstance(metadata, str):
+            try:
+                metadata = json.loads(metadata)
+            except json.JSONDecodeError:
+                metadata = {}
+
+        checklist_data = metadata.get("original_checklist")
+        if not checklist_data:
+            print("⚠️ Original checklist data not found in metadata.")
+            # Fail gracefully
+            return {
+                "status": "failed",
+                "error": "Original checklist data missing. Cannot perform live update.",
+                "analysis_id": str(analysis_id)
+            }
+
+        # 3. Parse update
+        voice_input = update_data.get("voice_input", "")
+        parsed_updates = await self._parse_live_update(voice_input, checklist_data)
+
+        # 4. Merge updates
+        # Update weather if present
+        weather_update = parsed_updates.get("weather_update", {})
+        current_weather = await self._fetch_weather(checklist_data.get("location"))
+
+        if weather_update:
+             if weather_update.get("temperature"): current_weather["temperature"] = weather_update["temperature"]
+             if weather_update.get("windSpeed"): current_weather["windSpeed"] = weather_update["windSpeed"]
+             if weather_update.get("condition"): current_weather["conditions"] = weather_update["condition"]
+
+        # Update checklist data
+        checklist_updates = parsed_updates.get("checklist_updates", {})
+        updated_checklist = checklist_data.copy()
+        if checklist_updates.get("crew_size"):
+             updated_checklist["crewSize"] = checklist_updates["crew_size"]
+
+        if checklist_updates.get("hazards"):
+             for h in checklist_updates["hazards"]:
+                  if h.get("action") == "ADD":
+                       updated_checklist["hazards"].append({
+                            "description": h.get("description"),
+                            "category": h.get("category", "Field Update"),
+                            "severity": "medium",
+                            "id": str(uuid4())
+                       })
+
+        # 5. Fetch previous Agent 1 validation
+        validation = await self._get_latest_agent_output(analysis_id, "agent_1")
+        naics_code, industry_name, injury_rate = self._derive_naics(updated_checklist)
+
+        if not validation:
+             print("⚠️ No previous validation found. Re-running Agent 1...")
+             try:
+                 validation = await self.agent_1.validate(
+                    checklist_data=updated_checklist,
+                    weather_data=current_weather,
+                    naics_code=naics_code,
+                    industry_name=industry_name,
+                    injury_rate=injury_rate
+                 )
+                 await self.save_agent_output(analysis_id, "agent_1_live", "Data Validator (Live)", validation)
+             except Exception as e:
+                 print(f"❌ Agent 1 failed during live update: {e}")
+                 return {"status": "failed", "error": str(e)}
+
+        # 6. Re-run Agent 2 (Risk)
+        print("⚠️ Agent 2: Re-assessing risks (Live Update)...")
+        try:
+            risk = await self.agent_2.assess_risk(
+                validation=validation,
+                checklist_data=updated_checklist,
+                weather_data=current_weather,
+                naics_code=naics_code
+            )
+            await self.save_agent_output(analysis_id, "agent_2_live", "Risk Assessor (Live)", risk)
+        except Exception as e:
+            print(f"⚠️ Agent 2 failed: {e}, using fallback")
+            risk = self._fallback_risk_assessment(validation, updated_checklist)
+
+        # 7. Re-run Agent 3 (Prediction)
+        print("🔮 Agent 3: Updating predictions...")
+        try:
+            top_hazard = risk.get("hazards", [{}])[0]
+            osha_data = await self.agent_2.get_osha_data(naics_code)
+
+            prediction = await self.agent_3.predict_incident(
+                top_hazard=top_hazard,
+                checklist_data=updated_checklist,
+                validation=validation,
+                weather_data=current_weather,
+                osha_data=osha_data
+            )
+            await self.save_agent_output(analysis_id, "agent_3_live", "Incident Predictor (Live)", prediction)
+        except Exception as e:
+            print(f"⚠️ Agent 3 failed: {e}, using fallback")
+            prediction = self._fallback_prediction(risk, updated_checklist)
+
+        # 8. Re-run Agent 4 (Synthesis)
+        print("📄 Agent 4: Updating report...")
+        final_report = await self.agent_4.synthesize_report(
+            validation=validation,
+            risk=risk,
+            prediction=prediction,
+            weather_data=current_weather,
+            checklist_data=updated_checklist
+        )
+        await self.save_agent_output(analysis_id, "agent_4_live", "Report Synthesizer (Live)", final_report)
+
+        execution_time = (time.time() - start_time) * 1000
+
+        # 9. Return result
         return {
-            "status": "live_update_not_yet_implemented",
-            "analysis_id": str(analysis_id)
+            "id": analysis_id,
+            "status": "completed",
+            "report": final_report,
+            "markdown": ReportFormatter.format_structured_jha_report(final_report),
+            "risk_score": risk.get("hazards", [{}])[0].get("riskScore", 0),
+            "execution_time_ms": int(execution_time),
+            "updated_conditions": {
+                "weather": weather_update,
+                "checklist": checklist_updates
+            }
         }
 
 

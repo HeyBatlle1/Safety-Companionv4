@@ -4,4 +4,5 @@
   publish = "frontend/.next"
 
 [build.environment]
-  SECRETS_SCAN_OMIT_PATHS = "frontend/middleware.ts"
+  SECRETS_SCAN_OMIT_PATHS = ".next/**,middleware.ts"
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_*"

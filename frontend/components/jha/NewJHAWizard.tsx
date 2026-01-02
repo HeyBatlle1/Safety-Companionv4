@@ -424,6 +424,8 @@ export function NewJHAWizard() {
                 {JHA_FORM_SCHEMA.cards.map((c, idx) => (
                     <button
                         key={c.id}
+                        aria-label={`Go to step ${idx + 1}: ${c.title}`}
+                        aria-current={idx === currentCard ? 'step' : undefined}
                         onClick={() => {
                             if (idx < currentCard) {
                                 setCurrentCard(idx);

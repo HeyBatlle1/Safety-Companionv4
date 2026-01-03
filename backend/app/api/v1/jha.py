@@ -6,12 +6,14 @@ Matches the V1 Node.js API endpoints.
 """
 
 from typing import Dict, Any
-from uuid import UUID
+from uuid import UUID, uuid4
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db, get_jha_service
+from app.core.auth import get_current_user
+from app.models.user import User
 from app.services.jha_service import JHAService
 from app.core.database import AsyncSessionLocal
 from app.models.analysis import AnalysisHistory
@@ -53,7 +55,8 @@ async def analyze_checklist(
     request: JHAAnalysisRequest,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
-    jha_service: JHAService = Depends(get_jha_service)
+    jha_service: JHAService = Depends(get_jha_service),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Analyze Master JHA checklist through 4-agent pipeline (Background Task).
@@ -62,7 +65,12 @@ async def analyze_checklist(
     Client should poll GET /jha/{id} for progress updates.
     """
     try:
-        user_id = UUID("00000000-0000-0000-0000-000000000000")
+        try:
+            user_id = UUID(str(current_user.id))
+        except ValueError:
+            # If user.id is not a valid UUID (e.g. legacy data), generate a temporary one
+            # Ideally this should be fixed in data migration, but safe fallback for now
+            user_id = uuid4()
 
         # Create initial record
         project_name = request.jobInfo.projectName if hasattr(request, 'jobInfo') else "JHA Analysis"
@@ -109,20 +117,23 @@ async def analyze_checklist(
 @router.post("/jha-update")
 async def jha_update_legacy(
     request: JHAAnalysisRequest,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
-    jha_service: JHAService = Depends(get_jha_service)
+    jha_service: JHAService = Depends(get_jha_service),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Legacy endpoint for old frontend compatibility.
     Maps to the same analyze_checklist function.
     """
-    return await analyze_checklist(request, db, jha_service)
+    return await analyze_checklist(request, background_tasks, db, jha_service, current_user)
 
 
 @router.post("/live-update", response_model=JHALiveUpdateResponse)
 async def live_update(
     request: JHALiveUpdateRequest,
-    jha_service: JHAService = Depends(get_jha_service)
+    jha_service: JHAService = Depends(get_jha_service),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Update existing JHA with live field conditions.
@@ -139,13 +150,17 @@ async def live_update(
     - Generates crew alerts if risk threshold breached
     """
     try:
-        # TODO: Extract user_id from authentication
-        user_id = UUID("00000000-0000-0000-0000-000000000000")
+        # Extract user_id from authentication
+        try:
+            user_id = UUID(str(current_user.id))
+        except ValueError:
+             # Fallback if ID format is unexpectedly not a UUID
+            user_id = uuid4()
 
         # TODO: Implement live update logic in JHAService
-        # For now, return placeholder
+        # For now, return placeholder with valid UUIDs
         return JHALiveUpdateResponse(
-            id=UUID("00000000-0000-0000-0000-000000000001"),
+            id=uuid4(),
             original_jha_id=request.original_jha_id,
             user_id=user_id,
             voice_input=request.voice_input,

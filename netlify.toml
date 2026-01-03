@@ -6,6 +6,6 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-[build.environment]
-  SECRETS_SCAN_OMIT_PATHS = ".next/**,middleware.ts"
-  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_*"
+[secrets]
+  omit_paths = [".next/**", "middleware.ts"]
+  omit_keys = ["NEXT_PUBLIC_*"]

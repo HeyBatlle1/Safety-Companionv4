@@ -180,16 +180,37 @@ async def acknowledge_update(
     - Required for critical/stop-work alerts
     """
     try:
-        # TODO: Implement acknowledgment logic
+        from app.models.jha_updates import JHAUpdate
+        from sqlalchemy import select
+
+        # Fetch the update record
+        query = select(JHAUpdate).where(JHAUpdate.id == str(request.update_id))
+        result = await db.execute(query)
+        update_record = result.scalar_one_or_none()
+
+        if not update_record:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"JHA Update {request.update_id} not found"
+            )
+
         # Update JHAUpdate model with acknowledgment details
+        update_record.acknowledged = True
+        update_record.acknowledged_by = str(request.acknowledged_by)
+        update_record.acknowledged_at = datetime.utcnow()
+
+        await db.commit()
+        await db.refresh(update_record)
 
         return {
             "status": "acknowledged",
-            "update_id": str(request.update_id),
-            "acknowledged_by": str(request.acknowledged_by),
-            "acknowledged_at": datetime.utcnow().isoformat()
+            "update_id": str(update_record.id),
+            "acknowledged_by": str(update_record.acknowledged_by),
+            "acknowledged_at": update_record.acknowledged_at.isoformat()
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

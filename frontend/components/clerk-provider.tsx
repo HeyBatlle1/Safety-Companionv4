@@ -1,22 +1,25 @@
 "use client";
 
-import { ClerkProvider } from "@clerk/nextjs";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 
 export function ClerkClientProvider({ children }: { children: ReactNode }) {
-    // During build, Clerk keys might not be available for static pages
-    // This is fine since auth is only needed at runtime
+    const [ClerkProvider, setClerkProvider] = useState<any>(null);
     const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
-    // If no key during build (SSG), just render children without Clerk
-    // At runtime, the key will be available and Clerk will work
-    if (!publishableKey) {
+    useEffect(() => {
+        // Only load Clerk at runtime in the browser
+        if (publishableKey && typeof window !== 'undefined') {
+            import('@clerk/nextjs').then((mod) => {
+                setClerkProvider(() => mod.ClerkProvider);
+            });
+        }
+    }, [publishableKey]);
+
+    // During SSR or if no key, render without Clerk
+    if (!ClerkProvider || !publishableKey) {
         return <>{children}</>;
     }
 
-    return (
-        <ClerkProvider publishableKey={publishableKey}>
-            {children}
-        </ClerkProvider>
-    );
+    // At runtime with key, render with Clerk
+    return <ClerkProvider publishableKey={publishableKey}>{children}</ClerkProvider>;
 }

@@ -20,6 +20,9 @@ export const metadata: Metadata = {
   description: "AI-powered construction safety analysis platform",
 };
 
+// Force dynamic rendering to avoid SSG issues with Clerk during build
+export const dynamic = 'force-dynamic';
+
 export default function RootLayout({
   children,
 }: Readonly<{

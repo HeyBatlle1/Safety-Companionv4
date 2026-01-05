@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
+import { ClerkClientProvider } from "@/components/clerk-provider";
 import "./globals.css";
 import { AppShell } from "@/components/layout";
 import { Providers } from "@/components/providers";
@@ -26,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <ClerkClientProvider>
       <html lang="en" className="dark" style={{ backgroundColor: '#1A242F' }}>
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
@@ -37,6 +37,6 @@ export default function RootLayout({
           </Providers>
         </body>
       </html>
-    </ClerkProvider>
+    </ClerkClientProvider>
   );
 }

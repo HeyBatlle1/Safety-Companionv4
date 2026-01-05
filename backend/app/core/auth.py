@@ -23,7 +23,7 @@ settings = get_settings()
 security = HTTPBearer(auto_error=False)
 
 # Clerk JWKS endpoint for token verification
-CLERK_JWKS_URL = "https://capital-shrew-63.clerk.accounts.dev/.well-known/jwks.json"
+CLERK_JWKS_URL = settings.clerk_jwks_url
 
 
 class ClerkAuth:
@@ -45,11 +45,18 @@ class ClerkAuth:
             jwk_client = cls.get_jwk_client()
             signing_key = jwk_client.get_signing_key_from_jwt(token)
             
+            decode_options = {"verify_aud": False}
+            kwargs = {}
+            if settings.clerk_audience:
+                decode_options["verify_aud"] = True
+                kwargs["audience"] = settings.clerk_audience
+
             payload = jwt.decode(
                 token,
                 signing_key.key,
                 algorithms=["RS256"],
-                options={"verify_aud": False}  # Clerk doesn't always set aud
+                options=decode_options,
+                **kwargs
             )
             
             return payload

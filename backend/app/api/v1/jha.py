@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db, get_jha_service
 from app.core.auth import get_current_user
+from app.core.permissions import Permissions
 from app.models.user import User
 from app.services.jha_service import JHAService
 from app.core.database import AsyncSessionLocal
@@ -61,9 +62,15 @@ async def analyze_checklist(
     """
     Analyze Master JHA checklist through 4-agent pipeline (Background Task).
 
-    This triggers the asynchronous analysis pipeline and returns immediately.
-    Client should poll GET /jha/{id} for progress updates.
+    Permissions: All Tiers can create JHA.
     """
+    # Permission Check
+    if not Permissions.can_create_jha(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to create JHA"
+        )
+
     try:
         try:
             user_id = UUID(str(current_user.id))
@@ -132,23 +139,33 @@ async def jha_update_legacy(
 @router.post("/live-update", response_model=JHALiveUpdateResponse)
 async def live_update(
     request: JHALiveUpdateRequest,
+    db: AsyncSession = Depends(get_db),
     jha_service: JHAService = Depends(get_jha_service),
     current_user: User = Depends(get_current_user)
 ):
     """
     Update existing JHA with live field conditions.
 
-    **Use Cases:**
-    - Weather conditions changed
-    - Crew size modified
-    - Equipment status updated
-    - New hazards identified
-
-    **Process:**
-    - Re-runs Agent 2 (Risk Assessment) with new data
-    - Re-runs Agent 3 (Swiss Cheese) for updated predictions
-    - Generates crew alerts if risk threshold breached
+    Permissions:
+    - Tier 1 & 2: Update Any
+    - Tier 3: Update Own Only
     """
+    # Verify JHA ownership for permissions
+    from sqlalchemy import select
+    from app.models.analysis import AnalysisHistory
+
+    result = await db.execute(select(AnalysisHistory).where(AnalysisHistory.id == str(request.original_jha_id)))
+    jha = result.scalar_one_or_none()
+
+    if not jha:
+        raise HTTPException(status_code=404, detail="JHA not found")
+
+    if not Permissions.can_edit_jha(current_user, jha):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only update JHAs you created"
+        )
+
     try:
         # Extract user_id from authentication
         try:
@@ -216,17 +233,15 @@ async def acknowledge_update(
 async def get_recent_jhas(
     limit: int = 10,
     offset: int = 0,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get recent JHA analyses with pagination.
     
-    **Parameters:**
-    - limit: Number of records to return (default: 10, max: 100)
-    - offset: Number of records to skip (default: 0)
-    
-    **Returns:**
-    - List of JHA analyses with metadata
+    Permissions:
+    - Tier 1 & 2: See All
+    - Tier 3: See All (Read Only)
     """
     try:
         from app.models.analysis import AnalysisHistory
@@ -236,7 +251,7 @@ async def get_recent_jhas(
         # Limit max results
         limit = min(limit, 100)
         
-        # Query recent JHAs
+        # Base query
         query = (
             select(AnalysisHistory)
             .where(AnalysisHistory.type == "jha_multi_agent_analysis")
@@ -245,6 +260,11 @@ async def get_recent_jhas(
             .offset(offset)
         )
         
+        # Apply Role-Based Filter
+        filter_condition = Permissions.get_jha_filter(current_user)
+        if filter_condition is not None:
+            query = query.where(filter_condition)
+
         result = await db.execute(query)
         jhas = result.scalars().all()
         
@@ -285,16 +305,15 @@ async def get_recent_jhas(
 @router.get("/{jha_id}")
 async def get_jha_details(
     jha_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get full details of a specific JHA analysis.
     
-    **Parameters:**
-    - jha_id: ID of the JHA analysis
-    
-    **Returns:**
-    - Complete JHA analysis with all agent outputs
+    Permissions:
+    - Tier 1 & 2: View All
+    - Tier 3: View All (Redacted Executive Summary if not Author)
     """
     try:
         from app.models.analysis import AnalysisHistory
@@ -311,12 +330,26 @@ async def get_jha_details(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"JHA {jha_id} not found"
             )
+
+        # Check permissions (Tier 3 View All is now allowed by default in Permissions class)
+        if not Permissions.can_view_jha(current_user, jha):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to view this JHA"
+            )
         
         # Parse complete analysis
         try:
             analysis_data = json.loads(jha.response) if jha.response else {}
         except json.JSONDecodeError:
             analysis_data = {"status": "processing" if "Generating" in str(jha.response) else "error"}
+
+        # Redact Executive Summary for Tier 3 users if they are not the author
+        if not Permissions.can_view_executive_summary(current_user, jha):
+            if "summary" in analysis_data:
+                 analysis_data["summary"] = {
+                     "note": "Executive summary hidden based on permission level."
+                 }
         
         return {
             "id": str(jha.id),

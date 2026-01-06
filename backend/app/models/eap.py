@@ -16,7 +16,8 @@ class EAPQuestionnaire(Base):
     __tablename__ = "eap_questionnaires"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    analysis_id = Column(String, ForeignKey('analysis_history.id', ondelete='SET NULL'), nullable=True)
+    # Removed FK constraint due to type mismatch with existing Neon table (UUID vs String)
+    analysis_id = Column(String, nullable=True)
     
     # Company Info
     company_name = Column(Text, nullable=False)

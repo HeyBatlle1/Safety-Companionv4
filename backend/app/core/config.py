@@ -1,5 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
 from functools import lru_cache
+import json
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
@@ -25,6 +27,24 @@ class Settings(BaseSettings):
 
     # Security
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173", "http://localhost:5000"]
+
+    @field_validator('cors_origins', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Parse CORS origins from JSON string, comma-separated, or list"""
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            # Try JSON parse first
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
+            except json.JSONDecodeError:
+                pass
+            # Try comma-separated
+            return [origin.strip() for origin in v.split(',') if origin.strip()]
+        return v
 
     model_config = SettingsConfigDict(
         env_file=".env",

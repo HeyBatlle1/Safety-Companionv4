@@ -98,6 +98,9 @@ async def analyze_checklist(
             detail=str(e)
         )
     except Exception as e:
+        import traceback
+        error_detail = f"Analysis submission failed: {str(e)}\n{traceback.format_exc()}"
+        print(f"[JHA ANALYZE ERROR] {error_detail}")  # Log to Render
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Analysis submission failed: {str(e)}"

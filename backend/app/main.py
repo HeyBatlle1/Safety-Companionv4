@@ -1,5 +1,6 @@
-from fastapi import FastAPI, Depends, BackgroundTasks
+from fastapi import FastAPI, Depends, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.api.v1.jha import router as jha_router, analyze_checklist
@@ -14,6 +15,7 @@ from app.api.v1.users import router as users_router
 from app.schemas.jha import JHAAnalysisRequest
 from app.core.deps import get_jha_service, get_db
 from app.services.jha_service import JHAService
+import traceback
 
 settings = get_settings()
 
@@ -49,6 +51,23 @@ app.include_router(users_router, prefix="/api/v1", tags=["users"])
 
 # Legacy compatibility routes for old frontend
 app.include_router(jha_router, prefix="/api", tags=["legacy"])
+
+
+# Global exception handler to ensure errors return JSON with CORS headers
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Catch all unhandled exceptions and return JSON"""
+    error_msg = f"Unhandled error: {str(exc)}"
+    print(f"[GLOBAL ERROR] {request.url} - {error_msg}")
+    print(f"[TRACEBACK] {traceback.format_exc()}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": error_msg, "path": str(request.url)},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Credentials": "true",
+        }
+    )
 
 @app.get("/")
 async def root():

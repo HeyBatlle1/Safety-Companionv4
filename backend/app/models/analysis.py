@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey, Index, Boolean, JSON
+from sqlalchemy.dialects.postgresql import UUID
 
 from datetime import datetime
 import uuid
@@ -15,9 +16,9 @@ class AnalysisHistory(Base):
         # {'schema': APP_SCHEMA} # Removed for SQLite compatibility
     )
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    # user_id = Column(String, ForeignKey('users.id', ondelete='CASCADE')) # Assuming users uses String id
-    user_id = Column(String, nullable=True) # Temporarily removing FK constraint strictness or checking user model
+    # Use PostgreSQL UUID type to match existing Neon schema
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), nullable=True)
     query = Column(Text, nullable=False)
     response = Column(Text, nullable=False)
     type = Column(Text, nullable=False)
@@ -43,8 +44,8 @@ class AgentOutput(Base):
         # {'schema': APP_SCHEMA} # Removed for SQLite
     )
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    analysis_id = Column(String, ForeignKey('analysis_history.id', ondelete='CASCADE'))
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    analysis_id = Column(UUID(as_uuid=True), ForeignKey('analysis_history.id', ondelete='CASCADE'))
     agent_id = Column(Text, name="agent_id", nullable=False)
     agent_name = Column(Text, name="agent_name", nullable=False)
     agent_type = Column(Text, name="agent_type", nullable=False)

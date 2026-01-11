@@ -28,7 +28,7 @@ import {
     TrendingUp
 } from "lucide-react";
 import Link from "next/link";
-import { useSavedReports, useDeleteReport } from "@/hooks/use-api";
+import { useRecentJHAs } from "@/hooks/use-api";
 import { format, formatDistanceToNow } from "date-fns";
 import ReactMarkdown from "react-markdown";
 
@@ -71,16 +71,13 @@ const DECISION_CONFIG = {
 type DecisionType = keyof typeof DECISION_CONFIG;
 
 export default function ReportsPage() {
-    const { data, isLoading, isError, refetch } = useSavedReports(100);
-    const deleteReport = useDeleteReport();
+    // Changed to use useRecentJHAs to show all JHA history, not just saved reports
+    const { data: reports = [], isLoading, isError, refetch } = useRecentJHAs(100);
 
     const [expandedReport, setExpandedReport] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterDecision, setFilterDecision] = useState<string>('all');
     const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
-    const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-
-    const reports = data?.reports || [];
 
     // Filter and search
     const filteredReports = useMemo(() => {
@@ -112,15 +109,7 @@ export default function ReportsPage() {
         setExpandedReport(expandedReport === reportId ? null : reportId);
     };
 
-    const handleDelete = async (reportId: string) => {
-        try {
-            await deleteReport.mutateAsync(reportId);
-            setDeleteConfirm(null);
-            refetch();
-        } catch (error) {
-            console.error('Delete failed:', error);
-        }
-    };
+
 
     const handleDownload = (report: any) => {
         const markdown = report.markdown_report;
@@ -349,7 +338,6 @@ export default function ReportsPage() {
                         const config = getDecisionConfig(report.go_no_go);
                         const Icon = config.icon;
                         const isExpanded = expandedReport === report.id;
-                        const isDeleting = deleteConfirm === report.id;
 
                         return (
                             <Card
@@ -418,43 +406,6 @@ export default function ReportsPage() {
                                                     Details
                                                 </Button>
                                             </Link>
-
-                                            {/* Delete Button */}
-                                            {isDeleting ? (
-                                                <div className="flex items-center gap-1 bg-red-500/10 px-2 py-1 rounded-md">
-                                                    <span className="text-xs text-red-400">Delete?</span>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => handleDelete(report.id)}
-                                                        disabled={deleteReport.isPending}
-                                                        className="h-6 px-2 text-red-400 hover:text-red-300 hover:bg-red-500/20"
-                                                    >
-                                                        {deleteReport.isPending ? (
-                                                            <Loader2 className="h-3 w-3 animate-spin" />
-                                                        ) : (
-                                                            'Yes'
-                                                        )}
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => setDeleteConfirm(null)}
-                                                        className="h-6 px-2 text-slate-400 hover:text-slate-300 hover:bg-slate-700"
-                                                    >
-                                                        No
-                                                    </Button>
-                                                </div>
-                                            ) : (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => setDeleteConfirm(report.id)}
-                                                    className="text-slate-400 hover:text-red-400 hover:bg-red-500/10"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            )}
                                         </div>
                                     </div>
                                 </CardHeader>

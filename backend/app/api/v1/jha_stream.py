@@ -2,11 +2,13 @@
 SSE Streaming endpoint for real-time JHA analysis progress
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from typing import Dict
 import asyncio
 import json
+
+from app.core.deps import get_db
 
 router = APIRouter(prefix="/jha", tags=["jha-stream"])
 
@@ -28,7 +30,10 @@ async def push_progress(analysis_id: str, event: dict):
 
 
 @router.get("/stream/{analysis_id}")
-async def stream_progress(analysis_id: str):
+async def stream_progress(
+    analysis_id: str,
+    db = Depends(get_db)
+):
     """
     SSE endpoint for real-time progress updates.
     
@@ -44,6 +49,36 @@ async def stream_progress(analysis_id: str):
         
         # Send initial connection event
         yield f"data: {json.dumps({'status': 'connected', 'analysis_id': analysis_id})}\n\n"
+        
+        # CRITICAL FIX: Check DB immediately for existing status
+        # This prevents "reset to 0%" on page reload or reconnection
+        try:
+            from app.models.analysis import AnalysisHistory
+            from sqlalchemy import select
+            
+            result = await db.execute(
+                select(AnalysisHistory).where(AnalysisHistory.id == analysis_id)
+            )
+            record = result.scalar_one_or_none()
+            
+            if record and record.response:
+                # Analysis already has a response -> it is COMPLETED
+                completed_event = {
+                    "status": "completed",
+                    "current_agent": "completed",
+                    "agent_status": "done",
+                    "progress": 100,
+                    "elapsed_ms": 0  # Not tracked in DB, acceptable for catch-up
+                }
+                yield f"data: {json.dumps(completed_event)}\n\n"
+                
+                # Cleanup and exit immediately - no need to listen
+                progress_queues.pop(analysis_id, None)
+                return
+                
+        except Exception as e:
+            print(f"⚠️ Failed to check initial DB status: {e}")
+            # Continue to listener fallback
         
         try:
             while True:

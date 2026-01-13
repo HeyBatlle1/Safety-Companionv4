@@ -302,7 +302,11 @@ async def get_jha_details(
         
         # Parse complete analysis
         try:
-            analysis_data = json.loads(jha.response) if jha.response else {}
+            if jha.response:
+                analysis_data = json.loads(jha.response)
+            else:
+                # If no response yet, it's processing
+                analysis_data = {"status": "processing"}
         except json.JSONDecodeError:
             analysis_data = {"status": "processing" if "Generating" in str(jha.response) else "error"}
         

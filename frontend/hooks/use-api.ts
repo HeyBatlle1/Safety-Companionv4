@@ -210,8 +210,9 @@ export function useJHAProgress(analysisId: string | null) {
 
         eventSource.onerror = (error) => {
             console.error('[SSE] Error:', error);
-            // Don't set error state for connection issues, might just be the stream ending
-            eventSource.close();
+            // CRITICAL: Do NOT close on error. Let EventSource auto-retry.
+            // If connection drops (e.g. timeout), it will reconnect.
+            // Upon reconnect, backend will check DB and send 'completed' if done.
         };
 
         return () => {

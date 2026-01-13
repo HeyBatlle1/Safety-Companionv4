@@ -168,6 +168,11 @@ export function useJHAProgress(analysisId: string | null) {
                 const data = JSON.parse(event.data);
                 console.log('[SSE] Message:', data);
 
+                // Ignore non-progress events
+                if (data.status === 'connected' || data.status === 'keepalive') {
+                    return;
+                }
+
                 if (data.status === 'completed') {
                     setState({
                         status: 'completed',
@@ -192,15 +197,23 @@ export function useJHAProgress(analysisId: string | null) {
                         error: data.error || 'Analysis failed',
                     });
                     eventSource.close();
-                } else {
-                    setState({
-                        status: 'processing',
-                        currentAgent: data.current_agent || 'system',
-                        agentStatus: data.agent_status || 'processing',
-                        progress: data.progress || 0,
-                        elapsedMs: data.elapsed_ms || 0,
-                        finalReport: null,
-                        error: null,
+                } else if (data.status === 'processing') {
+                    // Only update if progress is moving forward (handles replay)
+                    setState(prev => {
+                        const newProgress = data.progress || 0;
+                        // Always take the higher progress to handle rapid replay
+                        if (newProgress >= prev.progress || data.current_agent !== prev.currentAgent) {
+                            return {
+                                status: 'processing',
+                                currentAgent: data.current_agent || 'system',
+                                agentStatus: data.agent_status || 'processing',
+                                progress: Math.max(newProgress, prev.progress),
+                                elapsedMs: data.elapsed_ms || 0,
+                                finalReport: null,
+                                error: null,
+                            };
+                        }
+                        return prev;
                     });
                 }
             } catch (e) {

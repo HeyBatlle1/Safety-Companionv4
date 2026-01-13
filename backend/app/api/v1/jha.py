@@ -15,6 +15,7 @@ from app.core.deps import get_db, get_jha_service
 from app.services.jha_service import JHAService
 from app.core.database import AsyncSessionLocal
 from app.models.analysis import AnalysisHistory
+from app.api.v1.jha_stream import initialize_progress_log
 from fastapi import BackgroundTasks
 import json
 from app.schemas.jha import (
@@ -76,6 +77,10 @@ async def analyze_checklist(
         db.add(analysis_record)
         await db.commit()
         await db.refresh(analysis_record)
+
+        # CRITICAL: Initialize progress log BEFORE starting background task
+        # This ensures the event log exists when orchestrator starts pushing events
+        initialize_progress_log(str(analysis_record.id))
 
         # Trigger background task
         background_tasks.add_task(

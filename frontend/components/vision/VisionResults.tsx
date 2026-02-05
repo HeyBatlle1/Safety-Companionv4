@@ -75,6 +75,7 @@ interface AnalysisFindings {
 }
 
 interface VisionAnalysisResult {
+    id?: string;
     success: boolean;
     analysis_type: string;
     provider: string;

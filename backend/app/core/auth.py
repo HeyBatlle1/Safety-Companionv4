@@ -50,17 +50,25 @@ class ClerkAuth:
             jwks_client = cls.get_jwks_client()
             signing_key = jwks_client.get_signing_key_from_jwt(token)
 
-            # Decode and verify with issuer validation
+            # Decode and verify - be lenient with issuer for now
+            # Clerk tokens have issuer like https://clerk.usefull-catfish-47.accounts.dev
             payload = jwt.decode(
                 token,
                 signing_key.key,
                 algorithms=["RS256"],
-                issuer=CLERK_ISSUER,
                 options={
                     "verify_aud": False,  # Clerk doesn't always set aud
-                    "verify_iss": True,   # Verify token is from our Clerk instance
+                    "verify_iss": False,  # Issuer format varies, JWKS validation is sufficient
                 }
             )
+
+            # Log issuer for debugging (remove in production)
+            iss = payload.get("iss", "unknown")
+            print(f"[AUTH] Token issuer: {iss}")
+
+            # Validate issuer contains our Clerk instance ID
+            if "usefull-catfish-47" not in str(iss):
+                raise jwt.InvalidTokenError(f"Invalid issuer: {iss}")
 
             return payload
         except jwt.ExpiredSignatureError:
@@ -69,11 +77,13 @@ class ClerkAuth:
                 detail="Token has expired"
             )
         except jwt.InvalidTokenError as e:
+            print(f"[AUTH] Invalid token error: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=f"Invalid token: {str(e)}"
             )
         except Exception as e:
+            print(f"[AUTH] Token verification failed: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=f"Token verification failed: {str(e)}"

@@ -22,37 +22,38 @@ settings = get_settings()
 # HTTP Bearer scheme for JWT tokens
 security = HTTPBearer(auto_error=False)
 
-# Clerk JWKS endpoint for token verification
-CLERK_JWKS_URL = "https://capital-shrew-63.clerk.accounts.dev/.well-known/jwks.json"
+# Clerk JWKS endpoint for token verification (from env or default)
+CLERK_JWKS_URL = settings.clerk_jwks_url or "https://usefull-catfish-47.clerk.accounts.dev/.well-known/jwks.json"
 
 
 class ClerkAuth:
-    """Clerk authentication helper"""
-    
-    # PEM Public Key from Clerk Dashboard
-    CLERK_PUBLIC_KEY = """-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsSKULhw08gPlOaiNHBF4
-Pz9pqCKLpEdlnoywKyO3XFc1RLcHqpXNlXlmPM9+DwhIuenFzzeaSJRN6MnymJ4f
-Qs+SuzNfQZNkZwyXPUUyNhuy7McsGPv8pRYXQhvOv3kNV8uW/F/UW4zoW2uAM972
-onxId6wfdLRvVWRBD/P8BrcHU+tVAwSnUv7xcefs0UqRYxFSZY6junr+mlwjm4ga
-yKlrv9f7g2ssyNgzsclzMdIrtsd9n8Sb9W6y15v8EWhQW/Ur2dY/s5bZP/m9AObi
-HpJryR6j3zXZhlaNfl2bkm0IjG/9UnIHepFQTbgh2hTr2wCIkskd7ThdHC2FwqpH
-UQIDAQAB
------END PUBLIC KEY-----"""
+    """Clerk authentication helper using JWKS"""
+
+    _jwks_client = None
+
+    @classmethod
+    def get_jwks_client(cls):
+        """Get or create JWKS client (cached)"""
+        if cls._jwks_client is None:
+            cls._jwks_client = PyJWKClient(CLERK_JWKS_URL)
+        return cls._jwks_client
 
     @classmethod
     def verify_token(cls, token: str) -> dict:
-        """Verify Clerk JWT token using static Public Key"""
+        """Verify Clerk JWT token using JWKS (fetches public key dynamically)"""
         try:
-            # Decode and verify using the static public key
-            # This avoids SSL/Connection errors with PyJWKClient
+            # Get the signing key from JWKS
+            jwks_client = cls.get_jwks_client()
+            signing_key = jwks_client.get_signing_key_from_jwt(token)
+
+            # Decode and verify
             payload = jwt.decode(
                 token,
-                cls.CLERK_PUBLIC_KEY,
+                signing_key.key,
                 algorithms=["RS256"],
                 options={"verify_aud": False}  # Clerk doesn't always set aud
             )
-            
+
             return payload
         except jwt.ExpiredSignatureError:
             raise HTTPException(
@@ -63,6 +64,11 @@ UQIDAQAB
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=f"Invalid token: {str(e)}"
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Token verification failed: {str(e)}"
             )
 
 

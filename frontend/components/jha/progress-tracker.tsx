@@ -5,7 +5,6 @@ import {
     Circle,
     ShieldCheck,
     WarningCircle,
-    Lightbulb,
     FileText,
     Cpu,
     Target,
@@ -13,7 +12,6 @@ import {
     Globe
 } from '@phosphor-icons/react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -115,7 +113,7 @@ export function ProgressTracker({ currentAgent, agentStatus, progress, elapsedMs
 
                     {/* Agent Steps Grid */}
                     <div className="grid gap-3">
-                        {steps.map((step, idx) => {
+                        {steps.map((step) => {
                             const status = getStepStatus(step.id);
                             const isRunning = status === 'running';
                             const isCompleted = status === 'completed';

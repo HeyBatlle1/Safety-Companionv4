@@ -52,7 +52,7 @@ const riggers = [
 // ================================
 // CARD 1: Project & Safety Planning
 // ================================
-export function generateCard1Data(): Record<string, any> {
+export function generateCard1Data(): Record<string, string | Record<string, string | number>> {
     const supervisor = pick(supervisors);
     const location = pick(locations);
     const projectName = pick(projectNames);
@@ -143,7 +143,7 @@ Company safety record: No OSHA citations in past 3 years. Current EMR: 0.${pick(
 // ================================
 // CARD 2: Equipment & Materials
 // ================================
-export function generateCard2Data(): Record<string, any> {
+export function generateCard2Data(): Record<string, string | Record<string, string | number>> {
     const craneMfg = pick(['Liebherr', 'Potain', 'Manitowoc', 'Terex']);
     const craneModel = pick(['71 EC-B 5', 'MD 365', '888', 'CTL 140-10']);
     const craneCapacity = pick(['4', '6', '8', '10']);
@@ -232,7 +232,7 @@ All lifts pre-planned - heaviest lift is ${pick([450, 550, 650])}lb glass panel 
 // ================================
 // CARD 3: Hazards & Controls  
 // ================================
-export function generateCard3Data(): Record<string, any> {
+export function generateCard3Data(): Record<string, string | Record<string, string | number>> {
     const height = pick([80, 100, 120, 150]);
     const panelWeight = pick([350, 450, 550]);
     const panelSize = pick(['10ft x 6ft', '8ft x 5ft', '12ft x 8ft']);
@@ -297,7 +297,7 @@ Vehicle access: Single controlled entry point with ${pick(['flagman', 'security 
 // ================================
 // CARD 4: Crew & Schedule
 // ================================
-export function generateCard4Data(): Record<string, any> {
+export function generateCard4Data(): Record<string, string | Record<string, string | number>> {
     const crewSize = pick([6, 8, 10]);
     const experienced = Math.floor(crewSize * 0.4);
     const midLevel = Math.floor(crewSize * 0.4);
@@ -404,7 +404,7 @@ Shift handoff: ${pick(['N/A - single shift only', 'Full briefing between day and
 // ================================
 // FILL ALL CARDS AT ONCE
 // ================================
-export function generateAllTestData(): Record<string, any> {
+export function generateAllTestData(): Record<string, string | Record<string, string | number>> {
     return {
         ...generateCard1Data(),
         ...generateCard2Data(),

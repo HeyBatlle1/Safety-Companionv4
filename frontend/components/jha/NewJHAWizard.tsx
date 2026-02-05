@@ -25,10 +25,12 @@ import {
     DiceSix
 } from '@phosphor-icons/react';
 import { useAnalyzeJHA } from '@/hooks/use-api';
+import type { JHAAnalysisRequest } from '@/api/client';
 
 export function NewJHAWizard() {
     const router = useRouter();
     const [currentCard, setCurrentCard] = useState(0);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [formData, setFormData] = useState<Record<string, any>>({});
     const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -185,10 +187,10 @@ export function NewJHAWizard() {
                 }
             };
 
-            const response = await analyzeJHA.mutateAsync(requestData as any);
+            const response = await analyzeJHA.mutateAsync(requestData as unknown as JHAAnalysisRequest);
 
             // Navigate to results page
-            const analysisId = (response as any)?.id;
+            const analysisId = (response as { id?: string })?.id;
             if (analysisId) {
                 router.push(`/jha/${analysisId}`);
             }

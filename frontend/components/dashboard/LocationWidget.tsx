@@ -19,11 +19,6 @@ export function LocationWidget() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        // Auto-detect location on mount
-        detectLocation();
-    }, []);
-
     const detectLocation = () => {
         if (!navigator.geolocation) {
             setError('Geolocation not supported by browser');
@@ -86,6 +81,12 @@ export function LocationWidget() {
 
         return 'Unknown location';
     };
+
+    useEffect(() => {
+        // Auto-detect location on mount
+        detectLocation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const copyCoordinates = () => {
         if (location) {

@@ -49,11 +49,11 @@ export function Step4Review() {
         try {
             // Submit to backend API (now returns immediately with queued status)
             console.log('Calling analyzeJHA mutation...');
-            const response: any = await analyzeJHA.mutateAsync({
+            const response = await analyzeJHA.mutateAsync({
                 jobInfo,
                 hazards,
                 controlMeasures,
-            });
+            }) as { id: string };
 
             console.log('Analysis response:', response);
             // Start SSE streaming by setting the analysis ID

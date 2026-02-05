@@ -40,13 +40,47 @@ interface HazardFinding {
     immediate_action?: string;
 }
 
+interface SiteFindings {
+    overall_site_status: string;
+    hazards_identified?: HazardFinding[];
+}
+
+interface PPEInspection {
+    status: string;
+    type: string;
+    owner_visible: string;
+}
+
+interface PPEFindings {
+    summary?: { fail: number };
+    inspections?: PPEInspection[];
+}
+
+interface ConditionFinding {
+    component: string;
+    condition: string;
+}
+
+interface EquipmentFindings {
+    overall_status: string;
+    equipment_identified?: string;
+    immediate_hazards?: string[];
+    condition_findings?: ConditionFinding[];
+}
+
+interface AnalysisFindings {
+    site?: SiteFindings;
+    ppe?: PPEFindings;
+    equipment?: EquipmentFindings;
+}
+
 interface VisionAnalysisResult {
     success: boolean;
     analysis_type: string;
     provider: string;
     model: string;
     analyzed_at: string;
-    findings: Record<string, any>;
+    findings: AnalysisFindings;
     executive_summary?: string;
     critical_actions: CriticalAction[];
     hazard_count: {
@@ -229,7 +263,7 @@ function ActionModule({ action, index }: { action: CriticalAction; index: number
 // FINDINGS MODULE - HUD STYLE COLLAPSIBLE
 // ════════════════════════════════════════════════════════════════════════════════
 
-function FindingsModule({ title, icon: Icon, children, count, isOpen: defaultOpen }: { title: string; icon: any; children: React.ReactNode; count: number; isOpen: boolean }) {
+function FindingsModule({ title, icon: Icon, children, count, isOpen: defaultOpen }: { title: string; icon: React.ComponentType<{ weight?: string; size?: number; className?: string }>; children: React.ReactNode; count: number; isOpen: boolean }) {
     const [isOpen, setIsOpen] = useState(defaultOpen);
 
     return (
@@ -342,7 +376,7 @@ export function VisionResults({ result, isLoading }: VisionResultsProps) {
                         title="PPE Mapping"
                         icon={HardHat}
                         count={result.findings.ppe.summary?.fail || 0}
-                        isOpen={result.findings.ppe.summary?.fail > 0}
+                        isOpen={(result.findings.ppe.summary?.fail ?? 0) > 0}
                     >
                         {result.findings.ppe.inspections?.map((p: { status: string; type: string; owner_visible: string }, i: number) => (
                             <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-white/5">

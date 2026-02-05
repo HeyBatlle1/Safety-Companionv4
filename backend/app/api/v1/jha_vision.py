@@ -7,7 +7,7 @@ Endpoints for:
 - Synthesizing multimodal updates into JHA
 """
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, BackgroundTasks
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -15,6 +15,9 @@ import json
 
 from app.services.vision_client import VisionClient, VisionProvider, ImageInput, DocumentInput
 from app.agents.profiles.agent_5_vision_analyzer import Agent5VisionAnalyzer
+from app.core.auth import get_current_user
+from app.models.user import User
+from app.core.deps import get_db, get_agent_registry
 
 router = APIRouter(prefix="/jha/vision", tags=["JHA Vision"])
 
@@ -63,6 +66,7 @@ class VisionAnalysisResponse(BaseModel):
     model: str
     analyzed_at: str
     findings: Dict[str, Any]
+    executive_summary: Optional[str] = None
     critical_actions: List[Dict[str, Any]]
     hazard_count: Dict[str, int]
     recommended_decision: str
@@ -74,7 +78,12 @@ class VisionAnalysisResponse(BaseModel):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @router.post("/analyze")
-async def analyze_vision_update(request: VisionUpdateRequest) -> VisionAnalysisResponse:
+async def analyze_vision_update(
+    request: VisionUpdateRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Any = Depends(get_db)
+) -> VisionAnalysisResponse:
     """
     Comprehensive multimodal analysis of JHA update.
     
@@ -136,21 +145,56 @@ async def analyze_vision_update(request: VisionUpdateRequest) -> VisionAnalysisR
         )
         
         synthesis = result.get("synthesis", {})
-        
-        return VisionAnalysisResponse(
+        response_obj = VisionAnalysisResponse(
             success=True,
             analysis_type="multimodal_update",
             provider=request.provider,
             model="gemini-2.0-flash" if provider == VisionProvider.GOOGLE else "claude-sonnet-4",
             analyzed_at=result.get("update_received_at", datetime.utcnow().isoformat()),
             findings=result.get("analyses", {}),
+            executive_summary=synthesis.get("executive_summary"),
             critical_actions=synthesis.get("critical_actions", []),
             hazard_count=synthesis.get("hazard_summary", {}),
             recommended_decision=synthesis.get("recommended_decision", "PENDING")
         )
+
+        # 4. Trigger full JHA live-update in background if ID is provided
+        # This makes Agent 5 data flow into the main JHA risk calculation pipeline
+        if request.jha_id:
+            from app.agents.orchestrator import JHAOrchestrator
+            from app.api.v1.jha_stream import initialize_progress_log
+            
+            # Initialize progress log for the original JHA (client can listen on separate SSE)
+            initialize_progress_log(request.jha_id)
+            
+            async def run_resubmission():
+                registry = get_agent_registry()
+                orchestrator = JHAOrchestrator(registry, db)
+                
+                # Bundle the results for the orchestrator's execute_live_update method
+                update_payload = {
+                    "original_jha_id": request.jha_id,
+                    "voice_input": request.text_update,
+                    "vision_findings": {
+                        "overall_status": synthesis.get("overall_status"),
+                        "executive_summary": synthesis.get("executive_summary"),
+                        "hazards_detected": synthesis.get("hazards_detected", []),
+                        "critical_actions": synthesis.get("critical_actions", [])
+                    }
+                }
+                
+                await orchestrator.execute_live_update(
+                    analysis_id=request.jha_id,
+                    update_data=update_payload
+                )
+
+            background_tasks.add_task(run_resubmission)
+
+        return response_obj
         
     except Exception as e:
-        print(f"❌ Vision analysis error: {e}")
+        import traceback
+        print(f"❌ Vision analysis error: {str(e)}\n{traceback.format_exc()}")
         return VisionAnalysisResponse(
             success=False,
             analysis_type="multimodal_update",
@@ -161,12 +205,15 @@ async def analyze_vision_update(request: VisionUpdateRequest) -> VisionAnalysisR
             critical_actions=[],
             hazard_count={},
             recommended_decision="ERROR",
-            error=str(e)
+            error="An internal error occurred during vision analysis. Support has been notified."
         )
 
 
 @router.post("/analyze/image")
-async def analyze_single_image(request: SingleImageAnalysisRequest) -> Dict[str, Any]:
+async def analyze_single_image(
+    request: SingleImageAnalysisRequest,
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
     """
     Analyze a single image for safety concerns.
     
@@ -206,15 +253,17 @@ async def analyze_single_image(request: SingleImageAnalysisRequest) -> Dict[str,
         }
         
     except Exception as e:
-        print(f"❌ Image analysis error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        print(f"❌ Image analysis error: {str(e)}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="Image analysis failed due to an internal error.")
 
 
 @router.post("/analyze/document")
 async def analyze_document(
     document: UploadFile = File(...),
     context: str = Form("Construction shop drawings"),
-    provider: str = Form("google")
+    provider: str = Form("google"),
+    current_user: User = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
     Analyze a PDF document (shop drawings, task list, etc.)
@@ -247,8 +296,9 @@ async def analyze_document(
         }
         
     except Exception as e:
-        print(f"❌ Document analysis error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        print(f"❌ Document analysis error: {str(e)}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="Document analysis failed due to an internal error.")
 
 
 @router.post("/analyze/ppe-batch")
@@ -256,7 +306,8 @@ async def analyze_ppe_batch(
     images: List[UploadFile] = File(...),
     task_context: str = Form("Construction work"),
     required_ppe: str = Form("Hard hat, safety glasses, harness, gloves, high-vis"),
-    provider: str = Form("google")
+    provider: str = Form("google"),
+    current_user: User = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
     Analyze multiple PPE items at once.
@@ -302,8 +353,9 @@ async def analyze_ppe_batch(
         }
         
     except Exception as e:
-        print(f"❌ PPE batch analysis error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        print(f"❌ PPE batch analysis error: {str(e)}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="PPE batch analysis failed due to an internal error.")
 
 
 @router.get("/capabilities")

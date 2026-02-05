@@ -139,31 +139,34 @@ class VisionClient:
         image: ImageInput,
         prompt: str,
         temperature: float = 0.3,
-        max_tokens: int = 4096
+        max_tokens: int = 4096,
+        system_instruction: Optional[str] = None
     ) -> Dict[str, Any]:
         """Analyze a single image with context"""
-        return await self.analyze_images([image], prompt, temperature, max_tokens)
+        return await self.analyze_images([image], prompt, temperature, max_tokens, system_instruction)
     
     async def analyze_images(
         self,
         images: List[ImageInput],
         prompt: str,
         temperature: float = 0.3,
-        max_tokens: int = 8192
+        max_tokens: int = 8192,
+        system_instruction: Optional[str] = None
     ) -> Dict[str, Any]:
         """Analyze multiple images together"""
         
         if self.provider == VisionProvider.GOOGLE:
-            return await self._analyze_images_gemini(images, prompt, temperature, max_tokens)
+            return await self._analyze_images_gemini(images, prompt, temperature, max_tokens, system_instruction)
         else:
-            return await self._analyze_images_anthropic(images, prompt, temperature, max_tokens)
+            return await self._analyze_images_anthropic(images, prompt, temperature, max_tokens, system_instruction)
     
     async def _analyze_images_gemini(
         self,
         images: List[ImageInput],
         prompt: str,
         temperature: float,
-        max_tokens: int
+        max_tokens: int,
+        system_instruction: Optional[str] = None
     ) -> Dict[str, Any]:
         """Use Gemini for image analysis"""
         from google.genai import types
@@ -180,14 +183,18 @@ class VisionClient:
             )
         
         try:
+            config = {
+                "temperature": temperature,
+                "max_output_tokens": max_tokens,
+                "response_mime_type": "application/json"
+            }
+            if system_instruction:
+                config["system_instruction"] = system_instruction
+
             response = await self.client.aio.models.generate_content(
                 model=self.model,
                 contents=parts,
-                config={
-                    "temperature": temperature,
-                    "max_output_tokens": max_tokens,
-                    "response_mime_type": "application/json"
-                }
+                config=config
             )
             
             return self._parse_json_response(response.text)
@@ -201,7 +208,8 @@ class VisionClient:
         images: List[ImageInput],
         prompt: str,
         temperature: float,
-        max_tokens: int
+        max_tokens: int,
+        system_instruction: Optional[str] = None
     ) -> Dict[str, Any]:
         """Use Claude for image analysis"""
         
@@ -225,15 +233,19 @@ class VisionClient:
         })
         
         try:
-            response = await self.client.messages.create(
-                model=self.model,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                messages=[{
+            kwargs = {
+                "model": self.model,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "messages": [{
                     "role": "user",
                     "content": content
                 }]
-            )
+            }
+            if system_instruction:
+                kwargs["system"] = system_instruction
+
+            response = await self.client.messages.create(**kwargs)
             
             return self._parse_json_response(response.content[0].text)
             
@@ -246,21 +258,23 @@ class VisionClient:
         document: DocumentInput,
         prompt: str,
         temperature: float = 0.3,
-        max_tokens: int = 8192
+        max_tokens: int = 8192,
+        system_instruction: Optional[str] = None
     ) -> Dict[str, Any]:
         """Analyze a PDF document"""
         
         if self.provider == VisionProvider.GOOGLE:
-            return await self._analyze_document_gemini(document, prompt, temperature, max_tokens)
+            return await self._analyze_document_gemini(document, prompt, temperature, max_tokens, system_instruction)
         else:
-            return await self._analyze_document_anthropic(document, prompt, temperature, max_tokens)
+            return await self._analyze_document_anthropic(document, prompt, temperature, max_tokens, system_instruction)
     
     async def _analyze_document_gemini(
         self,
         document: DocumentInput,
         prompt: str,
         temperature: float,
-        max_tokens: int
+        max_tokens: int,
+        system_instruction: Optional[str] = None
     ) -> Dict[str, Any]:
         """Use Gemini for PDF analysis"""
         from google.genai import types
@@ -274,14 +288,18 @@ class VisionClient:
         ]
         
         try:
+            config = {
+                "temperature": temperature,
+                "max_output_tokens": max_tokens,
+                "response_mime_type": "application/json"
+            }
+            if system_instruction:
+                config["system_instruction"] = system_instruction
+
             response = await self.client.aio.models.generate_content(
                 model=self.model,
                 contents=parts,
-                config={
-                    "temperature": temperature,
-                    "max_output_tokens": max_tokens,
-                    "response_mime_type": "application/json"
-                }
+                config=config
             )
             
             return self._parse_json_response(response.text)
@@ -295,7 +313,8 @@ class VisionClient:
         document: DocumentInput,
         prompt: str,
         temperature: float,
-        max_tokens: int
+        max_tokens: int,
+        system_instruction: Optional[str] = None
     ) -> Dict[str, Any]:
         """Use Claude for PDF analysis"""
         
@@ -315,15 +334,19 @@ class VisionClient:
         ]
         
         try:
-            response = await self.client.messages.create(
-                model=self.model,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                messages=[{
+            kwargs = {
+                "model": self.model,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "messages": [{
                     "role": "user",
                     "content": content
                 }]
-            )
+            }
+            if system_instruction:
+                kwargs["system"] = system_instruction
+
+            response = await self.client.messages.create(**kwargs)
             
             return self._parse_json_response(response.content[0].text)
             
@@ -338,21 +361,20 @@ class VisionClient:
         text_context: Optional[str] = None,
         prompt: str = "",
         temperature: float = 0.3,
-        max_tokens: int = 16384
+        max_tokens: int = 16384,
+        system_instruction: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Comprehensive multimodal analysis.
-        
-        Combines images, documents, and text context into a single analysis.
         """
         
         if self.provider == VisionProvider.GOOGLE:
             return await self._analyze_multimodal_gemini(
-                images, documents, text_context, prompt, temperature, max_tokens
+                images, documents, text_context, prompt, temperature, max_tokens, system_instruction
             )
         else:
             return await self._analyze_multimodal_anthropic(
-                images, documents, text_context, prompt, temperature, max_tokens
+                images, documents, text_context, prompt, temperature, max_tokens, system_instruction
             )
     
     async def _analyze_multimodal_gemini(
@@ -362,7 +384,8 @@ class VisionClient:
         text_context: Optional[str],
         prompt: str,
         temperature: float,
-        max_tokens: int
+        max_tokens: int,
+        system_instruction: Optional[str] = None
     ) -> Dict[str, Any]:
         """Gemini multimodal analysis"""
         from google.genai import types
@@ -401,14 +424,18 @@ class VisionClient:
                 )
         
         try:
+            config = {
+                "temperature": temperature,
+                "max_output_tokens": max_tokens,
+                "response_mime_type": "application/json"
+            }
+            if system_instruction:
+                config["system_instruction"] = system_instruction
+
             response = await self.client.aio.models.generate_content(
                 model=self.model,
                 contents=parts,
-                config={
-                    "temperature": temperature,
-                    "max_output_tokens": max_tokens,
-                    "response_mime_type": "application/json"
-                }
+                config=config
             )
             
             return self._parse_json_response(response.text)
@@ -424,7 +451,8 @@ class VisionClient:
         text_context: Optional[str],
         prompt: str,
         temperature: float,
-        max_tokens: int
+        max_tokens: int,
+        system_instruction: Optional[str] = None
     ) -> Dict[str, Any]:
         """Claude multimodal analysis"""
         
@@ -474,15 +502,19 @@ class VisionClient:
         })
         
         try:
-            response = await self.client.messages.create(
-                model=self.model,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                messages=[{
+            kwargs = {
+                "model": self.model,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "messages": [{
                     "role": "user",
                     "content": content
                 }]
-            )
+            }
+            if system_instruction:
+                kwargs["system"] = system_instruction
+
+            response = await self.client.messages.create(**kwargs)
             
             return self._parse_json_response(response.content[0].text)
             
@@ -491,26 +523,34 @@ class VisionClient:
             raise
     
     def _parse_json_response(self, text: str) -> Dict[str, Any]:
-        """Parse JSON from AI response, stripping markdown if present"""
+        """Robustly extract JSON from model response text."""
         text = text.strip()
         
-        # Remove markdown code blocks
-        if text.startswith("```json"):
-            text = text[7:]
-        if text.startswith("```"):
-            text = text[3:]
-        if text.endswith("```"):
-            text = text[:-3]
-        
-        text = text.strip()
-        
+        # 1. Try direct parse
         try:
             return json.loads(text)
-        except json.JSONDecodeError as e:
-            print(f"❌ JSON parse error: {e}")
-            print(f"Raw response: {text[:500]}...")
-            # Return a fallback structure
-            return {
-                "error": "Failed to parse JSON response",
-                "raw_response": text[:2000]
-            }
+        except json.JSONDecodeError:
+            pass
+            
+        # 2. Look for markdown JSON block
+        import re
+        json_match = re.search(r'```json\s*(\{.*?\})\s*```', text, re.DOTALL)
+        if json_match:
+            try:
+                return json.loads(json_match.group(1))
+            except json.JSONDecodeError:
+                pass
+                
+        # 3. Look for any braced content
+        braced_match = re.search(r'(\{.*\})', text, re.DOTALL)
+        if braced_match:
+            try:
+                return json.loads(braced_match.group(1))
+            except json.JSONDecodeError:
+                pass
+                
+        print(f"❌ Could not extract valid JSON from response: {text[:200]}...")
+        return {
+            "error": "Failed to parse JSON response",
+            "raw_response": text[:1000]
+        }

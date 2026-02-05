@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import {
   ClipboardText,
   ShieldCheck,
@@ -54,36 +55,34 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 pb-24">
-      {/* Header with gradient */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 p-6 border border-gray-700/50">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_-20%,rgba(59,130,246,0.2),transparent)]" />
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
-              <ChartLineUp weight="bold" size={36} className="text-blue-400" />
-              Safety Dashboard
-            </h1>
-            <p className="text-gray-400 mt-1">
-              {new Date().toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              })}
-            </p>
+      {/* Technical Dashboard Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2 border-b border-white/5">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Live Operations</span>
           </div>
-          <div className="flex gap-3">
-            <Link href="/vision">
-              <SecondaryButton icon={Camera}>
-                Quick Scan
-              </SecondaryButton>
-            </Link>
-            <Link href="/jha/new">
-              <PrimaryButton icon={Plus}>
-                New JHA
-              </PrimaryButton>
-            </Link>
-          </div>
+          <h1 className="text-4xl font-bold tracking-tight text-foreground flex items-center gap-4">
+            Safety Command
+            <span className="text-xs font-mono font-medium px-2 py-1 rounded bg-secondary border border-white/5 text-muted-foreground">v3.4.0</span>
+          </h1>
+          <p className="text-sm text-muted-foreground mt-2 max-w-md">
+            Consolidated safety analysis and incident prediction for {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Link href="/vision">
+            <button className="h-10 px-4 rounded-lg bg-secondary border border-white/10 hover:border-primary/50 text-sm font-medium transition-all flex items-center gap-2 group">
+              <Camera size={18} className="text-muted-foreground group-hover:text-primary transition-colors" />
+              Vision HUD
+            </button>
+          </Link>
+          <Link href="/jha/new">
+            <button className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-bold transition-all flex items-center gap-2 hover:bg-primary/90 shadow-lg shadow-primary/10">
+              <Plus weight="bold" size={18} />
+              New Analysis
+            </button>
+          </Link>
         </div>
       </div>
 
@@ -135,77 +134,93 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Recent Activity */}
-      <Card className="bg-gray-800/50 border-gray-700">
-        <CardHeader className="flex flex-row items-center justify-between">
+      {/* Recent Activity Precision Grid */}
+      <div className="bg-card border border-white/5 rounded-xl overflow-hidden shadow-2xl">
+        <div className="px-6 py-5 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
           <div>
-            <CardTitle className="text-white">Recent JHA Analyses</CardTitle>
-            <CardDescription className="text-gray-400">Your latest safety assessments</CardDescription>
+            <h2 className="text-lg font-semibold text-foreground tracking-tight">Recent Safety Protocols</h2>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mt-0.5">Real-time Analysis Stream</p>
           </div>
           <Link href="/jha">
-            <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700/50 transition-colors text-sm font-medium">
-              View All
-              <ArrowRight weight="bold" size={16} />
+            <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/5 text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all text-xs font-bold uppercase tracking-widest">
+              Full Archive
+              <ArrowRight weight="bold" size={14} className="text-primary" />
             </button>
           </Link>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {isLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-center justify-between border-b border-gray-700 pb-4 last:border-0 last:pb-0">
-                    <div className="space-y-2">
-                      <div className="h-4 w-48 animate-pulse rounded bg-gray-700"></div>
-                      <div className="h-3 w-24 animate-pulse rounded bg-gray-700"></div>
-                    </div>
-                    <div className="h-6 w-16 animate-pulse rounded bg-gray-700"></div>
+        </div>
+
+        <div className="divide-y divide-white/5">
+          {isLoading ? (
+            <div className="p-6 space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center justify-between pb-4 last:pb-0">
+                  <div className="space-y-2">
+                    <div className="h-4 w-64 animate-pulse rounded bg-secondary/50"></div>
+                    <div className="h-3 w-32 animate-pulse rounded bg-secondary/30"></div>
                   </div>
-                ))}
-              </div>
-            ) : recentJHAs && recentJHAs.length > 0 ? (
-              recentJHAs.slice(0, 5).map((item) => (
-                <Link key={item.id} href={`/jha/${item.id}`} className="block group">
-                  <div className="flex items-center justify-between border-b border-gray-700/50 pb-4 transition-colors group-hover:bg-white/5 rounded-lg px-2 -mx-2 last:border-0 last:pb-0">
+                  <div className="h-6 w-20 animate-pulse rounded bg-secondary/50"></div>
+                </div>
+              ))}
+            </div>
+          ) : recentJHAs && recentJHAs.length > 0 ? (
+            recentJHAs.slice(0, 5).map((item) => (
+              <Link key={item.id} href={`/jha/${item.id}`} className="block group">
+                <div className="flex items-center justify-between p-6 transition-all group-hover:bg-white/[0.02]">
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      "h-10 w-10 rounded-lg flex items-center justify-center border transition-colors",
+                      item.urgency_level === 'CRITICAL' || item.urgency_level === 'HIGH'
+                        ? "bg-destructive/10 border-destructive/20 text-destructive"
+                        : "bg-primary/10 border-primary/20 text-primary"
+                    )}>
+                      <ClipboardText weight="bold" size={20} />
+                    </div>
                     <div className="space-y-1">
-                      <p className="font-medium text-white group-hover:text-blue-400 transition-colors">{item.project_name}</p>
-                      <p className="text-sm text-gray-500">{formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        className={`tabular-nums ${item.risk_score > 70
-                            ? 'bg-red-500/20 text-red-400 border-red-500/30'
-                            : item.risk_score > 40
-                              ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-                              : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                          }`}
-                      >
-                        Risk: {item.risk_score}
-                      </Badge>
-                      <Badge
-                        className={`${item.urgency_level === 'CRITICAL' || item.urgency_level === 'HIGH'
-                            ? 'bg-red-500/20 text-red-400 border-red-500/30'
-                            : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
-                          }`}
-                      >
-                        {item.urgency_level}
-                      </Badge>
+                      <p className="font-semibold text-foreground group-hover:text-primary transition-colors tracking-tight">{item.project_name}</p>
+                      <div className="flex items-center gap-3">
+                        <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          <Clock size={12} />
+                          {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                        </p>
+                        <span className="text-white/10">•</span>
+                        <p className="text-xs font-mono text-muted-foreground uppercase">ID: {item.id.slice(0, 8)}</p>
+                      </div>
                     </div>
                   </div>
-                </Link>
-              ))
-            ) : (
-              <div className="text-center py-8">
-                <ClipboardText weight="light" size={48} className="text-gray-600 mx-auto mb-3" />
-                <p className="text-gray-400">No recent analyses found.</p>
-                <Link href="/jha/new" className="text-blue-400 hover:underline text-sm mt-1 inline-block">
-                  Start your first JHA →
-                </Link>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+
+                  <div className="flex items-center gap-4">
+                    <div className="hidden md:flex flex-col items-end mr-4">
+                      <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold leading-none mb-1">Risk Index</span>
+                      <span className={cn(
+                        "text-lg font-bold font-mono leading-none",
+                        item.risk_score > 70 ? "text-destructive" : item.risk_score > 40 ? "text-warning" : "text-success"
+                      )}>{item.risk_score}</span>
+                    </div>
+
+                    <div className={cn(
+                      "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all",
+                      item.urgency_level === 'CRITICAL' || item.urgency_level === 'HIGH'
+                        ? "bg-destructive/10 border-destructive/20 text-destructive"
+                        : "bg-secondary text-muted-foreground border-white/5"
+                    )}>
+                      {item.urgency_level}
+                    </div>
+                    <ArrowRight size={16} className="text-white/10 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                  </div>
+                </div>
+              </Link>
+            ))
+          ) : (
+            <div className="text-center py-12">
+              <ClipboardText weight="light" size={48} className="text-white/5 mx-auto mb-3" />
+              <p className="text-muted-foreground font-medium">No safety protocols available</p>
+              <Link href="/jha/new" className="text-primary hover:text-primary/80 text-xs font-bold uppercase tracking-widest mt-4 inline-block border-b border-primary/30 pb-0.5">
+                Initialize First Protocol →
+              </Link>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

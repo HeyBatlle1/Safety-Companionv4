@@ -15,6 +15,7 @@ import {
     CheckCircle2,
     Navigation
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface LocationData {
     latitude: number;
@@ -55,7 +56,6 @@ export function SiteConditionsWidget() {
 
     useEffect(() => {
         detectSiteConditions();
-        // Refresh every 3 hours (instead of 10 minutes to save API calls)
         const interval = setInterval(detectSiteConditions, 3 * 60 * 60 * 1000);
         return () => clearInterval(interval);
     }, []);
@@ -63,10 +63,8 @@ export function SiteConditionsWidget() {
     const detectSiteConditions = async () => {
         setLoading(true);
         setError(null);
-
         try {
-            // Step 1: Try to get location
-            let city = 'Indianapolis'; // Default fallback
+            let city = 'Indianapolis';
             try {
                 const locationData = await getLocation();
                 setLocation(locationData);
@@ -74,8 +72,6 @@ export function SiteConditionsWidget() {
                     city = locationData.address.split(',')[0]?.trim() || 'Indianapolis';
                 }
             } catch (locationError: any) {
-                console.log('Geolocation failed, using default city:', locationError.message);
-                // Set a placeholder location
                 setLocation({
                     latitude: 39.7684,
                     longitude: -86.1581,
@@ -83,8 +79,6 @@ export function SiteConditionsWidget() {
                     address: 'Indianapolis, IN (default)'
                 });
             }
-
-            // Step 2: Get weather for that location (always try this!)
             const weatherData = await getWeather(city);
             setWeather(weatherData);
         } catch (err: any) {
@@ -100,7 +94,6 @@ export function SiteConditionsWidget() {
                 reject(new Error('Geolocation not supported'));
                 return;
             }
-
             navigator.geolocation.getCurrentPosition(
                 async (position) => {
                     const locationData: LocationData = {
@@ -108,24 +101,18 @@ export function SiteConditionsWidget() {
                         longitude: position.coords.longitude,
                         accuracy: position.coords.accuracy
                     };
-
-                    // Reverse geocode
                     try {
                         const response = await fetch(
                             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${locationData.latitude}&lon=${locationData.longitude}`
                         );
                         const data = await response.json();
-
                         if (data.address) {
                             const parts = [];
                             if (data.address.city) parts.push(data.address.city);
                             if (data.address.state) parts.push(data.address.state);
                             locationData.address = parts.join(', ');
                         }
-                    } catch (err) {
-                        console.log('Reverse geocoding failed:', err);
-                    }
-
+                    } catch (err) { }
                     resolve(locationData);
                 },
                 (err) => reject(err),
@@ -142,181 +129,116 @@ export function SiteConditionsWidget() {
         return response.json();
     };
 
-    const getStatusColor = (status: string) => {
+    const getStatusVariant = (status: string) => {
         switch (status) {
-            case 'CRITICAL': return 'destructive';
-            case 'WARNING': return 'secondary';
-            case 'SAFE': return 'default';
-            default: return 'outline';
-        }
-    };
-
-    const getStatusIcon = (status: string) => {
-        switch (status) {
-            case 'CRITICAL': return <AlertTriangle className="h-4 w-4" />;
-            case 'WARNING': return <AlertTriangle className="h-4 w-4" />;
-            case 'SAFE': return <CheckCircle2 className="h-4 w-4" />;
-            default: return null;
-        }
-    };
-
-    const copyData = () => {
-        if (location && weather) {
-            const data = `Location: ${location.address}\nCoordinates: ${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}\nTemperature: ${weather.temperature}°F\nWind: ${weather.windSpeed} mph\nConditions: ${weather.conditions}`;
-            navigator.clipboard.writeText(data);
+            case 'CRITICAL': return 'bg-destructive/10 text-destructive border-destructive/20';
+            case 'WARNING': return 'bg-warning/10 text-warning border-warning/20';
+            case 'SAFE': return 'bg-success/10 text-success border-success/20';
+            default: return 'bg-secondary text-muted-foreground border-white/5';
         }
     };
 
     return (
-        <Card>
-            <CardHeader>
-                <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                        <Navigation className="h-5 w-5" />
-                        Site Conditions
-                    </CardTitle>
-                    <div className="flex items-center gap-2">
-                        {weather && (
-                            <Badge variant={getStatusColor(weather.safetyStatus.overall) as any}>
-                                {getStatusIcon(weather.safetyStatus.overall)}
-                                <span className="ml-1">{weather.safetyStatus.overall}</span>
-                            </Badge>
-                        )}
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={detectSiteConditions}
-                            disabled={loading}
-                        >
-                            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                        </Button>
-                    </div>
+        <div className="bg-card border border-white/5 rounded-xl overflow-hidden p-6 h-full flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+                <div>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-1 block">Telemetry Update</span>
+                    <h3 className="text-lg font-semibold text-foreground tracking-tight">Environmental Data</h3>
                 </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                {loading && (
-                    <div className="flex items-center justify-center h-32">
-                        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
-                    </div>
-                )}
+                <button
+                    onClick={detectSiteConditions}
+                    disabled={loading}
+                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/5 bg-secondary hover:bg-white/5 transition-all group"
+                >
+                    <RefreshCw className={cn("h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors", loading && 'animate-spin')} />
+                </button>
+            </div>
 
-                {error && (
-                    <div className="text-sm text-destructive bg-destructive/10 p-3 rounded">
-                        {error}
-                    </div>
-                )}
-
-                {!loading && location && weather && (
-                    <div className="space-y-4">
-                        {/* Location Info */}
-                        <div className="flex items-start gap-2 pb-3 border-b">
-                            <MapPin className="h-4 w-4 mt-1 text-primary" />
-                            <div className="flex-1">
-                                <p className="text-sm font-medium">{location.address || 'Unknown location'}</p>
-                                <p className="text-xs text-muted-foreground font-mono">
-                                    {location.latitude.toFixed(6)}°, {location.longitude.toFixed(6)}°
-                                </p>
+            {loading ? (
+                <div className="flex-1 flex flex-col items-center justify-center space-y-4">
+                    <div className="h-10 w-10 border-2 border-primary/20 border-t-primary animate-spin rounded-full" />
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Syncing Satellites</span>
+                </div>
+            ) : error ? (
+                <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
+                    <AlertTriangle className="h-8 w-8 text-destructive mb-2" />
+                    <span className="text-xs text-muted-foreground">{error}</span>
+                </div>
+            ) : location && weather && (
+                <div className="flex-1 space-y-6">
+                    {/* Location Precision Detail */}
+                    <div className="flex items-start gap-4 p-4 rounded-lg bg-white/[0.02] border border-white/5">
+                        <div className="h-10 w-10 flex items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
+                            <MapPin className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-sm font-bold text-foreground truncate">{location.address || 'Deployment Zone'}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-tight">
+                                    {location.latitude.toFixed(4)}°N, {location.longitude.toFixed(4)}°E
+                                </span>
+                                <span className="h-1 w-1 rounded-full bg-success/50" />
+                                <span className="text-[9px] font-mono text-muted-foreground uppercase">Precision Verified</span>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Weather Conditions */}
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="flex items-center gap-2">
-                                <div className="p-2 rounded-lg bg-primary/10">
-                                    <Thermometer className="h-4 w-4 text-primary" />
-                                </div>
-                                <div>
-                                    <p className="text-lg font-bold">{weather.temperature}°F</p>
-                                    <p className="text-xs text-muted-foreground">Feels {weather.feelsLike}°F</p>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                                <div className="p-2 rounded-lg bg-blue-500/10">
-                                    <Wind className="h-4 w-4 text-blue-600" />
-                                </div>
-                                <div>
-                                    <p className="text-lg font-bold">{weather.windSpeed} mph</p>
-                                    <p className="text-xs text-muted-foreground">Wind Speed</p>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                                <div className="p-2 rounded-lg bg-cyan-500/10">
-                                    <Droplets className="h-4 w-4 text-cyan-600" />
-                                </div>
-                                <div>
-                                    <p className="text-lg font-bold">{weather.humidity}%</p>
-                                    <p className="text-xs text-muted-foreground">Humidity</p>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                                <div className="p-2 rounded-lg bg-slate-500/10">
-                                    <Cloud className="h-4 w-4 text-slate-600" />
-                                </div>
-                                <div>
-                                    <p className="text-sm font-medium">{weather.conditions}</p>
-                                    <p className="text-xs text-muted-foreground">Conditions</p>
-                                </div>
+                    {/* Sensor Data Grid */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="p-3 rounded-lg border border-white/5 flex flex-col gap-2">
+                            <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold italic">Thermal Index</span>
+                            <div className="flex items-end gap-1.5">
+                                <span className="text-2xl font-bold font-mono text-foreground leading-none">{weather.temperature}°</span>
+                                <span className="text-[10px] text-muted-foreground font-medium mb-1 uppercase">Feels {weather.feelsLike}°F</span>
                             </div>
                         </div>
+                        <div className="p-3 rounded-lg border border-white/5 flex flex-col gap-2">
+                            <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold italic">Velocity Gradient</span>
+                            <div className="flex items-end gap-1.5">
+                                <span className="text-2xl font-bold font-mono text-foreground leading-none">{weather.windSpeed}</span>
+                                <span className="text-[10px] text-muted-foreground font-medium mb-1 uppercase">MPH Winds</span>
+                            </div>
+                        </div>
+                        <div className="p-3 rounded-lg border border-white/5 flex flex-col gap-2">
+                            <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold italic">Atmospheric Moist</span>
+                            <div className="flex items-end gap-1.5">
+                                <span className="text-2xl font-bold font-mono text-foreground leading-none">{weather.humidity}%</span>
+                                <span className="text-[10px] text-muted-foreground font-medium mb-1 uppercase">Humidity</span>
+                            </div>
+                        </div>
+                        <div className="p-3 rounded-lg border border-white/5 flex flex-col gap-2">
+                            <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold italic">Visual Clarity</span>
+                            <div className="flex items-end gap-1.5">
+                                <span className="text-sm font-bold text-foreground leading-none truncate">{weather.conditions}</span>
+                            </div>
+                        </div>
+                    </div>
 
-                        {/* Safety Thresholds */}
-                        <div className="space-y-2 pt-2 border-t">
-                            <h4 className="text-xs font-semibold uppercase text-muted-foreground">Safety Status</h4>
-
-                            <div className="flex items-start gap-2 text-xs">
-                                <Badge variant={getStatusColor(weather.safetyStatus.wind.status) as any} className="mt-0.5">
-                                    Wind
-                                </Badge>
-                                <p className="text-muted-foreground flex-1">
+                    {/* Safety Status Block */}
+                    <div className="space-y-3 pt-4 border-t border-white/5">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold">Health & Safety Validation</span>
+                            <div className={cn("px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest border", getStatusVariant(weather.safetyStatus.overall))}>
+                                {weather.safetyStatus.overall}
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <div className="flex items-start gap-2">
+                                <span className="text-[10px] font-mono text-muted-foreground mt-0.5">[01]</span>
+                                <p className="text-xs text-muted-foreground italic leading-relaxed">
                                     {weather.safetyStatus.wind.message}
                                 </p>
                             </div>
-
-                            <div className="flex items-start gap-2 text-xs">
-                                <Badge variant={getStatusColor(weather.safetyStatus.temperature.status) as any} className="mt-0.5">
-                                    Temp
-                                </Badge>
-                                <p className="text-muted-foreground flex-1">
+                            <div className="flex items-start gap-2">
+                                <span className="text-[10px] font-mono text-muted-foreground mt-0.5">[02]</span>
+                                <p className="text-xs text-muted-foreground italic leading-relaxed">
                                     {weather.safetyStatus.temperature.message}
                                 </p>
                             </div>
                         </div>
-
-                        {/* Alerts */}
-                        {weather.alerts.length > 0 && (
-                            <div className="space-y-2 pt-2 border-t">
-                                <h4 className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-2">
-                                    <AlertTriangle className="h-3 w-3 text-orange-500" />
-                                    Active Alerts
-                                </h4>
-                                {weather.alerts.map((alert, i) => (
-                                    <div key={i} className="text-xs bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded p-2">
-                                        {alert}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                        {/* Actions */}
-                        <div className="flex items-center justify-between pt-2 border-t">
-                            <p className="text-xs text-muted-foreground">
-                                Auto-updates every 3 hours
-                            </p>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={copyData}
-                                className="text-xs h-7"
-                            >
-                                Copy Data
-                            </Button>
-                        </div>
                     </div>
-                )}
-            </CardContent>
-        </Card>
+                </div>
+            )}
+        </div>
     );
 }

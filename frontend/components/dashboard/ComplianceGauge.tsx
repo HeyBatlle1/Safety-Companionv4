@@ -8,92 +8,82 @@ interface ComplianceGaugeProps {
 }
 
 export function ComplianceGauge({ score }: ComplianceGaugeProps) {
-    const getColor = (score: number) => {
-        if (score >= 80) return 'text-green-600';
-        if (score >= 60) return 'text-yellow-600';
-        return 'text-red-600';
+    const getColorClass = (score: number) => {
+        if (score >= 80) return 'text-success';
+        if (score >= 60) return 'text-warning';
+        return 'text-destructive';
     };
 
     return (
-        <Card className="card-highlight">
-            <CardHeader>
-                <CardTitle>Compliance Score</CardTitle>
-                <CardDescription>OSHA standards compliance</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center justify-center py-8">
-                {/* Circular Progress */}
-                <div className="relative w-48 h-48">
-                    {/* Background Circle */}
-                    <svg className="w-full h-full transform -rotate-90">
+        <div className="bg-card border border-white/5 rounded-xl p-6 h-full flex flex-col items-center">
+            <div className="w-full mb-6">
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-1 block text-center">Protocol Adherence</span>
+                <h3 className="text-lg font-semibold text-foreground tracking-tight text-center">Safety Index</h3>
+            </div>
+
+            <div className="relative w-40 h-40">
+                {/* Precision Segment Indicators */}
+                <div className="absolute inset-0 flex items-center justify-center rotate-[135deg]">
+                    <svg viewBox="0 0 100 100" className="w-full h-full">
                         <circle
-                            cx="96"
-                            cy="96"
-                            r="88"
-                            stroke="hsl(var(--border))"
-                            strokeWidth="12"
+                            cx="50"
+                            cy="50"
+                            r="45"
                             fill="none"
-                        />
-                        {/* Progress Circle */}
-                        <circle
-                            cx="96"
-                            cy="96"
-                            r="88"
-                            stroke="url(#gradient)"
-                            strokeWidth="12"
-                            fill="none"
-                            strokeDasharray={`${(score / 100) * 553} 553`}
+                            stroke="rgba(255,255,255,0.05)"
+                            strokeWidth="4"
+                            strokeDasharray="212 283"
                             strokeLinecap="round"
-                            className="transition-all duration-1000 ease-out"
                         />
-                        <defs>
-                            <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                {score >= 80 ? (
-                                    <>
-                                        <stop offset="0%" stopColor="#16a34a" />
-                                        <stop offset="100%" stopColor="#4ade80" />
-                                    </>
-                                ) : score >= 60 ? (
-                                    <>
-                                        <stop offset="0%" stopColor="#ca8a04" />
-                                        <stop offset="100%" stopColor="#facc15" />
-                                    </>
-                                ) : (
-                                    <>
-                                        <stop offset="0%" stopColor="#dc2626" />
-                                        <stop offset="100%" stopColor="#f87171" />
-                                    </>
-                                )}
-                            </linearGradient>
-                        </defs>
+                        <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="5"
+                            strokeDasharray={`${(score / 100) * 212} 283`}
+                            strokeLinecap="round"
+                            className={cn("transition-all duration-1000 ease-in-out", getColorClass(score))}
+                        />
                     </svg>
-
-                    {/* Score Text */}
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className={cn('text-5xl font-bold', getColor(score))}>
-                            {score}%
-                        </span>
-                        <span className="text-sm text-muted-foreground mt-1">
-                            {score >= 80 ? 'Excellent' : score >= 60 ? 'Good' : 'Needs Improvement'}
-                        </span>
-                    </div>
                 </div>
 
-                {/* Legend */}
-                <div className="mt-6 grid grid-cols-3 gap-4 text-center text-xs">
-                    <div>
-                        <div className="w-3 h-3 rounded-full bg-red-600 mx-auto mb-1" />
-                        <span className="text-muted-foreground">&lt;60%</span>
-                    </div>
-                    <div>
-                        <div className="w-3 h-3 rounded-full bg-yellow-600 mx-auto mb-1" />
-                        <span className="text-muted-foreground">60-79%</span>
-                    </div>
-                    <div>
-                        <div className="w-3 h-3 rounded-full bg-green-600 mx-auto mb-1" />
-                        <span className="text-muted-foreground">80%+</span>
-                    </div>
+                {/* Technical Value Center */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className={cn('text-4xl font-bold font-mono tracking-tighter', getColorClass(score))}>
+                        {score}
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-1">Score Matrix</span>
                 </div>
-            </CardContent>
-        </Card>
+
+                {/* Technical Index Markers */}
+                <div className="absolute -inset-2 pointer-events-none">
+                    {[0, 25, 50, 75, 100].map((marker) => (
+                        <div
+                            key={marker}
+                            className="absolute w-full h-full flex items-start justify-center"
+                            style={{ transform: `rotate(${(marker * 2.7) - 135}deg)` }}
+                        >
+                            <div className="h-1.5 w-[1px] bg-white/10" />
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Technical Calibration Data */}
+            <div className="mt-8 w-full grid grid-cols-2 gap-4 border-t border-white/5 pt-4">
+                <div className="flex flex-col">
+                    <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold">Health Level</span>
+                    <span className={cn("text-xs font-bold uppercase tracking-wide", getColorClass(score))}>
+                        {score >= 80 ? 'Optimal' : score >= 60 ? 'Standard' : 'Substandard'}
+                    </span>
+                </div>
+                <div className="flex flex-col text-right">
+                    <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold">Calibration</span>
+                    <span className="text-xs font-bold text-foreground">Verified</span>
+                </div>
+            </div>
+        </div>
     );
 }

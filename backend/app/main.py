@@ -1,4 +1,11 @@
-from fastapi import FastAPI, Depends, BackgroundTasks, Request
+import os
+import certifi
+
+# Fix for macOS SSL certificate issues - must be at the very top
+os.environ['SSL_CERT_FILE'] = certifi.where()
+print(f"🔒 SSL Certificates configured: {certifi.where()}")
+
+from fastapi import FastAPI, Depends, BackgroundTasks, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,8 +40,8 @@ app.add_middleware(
     allow_origin_regex=r"https://.*\.vercel\.app",  # Allow all Vercel preview deployments
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allow_headers=["*"],
-    expose_headers=["*"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],  # Explicit allowed headers
+    expose_headers=["Content-Length", "X-Request-ID"],
     max_age=600,  # Cache preflight for 10 minutes
 )
 
@@ -58,15 +65,33 @@ app.include_router(jha_router, prefix="/api", tags=["legacy"])
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Catch all unhandled exceptions and return JSON"""
-    error_msg = f"Unhandled error: {str(exc)}"
-    print(f"[GLOBAL ERROR] {request.url} - {error_msg}")
-    print(f"[TRACEBACK] {traceback.format_exc()}")
+    status_code = 500
+    detail = str(exc)
+    
+    if isinstance(exc, HTTPException):
+        status_code = exc.status_code
+        detail = exc.detail
+    elif not settings.debug:
+        detail = "Internal Server Error"
+
+    print(f"[GLOBAL ERROR] {request.url} - {status_code} - {str(exc)}")
+    if status_code == 500:
+        print(f"[TRACEBACK] {traceback.format_exc()}")
+    
+    # Determine allow origin from request to be dynamic but safe
+    origin = request.headers.get("origin", "*")
+    if origin not in settings.cors_origins:
+        # If not in allowed list, fallback to first allowed or *
+        origin = settings.cors_origins[0] if settings.cors_origins else "*"
+
     return JSONResponse(
-        status_code=500,
-        content={"detail": error_msg, "path": str(request.url)},
+        status_code=status_code,
+        content={"detail": detail, "path": str(request.url)},
         headers={
-            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Origin": origin,
             "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
         }
     )
 

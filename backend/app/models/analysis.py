@@ -16,9 +16,9 @@ class AnalysisHistory(Base):
         # {'schema': APP_SCHEMA} # Removed for SQLite compatibility
     )
 
-    # Use PostgreSQL UUID type to match existing Neon schema
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), nullable=True)
+    # Use String type for compatibility across SQLite and Postgres
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, nullable=True)
     query = Column(Text, nullable=False)
     response = Column(Text, nullable=False)
     type = Column(Text, nullable=False)
@@ -44,8 +44,8 @@ class AgentOutput(Base):
         # {'schema': APP_SCHEMA} # Removed for SQLite
     )
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    analysis_id = Column(UUID(as_uuid=True), ForeignKey('analysis_history.id', ondelete='CASCADE'))
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    analysis_id = Column(String, ForeignKey('analysis_history.id', ondelete='CASCADE'))
     agent_id = Column(Text, name="agent_id", nullable=False)
     agent_name = Column(Text, name="agent_name", nullable=False)
     agent_type = Column(Text, name="agent_type", nullable=False)

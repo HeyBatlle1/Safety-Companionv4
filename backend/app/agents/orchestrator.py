@@ -273,6 +273,15 @@ class SafetyAnalysisOrchestrator:
             print(f"❌ Pipeline failed: {error}")
             print(error_traceback)
             
+            # CRITICAL: Push error to SSE so frontend doesn't hang
+            await push_progress(analysis_id, {
+                "status": "error",
+                "current_agent": "system",
+                "agent_status": "failed",
+                "error": str(error),
+                "progress": 0
+            })
+            
             # Return partial results if available
             execution_time = (time.time() - start_time) * 1000
             
@@ -298,9 +307,9 @@ class SafetyAnalysisOrchestrator:
         agent_name: str,
         output: Dict[str, Any]
     ):
-        """Save agent output to NeonDB agent_outputs table"""
+        """Save agent output to agent_outputs table"""
         try:
-            from sqlalchemy import text
+            from app.models.analysis import AgentOutput
             
             # Build execution metadata
             execution_metadata = {
@@ -309,41 +318,18 @@ class SafetyAnalysisOrchestrator:
                 "output_size_bytes": len(json.dumps(output)) if output else 0
             }
             
-            # Insert into agent_outputs table
-            query = text("""
-                INSERT INTO agent_outputs (
-                    analysis_id,
-                    agent_id,
-                    agent_name,
-                    agent_type,
-                    output_data,
-                    execution_metadata,
-                    success,
-                    created_at
-                ) VALUES (
-                    :analysis_id,
-                    :agent_id,
-                    :agent_name,
-                    :agent_type,
-                    :output_data,
-                    :execution_metadata,
-                    :success,
-                    NOW()
-                )
-            """)
-            
-            await self.db.execute(
-                query,
-                {
-                    "analysis_id": analysis_id,
-                    "agent_id": agent_id,
-                    "agent_name": agent_name,
-                    "agent_type": "multi_agent_safety",
-                    "output_data": json.dumps(output) if output else "{}",
-                    "execution_metadata": json.dumps(execution_metadata),
-                    "success": True
-                }
+            # Use SQLAlchemy model instead of raw SQL for compatibility
+            agent_output = AgentOutput(
+                analysis_id=analysis_id,
+                agent_id=agent_id,
+                agent_name=agent_name,
+                agent_type="multi_agent_safety",
+                output_data=output if output else {},
+                execution_metadata=execution_metadata,
+                success=True
             )
+            
+            self.db.add(agent_output)
             await self.db.commit()
             
             print(f"✅ Saved {agent_name} output for analysis {analysis_id}")
@@ -387,16 +373,19 @@ class SafetyAnalysisOrchestrator:
                 "error": "No location provided",
                 "temperature": 70,
                 "windSpeed": 5,
-                "conditions": "Unknown"
+                "conditions": "Unknown",
+                "internal_api_link": os.getenv("INTERNAL_API_BASE_URL", "http://localhost:8000")
             }
         
         try:
             # Extract city name from address (take first part before comma)
             city = location.split(",")[0].strip()
             
+            internal_base = os.getenv("INTERNAL_API_BASE_URL", "http://localhost:8000").rstrip('/')
+            
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"http://localhost:8000/api/v1/weather/current/{city}",
+                    f"{internal_base}/api/v1/weather/current/{city}",
                     timeout=10.0
                 )
                 
@@ -562,14 +551,21 @@ class SafetyAnalysisOrchestrator:
             analysis_record = AnalysisHistory(
                 id=analysis_id,
                 user_id=str(user_id),
-                company_id=str(company_id) if company_id else None,
-                project_name=job_info.get("projectName", "Unknown"),
-                request=json.dumps(checklist_data)
+                query=f"JHA Analysis - {job_info.get('projectName', 'Unknown')}",
+                response=json.dumps({"status": "queued", "progress": 0}),
+                type="jha_multi_agent_analysis"
             )
             self.db.add(analysis_record)
             await self.db.commit()
             await self.db.refresh(analysis_record)
         
+        # Store checklist data in metadata for future raw access/updates
+        if analysis_record:
+            existing_metadata = analysis_record.metadata_json or {}
+            existing_metadata["checklist_data"] = checklist_data
+            analysis_record.metadata_json = existing_metadata
+            await self.db.commit()
+
         # Run the analysis
         result = await self.analyze(
             checklist_data=checklist_data,
@@ -585,17 +581,91 @@ class SafetyAnalysisOrchestrator:
     
     async def execute_live_update(
         self,
-        analysis_id,
-        update_data
+        analysis_id: str,
+        update_data: Dict[str, Any]
     ):
         """
-        Execute live update - re-runs Agents 2-4 with updated conditions.
+        Execute live update - fetches existing JHA, merges new context, and reruns relevant agents.
         """
-        # TODO: Implement live update logic
-        return {
-            "status": "live_update_not_yet_implemented",
-            "analysis_id": str(analysis_id)
-        }
+        from app.models.analysis import AnalysisHistory
+        from sqlalchemy import select
+        import time
+
+        start_time = time.time()
+        
+        # 1. Fetch original record
+        result = await self.db.execute(
+            select(AnalysisHistory).where(AnalysisHistory.id == analysis_id)
+        )
+        record = result.scalar_one_or_none()
+        
+        if not record:
+            raise ValueError(f"Analysis {analysis_id} not found")
+
+        # 2. Extract original data
+        metadata = record.metadata_json or {}
+        checklist_data = metadata.get("checklist_data")
+        
+        if not checklist_data:
+            # Fallback: Try to reconstruct or use a simplified version
+            checklist_data = {"projectName": record.query.replace("JHA Analysis - ", ""), "hazards": []}
+
+        # 3. Inject new context (Vision or NLP)
+        update_notes = []
+        
+        # Handle Vision results if passed from Agent 5
+        if "vision_findings" in update_data:
+            vision = update_data["vision_findings"]
+            findings_text = f"NEW FIELD OBSERVATION (Vision Agent 5):\n"
+            findings_text += f"Status: {vision.get('overall_status')}\n"
+            findings_text += f"Executive Summary: {vision.get('executive_summary')}\n"
+            
+            # Add to hazards list or general context
+            update_notes.append(findings_text)
+            
+            # Specifically add any detected hazards to the checklist
+            for hazard in vision.get("hazards_detected", []):
+                checklist_data["hazards"].append({
+                    "hazard": hazard.get("hazard") or hazard.get("description"),
+                    "category": hazard.get("category", "General"),
+                    "severity": hazard.get("severity", "MEDIUM"),
+                    "source": "AI_VISION_AGENT"
+                })
+
+        # Handle NLP/NLP voice input
+        if "voice_input" in update_data and update_data["voice_input"]:
+            update_notes.append(f"CREW FIELD UPDATE: {update_data['voice_input']}")
+
+        # Combine into job description/notes
+        if update_notes:
+            existing_desc = checklist_data.get("jobInfo", {}).get("description", "")
+            new_notes = "\n\n--- LIVE UPDATE SEPARATOR ---\n" + "\n".join(update_notes)
+            if "jobInfo" not in checklist_data:
+                checklist_data["jobInfo"] = {}
+            checklist_data["jobInfo"]["description"] = existing_desc + new_notes
+
+        # 4. Rerun analysis components (Streaming progress)
+        # We reuse the analyze method but we might want a "partial" mode. 
+        # For a "Live Update", we typically want to redo everything with the NEW context.
+        
+        # Fetch fresh weather if it's been a while (optional enhancement)
+        location = checklist_data.get("location", "")
+        weather_data = await self._fetch_weather(location)
+        
+        # Re-run the full pipeline (or just Agents 2-4 if we want to save time)
+        # But for correctness, re-running the full pipeline with merged context is safer.
+        
+        result = await self.analyze(
+            checklist_data=checklist_data,
+            weather_data=weather_data,
+            naics_code="23", # Default or fetch from original
+            industry_name="Construction",
+            injury_rate=2.5,
+            analysis_id=analysis_id,
+            analysis_record=record
+        )
+        
+        return result
 
 
 # Backwards compatibility alias

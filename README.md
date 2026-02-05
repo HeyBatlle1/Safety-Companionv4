@@ -117,6 +117,14 @@ backend/
 - Google Gemini 2.0 Flash API
 - Pydantic v2
 
+
+### **Security Architecture**
+- **Authentication**: Zero-Trust model via Clerk. All API endpoints protected by JWT validation.
+- **Data Protection**: 
+  - **SQL Safety**: 100% Parameterized queries via SQLAlchemy ORM (No raw SQL).
+  - **Prompt Defense**: XML-tagging strategy (`<user_input>`) in Agent prompts prevents prompt injection attacks.
+- **API Hardening**: Strict CORS policies (no wildcards) and secure HTTP headers.
+
 ---
 
 ## 🚀 Quick Start

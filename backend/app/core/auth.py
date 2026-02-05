@@ -29,25 +29,26 @@ CLERK_JWKS_URL = "https://capital-shrew-63.clerk.accounts.dev/.well-known/jwks.j
 class ClerkAuth:
     """Clerk authentication helper"""
     
-    _jwk_client: Optional[PyJWKClient] = None
-    
-    @classmethod
-    def get_jwk_client(cls) -> PyJWKClient:
-        """Get or create JWKS client for Clerk"""
-        if cls._jwk_client is None:
-            cls._jwk_client = PyJWKClient(CLERK_JWKS_URL)
-        return cls._jwk_client
-    
+    # PEM Public Key from Clerk Dashboard
+    CLERK_PUBLIC_KEY = """-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsSKULhw08gPlOaiNHBF4
+Pz9pqCKLpEdlnoywKyO3XFc1RLcHqpXNlXlmPM9+DwhIuenFzzeaSJRN6MnymJ4f
+Qs+SuzNfQZNkZwyXPUUyNhuy7McsGPv8pRYXQhvOv3kNV8uW/F/UW4zoW2uAM972
+onxId6wfdLRvVWRBD/P8BrcHU+tVAwSnUv7xcefs0UqRYxFSZY6junr+mlwjm4ga
+yKlrv9f7g2ssyNgzsclzMdIrtsd9n8Sb9W6y15v8EWhQW/Ur2dY/s5bZP/m9AObi
+HpJryR6j3zXZhlaNfl2bkm0IjG/9UnIHepFQTbgh2hTr2wCIkskd7ThdHC2FwqpH
+UQIDAQAB
+-----END PUBLIC KEY-----"""
+
     @classmethod
     def verify_token(cls, token: str) -> dict:
-        """Verify Clerk JWT token and return claims"""
+        """Verify Clerk JWT token using static Public Key"""
         try:
-            jwk_client = cls.get_jwk_client()
-            signing_key = jwk_client.get_signing_key_from_jwt(token)
-            
+            # Decode and verify using the static public key
+            # This avoids SSL/Connection errors with PyJWKClient
             payload = jwt.decode(
                 token,
-                signing_key.key,
+                cls.CLERK_PUBLIC_KEY,
                 algorithms=["RS256"],
                 options={"verify_aud": False}  # Clerk doesn't always set aud
             )

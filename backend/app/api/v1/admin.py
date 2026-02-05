@@ -26,25 +26,21 @@ from app.schemas.agent_config import (
     AVAILABLE_MODELS
 )
 
-# For now, we'll use a simple current_user dependency
-# TODO: Replace with proper authentication when user system is implemented
-async def get_current_admin_user():
-    """Temporary admin user dependency. Replace with proper auth."""
-    return {"user_id": "admin", "is_admin": True}
+from app.core.auth import require_admin
 
 router = APIRouter(prefix="/admin", tags=["Admin - Agent Configuration"])
 
 
 @router.get("/agent-config", response_model=AgentStatusResponse)
 async def get_agent_configurations(
-    current_user: dict = Depends(get_current_admin_user),
+    current_user: Any = Depends(require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get all agent configurations for the current user.
     Creates default configurations if none exist.
     """
-    user_id = current_user["user_id"]
+    user_id = current_user.id
 
     # Get existing configurations
     result = await db.execute(
@@ -80,13 +76,13 @@ async def get_agent_configurations(
 @router.post("/agent-config", response_model=AgentConfigResponse)
 async def create_or_update_agent_config(
     config_data: AgentConfigCreate,
-    current_user: dict = Depends(get_current_admin_user),
+    current_user: Any = Depends(require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Create or update a single agent configuration.
     """
-    user_id = current_user["user_id"]
+    user_id = current_user.id
 
     # Check if configuration already exists
     result = await db.execute(
@@ -124,13 +120,13 @@ async def create_or_update_agent_config(
 @router.put("/agent-config/bulk", response_model=List[AgentConfigResponse])
 async def bulk_update_agent_configs(
     bulk_request: BulkConfigUpdateRequest,
-    current_user: dict = Depends(get_current_admin_user),
+    current_user: Any = Depends(require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Update multiple agent configurations at once.
     """
-    user_id = current_user["user_id"]
+    user_id = current_user.id
     updated_configs = []
 
     for config_data in bulk_request.configs:
@@ -173,13 +169,13 @@ async def bulk_update_agent_configs(
 @router.post("/agent-config/test", response_model=AgentTestResponse)
 async def test_agent(
     test_request: AgentTestRequest,
-    current_user: dict = Depends(get_current_admin_user),
+    current_user: Any = Depends(require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Test an agent with a custom prompt using its current configuration.
     """
-    user_id = current_user["user_id"]
+    user_id = current_user.id
 
     # Get agent configuration
     if test_request.use_config_id:
@@ -263,13 +259,13 @@ async def test_agent(
 @router.delete("/agent-config/{agent_name}")
 async def delete_agent_config(
     agent_name: str,
-    current_user: dict = Depends(get_current_admin_user),
+    current_user: Any = Depends(require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Delete an agent configuration (resets to default).
     """
-    user_id = current_user["user_id"]
+    user_id = current_user.id
 
     result = await db.execute(
         delete(AgentConfiguration)
@@ -295,13 +291,13 @@ async def delete_agent_config(
 @router.get("/agent-config/performance", response_model=AgentPerformanceResponse)
 async def get_agent_performance(
     days: int = 30,
-    current_user: dict = Depends(get_current_admin_user),
+    current_user: Any = Depends(require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get performance analytics for all agents.
     """
-    user_id = current_user["user_id"]
+    user_id = current_user.id
     since_date = datetime.utcnow() - timedelta(days=days)
 
     # Get performance metrics

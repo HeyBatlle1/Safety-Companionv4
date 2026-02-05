@@ -15,7 +15,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle, CheckCircle, ChevronLeft, ChevronRight, Shield, Loader2, Dices } from 'lucide-react';
+import {
+    WarningCircle,
+    CheckCircle,
+    CaretLeft,
+    CaretRight,
+    ShieldCheck,
+    CircleNotch,
+    DiceSix
+} from '@phosphor-icons/react';
 import { useAnalyzeJHA } from '@/hooks/use-api';
 
 export function NewJHAWizard() {
@@ -302,7 +310,7 @@ export function NewJHAWizard() {
 
                 {validationErrors[question.id] && (
                     <p className="text-xs text-red-500 flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
+                        <WarningCircle className="h-3 w-3" />
                         {validationErrors[question.id]}
                     </p>
                 )}
@@ -316,8 +324,8 @@ export function NewJHAWizard() {
             <div className="mb-6">
                 <div className="flex justify-between items-center mb-3">
                     <div className="flex items-center gap-2">
-                        <Shield className="h-5 w-5 text-primary" />
-                        <span className="font-medium">New JHA Analysis</span>
+                        <ShieldCheck className="h-4 w-4 text-primary" />
+                        <span>Card {currentCard + 1} of {JHA_FORM_SCHEMA.cards.length}</span>
                     </div>
                     <span className="text-sm text-muted-foreground">
                         Step {currentCard + 1} of {JHA_FORM_SCHEMA.cards.length}
@@ -349,7 +357,7 @@ export function NewJHAWizard() {
                                 className="gap-1.5 text-xs bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/30 hover:border-purple-500/50 text-purple-600 dark:text-purple-400"
                                 title="Fill this card with random test data"
                             >
-                                <Dices className="h-3.5 w-3.5" />
+                                <DiceSix className="h-3.5 w-3.5" />
                                 Fill Card
                             </Button>
                             {currentCard === 0 && (
@@ -360,7 +368,7 @@ export function NewJHAWizard() {
                                     className="gap-1.5 text-xs bg-gradient-to-r from-green-500/10 to-emerald-500/10 border-green-500/30 hover:border-green-500/50 text-green-600 dark:text-green-400"
                                     title="Fill ALL cards with test data for quick testing"
                                 >
-                                    <Dices className="h-3.5 w-3.5" />
+                                    <DiceSix className="h-3.5 w-3.5" />
                                     Fill All
                                 </Button>
                             )}
@@ -375,19 +383,19 @@ export function NewJHAWizard() {
 
                 <CardFooter className="flex justify-between border-t border-border/50 pt-6">
                     <Button
-                        variant="outline"
+                        variant="ghost"
                         onClick={handleBack}
                         disabled={currentCard === 0 || isSubmitting}
                         className="gap-2"
                     >
-                        <ChevronLeft className="h-4 w-4" />
+                        <CaretLeft className="h-4 w-4" />
                         Back
                     </Button>
 
                     {currentCard < JHA_FORM_SCHEMA.cards.length - 1 ? (
                         <Button onClick={handleNext} className="gap-2">
                             Next: {nextCard?.title?.split(' ')[0] || 'Card'}
-                            <ChevronRight className="h-4 w-4" />
+                            <CaretRight className="h-4 w-4" />
                         </Button>
                     ) : (
                         <Button
@@ -397,12 +405,12 @@ export function NewJHAWizard() {
                         >
                             {isSubmitting ? (
                                 <>
-                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    <CircleNotch className="h-4 w-4 animate-spin" />
                                     Analyzing...
                                 </>
                             ) : (
                                 <>
-                                    <Shield className="h-4 w-4" />
+                                    <ShieldCheck className="h-4 w-4" />
                                     Analyze Safety Plan
                                 </>
                             )}
@@ -413,9 +421,9 @@ export function NewJHAWizard() {
 
             {/* Form-level errors */}
             {validationErrors._form && (
-                <div className="mt-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-500 text-sm flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    {validationErrors._form}
+                <div className="mb-6 p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center gap-2 text-destructive animate-in fade-in slide-in-from-top-1">
+                    <WarningCircle className="h-4 w-4 flex-shrink-0" />
+                    <p className="text-xs font-medium">Please correct the highlighted errors before proceeding.</p>
                 </div>
             )}
 

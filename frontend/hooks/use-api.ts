@@ -1,12 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@clerk/nextjs';
 import { apiClient, JHAAnalysisRequest } from '@/api/client';
 
 // JHA Analysis Mutation
 export function useAnalyzeJHA() {
     const queryClient = useQueryClient();
+    const { getToken } = useAuth();
 
     return useMutation({
-        mutationFn: (data: JHAAnalysisRequest) => apiClient.analyzeJHA(data),
+        mutationFn: async (data: JHAAnalysisRequest) => {
+            const token = await getToken();
+            return apiClient.analyzeJHA(data, token || undefined);
+        },
         onSuccess: () => {
             // Invalidate recent JHAs to refresh the list
             queryClient.invalidateQueries({ queryKey: ['recentJHAs'] });
@@ -17,9 +22,13 @@ export function useAnalyzeJHA() {
 
 // Dashboard Stats Query
 export function useDashboardStats() {
+    const { getToken } = useAuth();
     return useQuery({
         queryKey: ['dashboardStats'],
-        queryFn: () => apiClient.getDashboardStats(),
+        queryFn: async () => {
+            const token = await getToken();
+            return apiClient.getDashboardStats(token || undefined);
+        },
         // Fallback to mock data if endpoint doesn't exist yet
         placeholderData: {
             jhasThisWeek: 12,
@@ -33,10 +42,12 @@ export function useDashboardStats() {
 
 // Recent JHAs Query
 export function useRecentJHAs(limit: number = 10, offset: number = 0) {
+    const { getToken } = useAuth();
     return useQuery({
         queryKey: ['recentJHAs', limit, offset],
         queryFn: async () => {
-            const data = await apiClient.getRecentJHAs(limit, offset);
+            const token = await getToken();
+            const data = await apiClient.getRecentJHAs(limit, offset, token || undefined);
             return data.jhas; // Return just the array for compatibility
         },
         retry: 1,
@@ -46,10 +57,16 @@ export function useRecentJHAs(limit: number = 10, offset: number = 0) {
 // Saved Reports Query (only explicitly saved reports)
 export function useSavedReports(limit: number = 50, offset: number = 0) {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const { getToken } = useAuth();
     return useQuery({
         queryKey: ['savedReports', limit, offset],
         queryFn: async () => {
-            const response = await fetch(`${apiUrl}/api/v1/reports/saved?limit=${limit}&offset=${offset}`);
+            const token = await getToken();
+            const response = await fetch(`${apiUrl}/api/v1/reports/saved?limit=${limit}&offset=${offset}`, {
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : '',
+                }
+            });
             if (!response.ok) {
                 throw new Error('Failed to fetch saved reports');
             }
@@ -64,14 +81,19 @@ export function useSavedReports(limit: number = 50, offset: number = 0) {
 export function useDeleteReport() {
     const queryClient = useQueryClient();
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const { getToken } = useAuth();
 
     return useMutation({
         mutationFn: async (reportId: string) => {
+            const token = await getToken();
             const response = await fetch(`${apiUrl}/api/v1/reports/${reportId}`, {
                 method: 'DELETE',
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : '',
+                }
             });
             if (!response.ok) {
-                const error = await response.json();
+                const error = await response.json().catch(() => ({ detail: 'Failed to delete report' }));
                 throw new Error(error.detail || 'Failed to delete report');
             }
             return response.json();
@@ -85,9 +107,13 @@ export function useDeleteReport() {
 
 // JHA Details Query
 export function useJHADetails(id: string, options?: { refetchInterval?: number | false | ((data: any) => number | false) }) {
+    const { getToken } = useAuth();
     return useQuery({
         queryKey: ['jhaDetails', id],
-        queryFn: () => apiClient.getJHADetails(id),
+        queryFn: async () => {
+            const token = await getToken();
+            return apiClient.getJHADetails(id, token || undefined);
+        },
         enabled: !!id && id !== 'undefined',
         retry: 1,
         refetchInterval: options?.refetchInterval,

@@ -17,129 +17,131 @@
  */
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * CSS VARIABLES - READABLE DARK THEME
+ * CSS VARIABLES - 2027 HIGH-PRECISION THEME
  * ═══════════════════════════════════════════════════════════════════════════ */
 :root {
-  /* Background layers */
-  --background: #1A242F;
-  --foreground: #FFFFFF;
+  /* Core Foundation */
+  --background: #0D1117;
+  --foreground: #F0F6FC;
 
-  /* Cards - MUCH LIGHTER than background */
-  --card: #2D3A48;
-  --card-foreground: #FFFFFF;
+  /* Surface Hierarchy */
+  --card: #161B22;
+  --card-foreground: #F0F6FC;
+  --popover: #161B22;
+  --popover-foreground: #F0F6FC;
 
-  /* Popover */
-  --popover: #2D3A48;
-  --popover-foreground: #FFFFFF;
+  /* Technical Accents */
+  --primary: #38BDF8;
+  /* Precision Blue */
+  --primary-foreground: #020617;
+  --secondary: #21262D;
+  --secondary-foreground: #C9D1D9;
 
-  /* Primary - Bright teal */
-  --primary: #2DD4BF;
-  --primary-foreground: #0A0A0A;
+  /* Contextual States */
+  --muted: #1F242C;
+  --muted-foreground: #8B949E;
+  --accent: #30363D;
+  --accent-foreground: #F0F6FC;
 
-  /* Secondary - Lighter slate for buttons */
-  --secondary: #4A5B6D;
-  --secondary-foreground: #FFFFFF;
+  /* Status Colors (Standard OSHA + 2027 refinement) */
+  --destructive: #F85149;
+  --warning: #E3B341;
+  --success: #3FB950;
 
-  /* Muted - For subtle backgrounds */
-  --muted: #3B4A5C;
-  --muted-foreground: #B8C4D0;
+  /* Precision Borders */
+  --border: rgba(240, 246, 252, 0.1);
+  --input: #30363D;
+  --ring: rgba(56, 189, 248, 0.4);
 
-  /* Accent - Bright orange */
-  --accent: #FB923C;
-  --accent-foreground: #0A0A0A;
-
-  /* Destructive */
-  --destructive: #EF4444;
-  --destructive-foreground: #FFFFFF;
-
-  /* Borders - Visible! */
-  --border: #4A5B6D;
-  --input: #4A5B6D;
-  --ring: #2DD4BF;
-
-  /* Radius */
+  /* Structure */
   --radius: 0.5rem;
+  --sidebar: #010409;
+  --sidebar-foreground: #F0F6FC;
+  --sidebar-border: rgba(240, 246, 252, 0.1);
+  --bottom-nav-height: 4.5rem;
 
-  /* Sidebar/Nav */
-  --sidebar: #151D26;
-  --sidebar-foreground: #FFFFFF;
-  --sidebar-border: #4A5B6D;
-
-  /* Bottom nav */
-  --bottom-nav-height: 4rem;
-
-  /* Chart colors - BRIGHT! */
-  --chart-1: #EF4444;
-  --chart-2: #FB923C;
+  /* Chart & Visualization (Precise technical palette) */
+  --chart-1: #38BDF8;
+  --chart-2: #818CF8;
   --chart-3: #FBBF24;
-  --chart-4: #22C55E;
-  --chart-5: #2DD4BF;
+  --chart-4: #34D399;
+  --chart-5: #F472B6;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * BASE STYLES - Force readable dark theme
+ * BASE STYLES - Technical Precision
  * ═══════════════════════════════════════════════════════════════════════════ */
 html {
-  background-color: #1A242F !important;
-  color: #FFFFFF !important;
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+  font-feature-settings: "cv02", "cv03", "cv04", "ss01";
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background-color: #1A242F !important;
-  color: #FFFFFF !important;
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
   min-height: 100vh;
-  font-weight: 400;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  letter-spacing: -0.011em;
 }
 
-/* Make all text readable */
+/* Global focus and selection */
 * {
-  color: inherit;
+  border-color: var(--border);
+  outline-color: var(--ring);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * CARDS - Light enough to POP against background
+ * CARDS - High-Precision Layering
  * ═══════════════════════════════════════════════════════════════════════════ */
 .bg-card,
 [data-slot="card"],
 .card {
-  background-color: #2D3A48 !important;
-  border: 1px solid #4A5B6D !important;
-  border-radius: 0.75rem;
+  background-color: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Card content text */
-[data-slot="card"] *,
-.card * {
-  color: #FFFFFF;
+.card:hover {
+  border-color: rgba(56, 189, 248, 0.3) !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
 }
 
-/* Card titles should be bright */
+/* Card titles - Technical Typography */
 [data-slot="card-title"],
 .card h3,
 .card h4 {
-  color: #FFFFFF !important;
+  color: var(--foreground) !important;
   font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
-/* Card descriptions lighter */
+/* Card descriptions */
 [data-slot="card-description"] {
-  color: #B8C4D0 !important;
+  color: var(--muted-foreground) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * STATS CARDS - Values must be VERY visible
+ * STATS CARDS - High Contrast Technical Values
  * ═══════════════════════════════════════════════════════════════════════════ */
 .card-highlight {
-  background-color: #2D3A48 !important;
-  border: 1px solid #4A5B6D !important;
+  background-color: var(--card) !important;
+  border: 1px solid var(--border) !important;
 }
 
-/* Big numbers in stats cards */
+/* Big numbers - Technical Precision */
 .text-2xl,
 .text-3xl,
 .text-4xl {
-  color: #FFFFFF !important;
+  color: var(--foreground) !important;
   font-weight: 700 !important;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Stats card titles */
@@ -181,30 +183,33 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * NAVIGATION - Darker than content for visual separation
+ * NAVIGATION - Technical Foundation
  * ═══════════════════════════════════════════════════════════════════════════ */
 nav,
-header,
-footer {
-  background-color: #151D26 !important;
-  border-color: #4A5B6D !important;
+header {
+  background-color: var(--sidebar) !important;
+  border-color: var(--border) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-/* Bottom nav border */
+/* Bottom nav refinement */
 nav.fixed {
-  border-top: 1px solid #4A5B6D !important;
+  border-top: 1px solid var(--border) !important;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Nav text */
+/* Nav links */
 nav a,
 header a {
-  color: #B8C4D0 !important;
+  color: var(--muted-foreground) !important;
+  transition: color 0.15s ease;
 }
 
 nav a.text-accent,
 nav a:hover,
 .text-primary {
-  color: #2DD4BF !important;
+  color: var(--primary) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -261,46 +266,24 @@ button[class*="variant-outline"]:hover {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * SAFETY DECISION BANNERS - OSHA compliant, GLOWING
+ * SAFETY DECISION BANNERS - High-Precision Status
  * ═══════════════════════════════════════════════════════════════════════════ */
 .decision-go {
-  background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%) !important;
-  box-shadow:
-    0 0 30px rgba(34, 197, 94, 0.6),
-    0 4px 20px rgba(0, 0, 0, 0.4);
-  border: 2px solid #4ADE80 !important;
-  color: #FFFFFF !important;
+  background: rgba(63, 185, 80, 0.1) !important;
+  border: 1px solid rgba(63, 185, 80, 0.3) !important;
+  color: var(--success) !important;
 }
 
 .decision-stop {
-  background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%) !important;
-  box-shadow:
-    0 0 30px rgba(239, 68, 68, 0.6),
-    0 4px 20px rgba(0, 0, 0, 0.4);
-  border: 2px solid #F87171 !important;
-  color: #FFFFFF !important;
-  animation: pulse-danger 2s ease-in-out infinite;
+  background: rgba(248, 81, 73, 0.1) !important;
+  border: 1px solid rgba(248, 81, 73, 0.3) !important;
+  color: var(--destructive) !important;
 }
 
 .decision-caution {
-  background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%) !important;
-  box-shadow:
-    0 0 30px rgba(251, 191, 36, 0.6),
-    0 4px 20px rgba(0, 0, 0, 0.4);
-  border: 2px solid #FCD34D !important;
-  color: #0A0A0A !important;
-}
-
-@keyframes pulse-danger {
-
-  0%,
-  100% {
-    box-shadow: 0 0 30px rgba(239, 68, 68, 0.6), 0 4px 20px rgba(0, 0, 0, 0.4);
-  }
-
-  50% {
-    box-shadow: 0 0 50px rgba(239, 68, 68, 0.8), 0 4px 30px rgba(0, 0, 0, 0.5);
-  }
+  background: rgba(227, 179, 65, 0.1) !important;
+  border: 1px solid rgba(227, 179, 65, 0.3) !important;
+  color: var(--warning) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -329,71 +312,75 @@ button[class*="variant-outline"]:hover {
 /* ═══════════════════════════════════════════════════════════════════════════
  * CAPTURE BUTTONS - BRIGHT and distinct
  * ═══════════════════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * CAPTURE BUTTONS - Professional Technical States
+ * ═══════════════════════════════════════════════════════════════════════════ */
 .capture-btn-site {
-  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
-  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.5);
-  color: #FFFFFF !important;
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  box-shadow: 0 4px 14px 0 rgba(56, 189, 248, 0.3);
 }
 
 .capture-btn-equipment {
-  background: linear-gradient(135deg, #FB923C 0%, #EA580C 100%) !important;
-  box-shadow: 0 4px 20px rgba(251, 146, 60, 0.5);
-  color: #FFFFFF !important;
+  background: var(--secondary) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--foreground) !important;
 }
 
 .capture-btn-ppe {
-  background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%) !important;
-  box-shadow: 0 4px 20px rgba(34, 197, 94, 0.5);
-  color: #FFFFFF !important;
+  background: rgba(63, 185, 80, 0.1) !important;
+  border: 1px solid rgba(63, 185, 80, 0.4) !important;
+  color: var(--success) !important;
 }
 
 .capture-btn-materials {
-  background: linear-gradient(135deg, #E11D48 0%, #BE123C 100%) !important;
-  box-shadow: 0 4px 20px rgba(225, 29, 72, 0.5);
-  color: #FFFFFF !important;
+  background: rgba(248, 81, 73, 0.1) !important;
+  border: 1px solid rgba(248, 81, 73, 0.4) !important;
+  color: var(--destructive) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
  * STATUS ICONS - Glowing
  * ═══════════════════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * STATUS ICONS - Precise Indicators
+ * ═══════════════════════════════════════════════════════════════════════════ */
 .icon-pass {
-  color: #22C55E !important;
-  filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.7));
+  color: var(--success) !important;
 }
 
 .icon-fail {
-  color: #EF4444 !important;
-  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.7));
+  color: var(--destructive) !important;
 }
 
 .icon-caution {
-  color: #FBBF24 !important;
-  filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.7));
+  color: var(--warning) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
  * FORMS - Visible inputs
  * ═══════════════════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * FORMS - High-Precision Inputs
+ * ═══════════════════════════════════════════════════════════════════════════ */
 input,
 textarea,
 select {
-  background-color: #1A242F !important;
-  border: 2px solid #4A5B6D !important;
-  color: #FFFFFF !important;
-  border-radius: 0.5rem;
-}
-
-input::placeholder,
-textarea::placeholder {
-  color: #6B7A8C !important;
+  background-color: var(--secondary) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--foreground) !important;
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
 }
 
 input:focus,
 textarea:focus,
 select:focus {
-  border-color: #2DD4BF !important;
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 2px var(--ring) !important;
   outline: none;
-  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.2) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

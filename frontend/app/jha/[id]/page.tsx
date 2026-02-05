@@ -8,20 +8,21 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
     ArrowLeft,
-    CheckCircle2,
-    AlertTriangle,
+    CheckCircle,
+    WarningCircle,
     XCircle,
-    Shield,
+    ShieldCheck,
     FileText,
-    Download,
-    Save,
-    Share2,
-    Mail,
+    DownloadSimple,
+    FloppyDisk,
+    ShareNetwork,
+    Envelope,
     Check
-} from 'lucide-react';
+} from '@phosphor-icons/react';
 import { format } from 'date-fns';
 import { ProgressTracker } from '@/components/jha/progress-tracker';
 import { Agent1Card, Agent2Card, Agent3Card, Agent4Card, FullReportModule } from '@/components/analysis';
+import { AnimatePresence, motion } from 'framer-motion';
 
 export default function JHADetailPage() {
     const params = useParams();
@@ -114,10 +115,15 @@ export default function JHADetailPage() {
 
     if (isLoading) {
         return (
-            <div className="flex h-[50vh] items-center justify-center">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                    <p className="text-muted-foreground">Loading analysis...</p>
+            <div className="flex h-[60vh] flex-col items-center justify-center p-4">
+                <div className="relative flex h-20 w-20 flex-col items-center justify-center">
+                    <div className="absolute inset-0 rounded-full border-2 border-primary/20 animate-[spin_3s_linear_infinite]" />
+                    <div className="absolute inset-2 rounded-full border-2 border-primary/40 border-t-transparent animate-spin" />
+                    <ShieldCheck className="h-8 w-8 text-primary animate-pulse" />
+                </div>
+                <div className="mt-8 text-center space-y-2">
+                    <h3 className="text-sm font-black uppercase tracking-[0.2em] text-foreground">Initiating Secure Link</h3>
+                    <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Awaiting Handshake with Pipeline Core...</p>
                 </div>
             </div>
         );
@@ -148,7 +154,7 @@ export default function JHADetailPage() {
         return (
             <div className="flex h-[50vh] flex-col items-center justify-center gap-4">
                 <div className="rounded-full bg-orange-500/10 p-4">
-                    <AlertTriangle className="h-8 w-8 text-orange-500" />
+                    <WarningCircle className="h-8 w-8 text-orange-500" />
                 </div>
                 <h2 className="text-xl font-semibold">Analysis Incomplete</h2>
                 <p className="max-w-md text-center text-muted-foreground">
@@ -170,10 +176,10 @@ export default function JHADetailPage() {
 
     const getDecisionIcon = (decision: string) => {
         switch (decision) {
-            case 'GO': return <CheckCircle2 className="h-6 w-6 text-green-500" />;
+            case 'GO': return <CheckCircle className="h-6 w-6 text-green-500" />;
             case 'NO_GO': return <XCircle className="h-6 w-6 text-red-500" />;
-            case 'GO_WITH_CONDITIONS': return <AlertTriangle className="h-6 w-6 text-yellow-500" />;
-            default: return <Shield className="h-6 w-6 text-muted-foreground" />;
+            case 'GO_WITH_CONDITIONS': return <WarningCircle className="h-6 w-6 text-yellow-500" />;
+            default: return <ShieldCheck className="h-6 w-6 text-muted-foreground" />;
         }
     };
 
@@ -217,7 +223,7 @@ export default function JHADetailPage() {
                             </>
                         ) : (
                             <>
-                                <Save className="h-4 w-4" />
+                                <FloppyDisk className="h-4 w-4" />
                                 Save to Reports
                             </>
                         )}
@@ -236,7 +242,7 @@ export default function JHADetailPage() {
                             </>
                         ) : (
                             <>
-                                <Share2 className="h-4 w-4" />
+                                <ShareNetwork className="h-4 w-4" />
                                 Share
                             </>
                         )}
@@ -248,13 +254,13 @@ export default function JHADetailPage() {
                         onClick={handleEmailReport}
                         className="gap-2"
                     >
-                        <Mail className="h-4 w-4" />
+                        <Envelope className="h-4 w-4" />
                         Email
                     </Button>
 
                     {/* Export PDF */}
                     <Button variant="outline" className="gap-2">
-                        <Download className="h-4 w-4" />
+                        <DownloadSimple className="h-4 w-4" />
                         Export PDF
                     </Button>
                 </div>
@@ -342,7 +348,7 @@ export default function JHADetailPage() {
                         {jha.agent_outputs?.agent4_final_report?.criticalFindings?.length > 0 && (
                             <div className="mt-6 pt-6 border-t">
                                 <h4 className="font-medium mb-3 flex items-center gap-2">
-                                    <AlertTriangle className="h-4 w-4 text-orange-500" />
+                                    <WarningCircle className="h-4 w-4 text-orange-500" />
                                     Critical Findings
                                 </h4>
                                 <ul className="space-y-2">
@@ -433,14 +439,14 @@ function ProcessingView({ analysisId, onComplete }: { analysisId: string; onComp
     useEffect(() => {
         if (progress.status === 'completed') {
             // Small delay to show completion before reloading
-            const timer = setTimeout(onComplete, 1000);
+            const timer = setTimeout(onComplete, 1500);
             return () => clearTimeout(timer);
         }
         return undefined;
     }, [progress.status, onComplete]);
 
     return (
-        <div className="flex h-[70vh] flex-col items-center justify-center p-4">
+        <div className="flex min-h-[70vh] flex-col items-center justify-center py-12 px-4">
             <ProgressTracker
                 currentAgent={progress.currentAgent}
                 agentStatus={progress.agentStatus}
@@ -448,11 +454,21 @@ function ProcessingView({ analysisId, onComplete }: { analysisId: string; onComp
                 elapsedMs={progress.elapsedMs}
             />
 
-            {progress.status === 'error' && progress.error && (
-                <div className="mt-4 max-w-md p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-500 text-sm">
-                    {progress.error}
-                </div>
-            )}
+            <AnimatePresence>
+                {progress.status === 'error' && progress.error && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-8 w-full max-w-md p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm font-medium flex items-start gap-3 shadow-lg"
+                    >
+                        <WarningCircle className="h-5 w-5 flex-shrink-0" />
+                        <div className="space-y-1">
+                            <p className="font-black uppercase tracking-widest text-[10px]">Pipeline Interrupted</p>
+                            <p className="opacity-80 text-xs leading-relaxed">{progress.error}</p>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

@@ -5,74 +5,110 @@ V1 Faithful Port - Uses Gemini 2.5 Flash
 
 import os
 import json
+from typing import Optional
 from dotenv import load_dotenv
-from google import genai
+from app.agents.base import AgentTask, ModelCapability
+from app.core.config import get_settings
 
 # Load .env file to ensure API keys are available
 load_dotenv()
 
 
 class GeminiClient:
-    """Shared Gemini client for Agents 1-3"""
+    """
+    Shared AI client for all agents.
+    
+    CRITICAL ARCHITECTURE CHAnge:
+    Previous version was hardcoded to Google Gemini.
+    This version acts as a Compatibility Facade that delegates to the AgentRegistry.
+    This allows globally switching providers (e.g. to OpenRouter) without changing agent code.
+    """
     
     def __init__(self):
-        api_key = os.getenv("GOOGLE_API_KEY")
-        if not api_key:
-            raise ValueError("GOOGLE_API_KEY environment variable not set. Check your .env file.")
+        from app.agents.registry import AgentRegistry
         
-        self.client = genai.Client(api_key=api_key)
-        # Using production gemini-2.5-flash (not -exp which has stricter rate limits)
-        self.default_model = "gemini-2.5-flash"
+        # Initialize registry with settings
+        settings = get_settings()
+        self.registry = AgentRegistry({
+            'gemini_api_key': settings.gemini_api_key,
+            'openrouter_api_key': settings.openrouter_api_key,
+            'anthropic_api_key': settings.anthropic_api_key
+        })
     
+    def _extract_json(self, response_text: str) -> dict:
+        """Robustly extract JSON from model response text."""
+        text = response_text.strip()
+        
+        # 1. Try direct parse
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+            
+        # 2. Look for markdown JSON block
+        import re
+        json_match = re.search(r'```json\s*(\{.*?\})\s*```', text, re.DOTALL)
+        if json_match:
+            try:
+                return json.loads(json_match.group(1))
+            except json.JSONDecodeError:
+                pass
+                
+        # 3. Look for any braced content
+        braced_match = re.search(r'(\{.*\})', text, re.DOTALL)
+        if braced_match:
+            try:
+                return json.loads(braced_match.group(1))
+            except json.JSONDecodeError:
+                pass
+                
+        raise ValueError(f"Could not extract valid JSON from response: {text[:200]}...")
+
     async def generate(
         self,
         prompt: str,
         temperature: float,
-        max_tokens: int
+        max_tokens: int,
+        system_instruction: Optional[str] = None
     ) -> dict:
         """
-        Call Gemini API with JSON response format.
-        
-        Args:
-            prompt: The prompt to send
-            temperature: Model temperature (0.3-1.0)
-            max_tokens: Maximum output tokens
-            
-        Returns:
-            Parsed JSON dict from Gemini response
+        Route generation request to the best available model via Registry.
         """
         try:
-            response = await self.client.aio.models.generate_content(
-                model=self.default_model,
-                contents=prompt,
-                config={
-                    "temperature": temperature,
-                    "max_output_tokens": max_tokens,
-                    "response_mime_type": "application/json"
-                }
+            # Create task definition
+            task = AgentTask(
+                task_type="generation",
+                input_data={"prompt": prompt},
+                required_capabilities=[ModelCapability.STRUCTURED_OUTPUT],
+                temperature=temperature,
+                max_tokens=max_tokens
             )
             
-            # Parse JSON from response
-            response_text = response.text.strip()
+            # Get best adapter
+            adapter = self.registry.route_task(task)
             
-            # Remove markdown code blocks if present
-            if response_text.startswith("```json"):
-                response_text = response_text[7:]
-            if response_text.startswith("```"):
-                response_text = response_text[3:]
-            if response_text.endswith("```"):
-                response_text = response_text[:-3]
+            # Compatibility: If adapter doesn't support system_instruction natively
+            # (like OpenRouter adapter might not), prepend it to prompt
+            final_prompt = prompt
+            if system_instruction:
+                # Most adapters take prompt as user message, so we prepend system instruction
+                final_prompt = f"SYSTEM INSTRUCTION:\n{system_instruction}\n\nUSER PROMPT:\n{prompt}"
+
+            # Call adapter
+            result = await adapter.generate(
+                prompt=final_prompt,
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
             
-            response_text = response_text.strip()
+            # OpenRouter adapter returns dict with 'text' field
+            # Google adapter returns dict with 'text' field
+            # Helper extracts JSON
+            response_text = result.get("text", "")
+            return self._extract_json(response_text)
             
-            return json.loads(response_text)
-            
-        except json.JSONDecodeError as e:
-            print(f"❌ JSON parse error: {e}")
-            print(f"Response was: {response_text[:500]}...")
-            raise
         except Exception as e:
-            print(f"❌ Gemini API error: {e}")
+            print(f"❌ AI Generation error: {e}")
             raise
     
     def generate_sync(
@@ -82,30 +118,16 @@ class GeminiClient:
         max_tokens: int
     ) -> dict:
         """
-        Synchronous version of generate().
+        Synchronous version - requires async loop management.
+        Use with caution in sync contexts.
         """
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         try:
-            response = self.client.models.generate_content(
-                model=self.default_model,
-                contents=prompt,
-                config={
-                    "temperature": temperature,
-                    "max_output_tokens": max_tokens,
-                    "response_mime_type": "application/json"
-                }
+            result = loop.run_until_complete(
+                self.generate(prompt, temperature, max_tokens)
             )
-            
-            response_text = response.text.strip()
-            
-            if response_text.startswith("```json"):
-                response_text = response_text[7:]
-            if response_text.startswith("```"):
-                response_text = response_text[3:]
-            if response_text.endswith("```"):
-                response_text = response_text[:-3]
-            
-            return json.loads(response_text.strip())
-            
-        except Exception as e:
-            print(f"❌ Gemini API error: {e}")
-            raise
+            return result
+        finally:
+            loop.close()

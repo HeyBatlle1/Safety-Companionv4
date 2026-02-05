@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     # Security
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173", "http://localhost:5000"]
 
+    # Authentication
+    clerk_jwks_url: str = "https://capital-shrew-63.clerk.accounts.dev/.well-known/jwks.json"
+    clerk_audience: str | None = None
+
     @field_validator('cors_origins', mode='before')
     @classmethod
     def parse_cors_origins(cls, v):

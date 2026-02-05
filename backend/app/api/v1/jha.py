@@ -12,6 +12,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db, get_jha_service
+from app.core.auth import get_current_user
+from app.models.user import User
 from app.services.jha_service import JHAService
 from app.core.database import AsyncSessionLocal
 from app.models.analysis import AnalysisHistory
@@ -54,7 +56,8 @@ async def analyze_checklist(
     request: JHAAnalysisRequest,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
-    jha_service: JHAService = Depends(get_jha_service)
+    jha_service: JHAService = Depends(get_jha_service),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Analyze Master JHA checklist through 4-agent pipeline (Background Task).
@@ -63,10 +66,13 @@ async def analyze_checklist(
     Client should poll GET /jha/{id} for progress updates.
     """
     try:
-        user_id = UUID("00000000-0000-0000-0000-000000000000")
+        user_id = current_user.id
+        print(f"🚀 Analysis started for user: {user_id}")
 
         # Create initial record
         project_name = request.jobInfo.projectName if hasattr(request, 'jobInfo') else "JHA Analysis"
+        print(f"📦 Creating record for project: {project_name}")
+        
         analysis_record = AnalysisHistory(
             user_id=str(user_id),
             query=f"JHA Analysis - {project_name}",
@@ -75,7 +81,9 @@ async def analyze_checklist(
         )
         
         db.add(analysis_record)
+        print("💾 Record added to session")
         await db.commit()
+        print(f"✅ Record committed: {analysis_record.id}")
         await db.refresh(analysis_record)
 
         # CRITICAL: Initialize progress log BEFORE starting background task
@@ -118,42 +126,57 @@ async def analyze_checklist(
 async def jha_update_legacy(
     request: JHAAnalysisRequest,
     db: AsyncSession = Depends(get_db),
-    jha_service: JHAService = Depends(get_jha_service)
+    jha_service: JHAService = Depends(get_jha_service),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Legacy endpoint for old frontend compatibility.
     Maps to the same analyze_checklist function.
     """
-    return await analyze_checklist(request, db, jha_service)
+    return await analyze_checklist(request, background_tasks=BackgroundTasks(), db=db, jha_service=jha_service, current_user=current_user)
 
+
+async def run_live_update_background(analysis_id: str, update_data: Dict[str, Any]):
+    """Background task to run live update"""
+    async with AsyncSessionLocal() as session:
+        from app.core.deps import get_agent_registry
+        from app.agents.orchestrator import JHAOrchestrator
+
+        registry = get_agent_registry()
+        orchestrator = JHAOrchestrator(registry, session)
+        
+        await orchestrator.execute_live_update(
+            analysis_id=analysis_id,
+            update_data=update_data
+        )
 
 @router.post("/live-update", response_model=JHALiveUpdateResponse)
 async def live_update(
     request: JHALiveUpdateRequest,
-    jha_service: JHAService = Depends(get_jha_service)
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    jha_service: JHAService = Depends(get_jha_service),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Update existing JHA with live field conditions.
-
-    **Use Cases:**
-    - Weather conditions changed
-    - Crew size modified
-    - Equipment status updated
-    - New hazards identified
-
-    **Process:**
-    - Re-runs Agent 2 (Risk Assessment) with new data
-    - Re-runs Agent 3 (Swiss Cheese) for updated predictions
-    - Generates crew alerts if risk threshold breached
     """
     try:
-        # TODO: Extract user_id from authentication
-        user_id = UUID("00000000-0000-0000-0000-000000000000")
+        user_id = current_user.id
+        analysis_id = str(request.original_jha_id)
 
-        # TODO: Implement live update logic in JHAService
-        # For now, return placeholder
+        # Initialize progress log for SSE
+        initialize_progress_log(analysis_id)
+
+        # Trigger background task
+        background_tasks.add_task(
+            run_live_update_background,
+            analysis_id,
+            request.dict()
+        )
+
         return JHALiveUpdateResponse(
-            id=UUID("00000000-0000-0000-0000-000000000001"),
+            id=UUID(int=0), # Placeholder or generate new UUID if needed for the update record
             original_jha_id=request.original_jha_id,
             user_id=user_id,
             voice_input=request.voice_input,
@@ -168,6 +191,8 @@ async def live_update(
             detail=str(e)
         )
     except Exception as e:
+        import traceback
+        print(f"[LIVE UPDATE ERROR] {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Live update failed: {str(e)}"
@@ -177,7 +202,8 @@ async def live_update(
 @router.post("/acknowledge")
 async def acknowledge_update(
     request: JHAUpdateAcknowledge,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Acknowledge a JHA update alert.
@@ -209,7 +235,8 @@ async def acknowledge_update(
 async def get_recent_jhas(
     limit: int = 10,
     offset: int = 0,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get recent JHA analyses with pagination.
@@ -229,10 +256,13 @@ async def get_recent_jhas(
         # Limit max results
         limit = min(limit, 100)
         
-        # Query recent JHAs
+        # Query recent JHAs for the current user
         query = (
             select(AnalysisHistory)
-            .where(AnalysisHistory.type == "jha_multi_agent_analysis")
+            .where(
+                AnalysisHistory.type == "jha_multi_agent_analysis",
+                AnalysisHistory.user_id == str(current_user.id)
+            )
             .order_by(desc(AnalysisHistory.created_at))
             .limit(limit)
             .offset(offset)
@@ -278,7 +308,8 @@ async def get_recent_jhas(
 @router.get("/{jha_id}")
 async def get_jha_details(
     jha_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get full details of a specific JHA analysis.
@@ -294,8 +325,11 @@ async def get_jha_details(
         from sqlalchemy import select
         import json
         
-        # Query specific JHA
-        query = select(AnalysisHistory).where(AnalysisHistory.id == str(jha_id))
+        # Query specific JHA and verify ownership
+        query = select(AnalysisHistory).where(
+            AnalysisHistory.id == str(jha_id),
+            AnalysisHistory.user_id == str(current_user.id)
+        )
         result = await db.execute(query)
         jha = result.scalar_one_or_none()
         

@@ -13,6 +13,8 @@ from datetime import datetime
 import json
 
 from app.core.deps import get_db
+from app.core.auth import get_current_user
+from app.models.user import User
 from app.models.analysis import AnalysisHistory, AgentOutput
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
@@ -46,7 +48,8 @@ class SavedReport(BaseModel):
 async def email_report(
     request: EmailReportRequest,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Email the safety analysis report.
@@ -87,7 +90,8 @@ async def email_report(
 @router.post("/save")
 async def save_to_reports(
     request: SaveReportRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Save analysis to reports.
@@ -98,7 +102,10 @@ async def save_to_reports(
     try:
         # Get the current analysis
         result = await db.execute(
-            select(AnalysisHistory).where(AnalysisHistory.id == request.analysisId)
+            select(AnalysisHistory).where(
+                AnalysisHistory.id == request.analysisId,
+                AnalysisHistory.user_id == str(current_user.id)
+            )
         )
         analysis = result.scalar_one_or_none()
         
@@ -148,7 +155,8 @@ async def save_to_reports(
 async def get_saved_reports(
     limit: int = 50,
     offset: int = 0,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get all saved reports.
@@ -161,7 +169,10 @@ async def get_saved_reports(
         # Query all JHA analyses
         query = (
             select(AnalysisHistory)
-            .where(AnalysisHistory.type == "jha_multi_agent_analysis")
+            .where(
+                AnalysisHistory.type == "jha_multi_agent_analysis",
+                AnalysisHistory.user_id == str(current_user.id)
+            )
             .order_by(desc(AnalysisHistory.created_at))
             .limit(limit)
             .offset(offset)
@@ -211,7 +222,8 @@ async def get_saved_reports(
 async def download_report(
     analysis_id: str,
     format: str = "markdown",
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Download report in specified format.
@@ -221,7 +233,10 @@ async def download_report(
     try:
         # Get analysis
         result = await db.execute(
-            select(AnalysisHistory).where(AnalysisHistory.id == analysis_id)
+            select(AnalysisHistory).where(
+                AnalysisHistory.id == analysis_id,
+                AnalysisHistory.user_id == str(current_user.id)
+            )
         )
         analysis = result.scalar_one_or_none()
         
@@ -281,7 +296,8 @@ async def download_report(
 @router.delete("/{analysis_id}")
 async def delete_report(
     analysis_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Remove a report from saved reports.
@@ -292,7 +308,10 @@ async def delete_report(
     try:
         # Get the analysis
         result = await db.execute(
-            select(AnalysisHistory).where(AnalysisHistory.id == analysis_id)
+            select(AnalysisHistory).where(
+                AnalysisHistory.id == analysis_id,
+                AnalysisHistory.user_id == str(current_user.id)
+            )
         )
         analysis = result.scalar_one_or_none()
         
@@ -339,7 +358,8 @@ async def delete_report(
 @router.delete("/{analysis_id}/permanent")
 async def permanently_delete_report(
     analysis_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Permanently delete a report and its analysis.
@@ -349,6 +369,16 @@ async def permanently_delete_report(
     try:
         from sqlalchemy import delete
         
+        # Verify ownership first
+        verify_result = await db.execute(
+            select(AnalysisHistory).where(
+                AnalysisHistory.id == analysis_id,
+                AnalysisHistory.user_id == str(current_user.id)
+            )
+        )
+        if not verify_result.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail="Report not found")
+
         # Delete associated agent outputs first
         await db.execute(
             delete(AgentOutput).where(AgentOutput.analysis_id == analysis_id)
@@ -356,7 +386,10 @@ async def permanently_delete_report(
         
         # Delete the analysis
         result = await db.execute(
-            delete(AnalysisHistory).where(AnalysisHistory.id == analysis_id)
+            delete(AnalysisHistory).where(
+                AnalysisHistory.id == analysis_id,
+                AnalysisHistory.user_id == str(current_user.id)
+            )
         )
         
         if result.rowcount == 0:

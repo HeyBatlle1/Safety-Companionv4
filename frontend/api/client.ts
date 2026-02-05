@@ -12,16 +12,22 @@ class APIClient {
 
     private async request<T>(
         endpoint: string,
-        options?: RequestInit
+        options?: RequestInit & { token?: string }
     ): Promise<T> {
         const url = `${this.baseURL}${endpoint}`;
 
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            ...((options?.headers as Record<string, string>) || {}),
+        };
+
+        if (options?.token) {
+            headers['Authorization'] = `Bearer ${options.token}`;
+        }
+
         const response = await fetch(url, {
             ...options,
-            headers: {
-                'Content-Type': 'application/json',
-                ...options?.headers,
-            },
+            headers,
         });
 
         if (!response.ok) {
@@ -33,10 +39,11 @@ class APIClient {
     }
 
     // JHA Endpoints
-    async analyzeJHA(data: any) {
+    async analyzeJHA(data: any, token?: string) {
         return this.request('/jha/analyze', {
             method: 'POST',
             body: JSON.stringify(data),
+            token,
         });
     }
 
@@ -44,19 +51,20 @@ class APIClient {
         return this.request('/jha/health');
     }
 
-    async liveUpdateJHA(analysisId: string, data: any) {
+    async liveUpdateJHA(analysisId: string, data: any, token?: string) {
         return this.request(`/jha/${analysisId}/live-update`, {
             method: 'POST',
             body: JSON.stringify(data),
+            token,
         });
     }
 
-    async getRecentJHAs(limit: number = 10, offset: number = 0) {
-        return this.request<JHAListResponse>(`/jha/recent?limit=${limit}&offset=${offset}`);
+    async getRecentJHAs(limit: number = 10, offset: number = 0, token?: string) {
+        return this.request<JHAListResponse>(`/jha/recent?limit=${limit}&offset=${offset}`, { token });
     }
 
-    async getJHADetails(id: string) {
-        return this.request<JHAAnalysisResponse>(`/jha/${id}`);
+    async getJHADetails(id: string, token?: string) {
+        return this.request<JHAAnalysisResponse>(`/jha/${id}`, { token });
     }
 
     // Weather Endpoint
@@ -65,9 +73,9 @@ class APIClient {
     }
 
     // Dashboard Stats (placeholder - will need backend endpoint)
-    async getDashboardStats() {
+    async getDashboardStats(token?: string) {
         // TODO: Backend needs to implement this endpoint
-        return this.request('/dashboard/stats');
+        return this.request('/dashboard/stats', { token });
     }
 
 

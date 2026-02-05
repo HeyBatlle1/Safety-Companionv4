@@ -264,7 +264,7 @@ function ActionModule({ action, index }: { action: CriticalAction; index: number
 // FINDINGS MODULE - HUD STYLE COLLAPSIBLE
 // ════════════════════════════════════════════════════════════════════════════════
 
-function FindingsModule({ title, icon: Icon, children, count, isOpen: defaultOpen }: { title: string; icon: React.ComponentType<{ weight?: string; size?: number; className?: string }>; children: React.ReactNode; count: number; isOpen: boolean }) {
+function FindingsModule({ title, icon: Icon, children, count, isOpen: defaultOpen }: { title: string; icon: React.ElementType; children: React.ReactNode; count: number; isOpen: boolean }) {
     const [isOpen, setIsOpen] = useState(defaultOpen);
 
     return (

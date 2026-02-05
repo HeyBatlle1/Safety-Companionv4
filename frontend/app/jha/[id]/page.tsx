@@ -142,12 +142,10 @@ export default function JHADetailPage() {
     }
 
     // Handle processing/error/failed states - use router.refresh instead of window.location.reload
-    // @ts-expect-error - status field not in strict type definition yet
     if (jha.status === 'processing' || jha.status === 'queued') {
         return <ProcessingView analysisId={id} onComplete={() => router.refresh()} />;
     }
 
-    // @ts-expect-error
     if (jha.status === 'error' || jha.status === 'failed' || jha.status === 'broken') {
         return (
             <div className="flex h-[50vh] flex-col items-center justify-center gap-4">

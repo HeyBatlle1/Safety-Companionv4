@@ -114,7 +114,7 @@ backend/
 - FastAPI + Uvicorn
 - SQLAlchemy + Alembic
 - Neon PostgreSQL (Serverless)
-- Google Gemini 2.0 Flash API
+- Grok 4.1 Fast Xai API
 - Pydantic v2
 
 
@@ -133,7 +133,7 @@ backend/
 - Node.js 20+
 - Python 3.11+
 - PostgreSQL (or Neon account)
-- Google Gemini API key
+- Grok 4.20 
 - OpenWeather API key
 
 ### Installation
@@ -175,7 +175,7 @@ NEXT_PUBLIC_OPENWEATHER_API_KEY=your_key
 **Backend** (`.env`):
 ```bash
 DATABASE_URL=postgresql://user:password@host:5432/safetycompanion
-GEMINI_API_KEY=your_google_gemini_api_key
+Grok_4_Fast_API
 OPENWEATHER_API_KEY=your_openweather_key
 ENVIRONMENT=development
 ```
@@ -239,7 +239,7 @@ pytest                         # Run tests
 ### ✅ **V3.0 - Current** (December 2024)
 - [x] 4-Agent AI Pipeline (Validator → Risk Assessor → Swiss Cheese → Synthesizer)
 - [x] Next.js 15 frontend with shadcn/ui
-- [x] FastAPI backend with Google Gemini 2.0 Flash
+- [x] FastAPI backend with Grok 4.1 Fast
 - [x] Real-time weather integration with safety thresholds
 - [x] 4-step JHA wizard with validation
 - [x] Full Report Module with markdown rendering
@@ -286,12 +286,13 @@ Copyright © 2025 HayHunt Solutions LLC
 ## 🙏 Acknowledgments
 
 **Powered by:**
-- Google Gemini 2.0 Flash - AI analysis engine
+- Xai Grok 4.1 Fast - AI analysis engine
 - Neon - Serverless PostgreSQL
 - Railway - Cloud deployment
 - OpenWeather API - Weather data
 
 **Built with:**
+- Bradlee Burton <Lead Dev 
 - Claude (Anthropic) - AI pair programming
 - The open-source community
 

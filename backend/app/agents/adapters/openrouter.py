@@ -13,6 +13,7 @@ class OpenRouterAdapter(BaseModelAdapter):
             api_key=api_key
         )
         self.default_model = model  # Default model if not specified in generate()
+        self.model_name = model     # Store model name for capabilities/cost
 
     async def generate(
         self,

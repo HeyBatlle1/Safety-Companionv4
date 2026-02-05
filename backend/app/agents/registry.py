@@ -30,10 +30,10 @@ class AgentRegistry:
 
         # Initialize OpenRouter (fallback only - has rate limits)
         if OPENROUTER_AVAILABLE and config.get("openrouter_api_key"):
-            # Use deepseek/deepseek-v3.2 as requested by user
-            self.adapters["openrouter-deepseek"] = OpenRouterAdapter(
+            # Use x-ai/grok-4.1-fast as requested by user
+            self.adapters["openrouter-grok"] = OpenRouterAdapter(
                 api_key=config["openrouter_api_key"],
-                model="deepseek/deepseek-v3.2"
+                model="x-ai/grok-4.1-fast"
             )
             # Paid tier models via OpenRouter (if needed)
             self.adapters["openrouter-claude-sonnet"] = OpenRouterAdapter(
@@ -44,7 +44,7 @@ class AgentRegistry:
                 api_key=config["openrouter_api_key"],
                 model="openai/gpt-4o"
             )
-            print("✅ OpenRouter initialized with deepseek/deepseek-chat")
+            print("✅ OpenRouter initialized with x-ai/grok-4.1-fast")
 
         # Initialize Direct Gemini (PREFERRED - use Tier 1 API key, no rate limits)
         if config.get("gemini_api_key"):
@@ -80,10 +80,10 @@ class AgentRegistry:
         Models are configured via database (agent_configurations table)
         """
 
-        # PRIORITY 1: User requested OpenRouter DeepSeek Override
-        if "openrouter-deepseek" in self.adapters:
-            print("🚀 Using OpenRouter deepseek/deepseek-chat (User Override)")
-            return self.adapters["openrouter-deepseek"]
+        # PRIORITY 1: User requested OpenRouter Grok Override
+        if "openrouter-grok" in self.adapters:
+            print("🚀 Using OpenRouter x-ai/grok-4.1-fast (User Override)")
+            return self.adapters["openrouter-grok"]
 
         # PRIORITY 2: Use native Google Gemini if available
         if "gemini-2.5-flash" in self.adapters:

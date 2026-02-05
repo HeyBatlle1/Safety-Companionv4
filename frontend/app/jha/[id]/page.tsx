@@ -156,11 +156,9 @@ export default function JHADetailPage() {
                 <p className="max-w-md text-center text-muted-foreground">
                     The analysis could not be fully completed. Some data may be missing.
                 </p>
-                {/* @ts-ignore */}
-                {jha.error && (
+                {(jha as any).error && (
                     <div className="mt-2 rounded bg-muted p-2 text-xs font-mono">
-                        {/* @ts-ignore */}
-                        {jha.error}
+                        {(jha as any).error}
                     </div>
                 )}
                 <Button variant="outline" onClick={() => router.push('/jha')}>

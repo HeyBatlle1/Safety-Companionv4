@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import NextImage from 'next/image';
 import {
     X,
     CircleNotch,
@@ -214,10 +215,6 @@ export function VisionCapture({
         onDocumentsChange?.(updated);
     }, [documents, onDocumentsChange]);
 
-    const getCategoryConfig = (category: string) => {
-        return CAPTURE_CATEGORIES.find(c => c.id === category);
-    };
-
     return (
         <div className="space-y-6">
             {/* Category Grid */}
@@ -320,7 +317,7 @@ export function VisionCapture({
                         <div className="grid grid-cols-3 gap-3">
                             {images.map((img) => (
                                 <div key={img.id} className="relative group aspect-square rounded-2xl overflow-hidden border border-white/10 shadow-lg">
-                                    <img src={img.preview} alt="Captured" className="w-full h-full object-cover" />
+                                    <NextImage src={img.preview} alt="Captured" fill className="object-cover" unoptimized />
                                     <div className="absolute inset-x-0 bottom-0 p-1.5 bg-gradient-to-t from-black/80 to-transparent">
                                         <Badge className="bg-white/10 text-white border-white/20 text-[8px] px-1 py-0 uppercase">
                                             {img.category}

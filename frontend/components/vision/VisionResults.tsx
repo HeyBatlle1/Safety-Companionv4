@@ -7,14 +7,9 @@ import {
     XCircle,
     CaretDown,
     CaretUp,
-    Shield,
-    Clock,
-    FileText,
-    Camera,
     MapPin,
     Wrench,
     HardHat,
-    Package,
     WarningCircle,
     Prohibit,
     Lightning,
@@ -22,7 +17,6 @@ import {
     Pulse,
     Info
 } from '@phosphor-icons/react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -155,8 +149,8 @@ function DecisionModule({ decision }: { decision: string }) {
 // HAZARD GRID - DASHBOARD STYLE
 // ════════════════════════════════════════════════════════════════════════════════
 
-function HazardDashboard({ counts, summary }: { counts: any; summary?: string }) {
-    const total = (counts.critical || 0) + (counts.high || 0) + (counts.medium || 0) + (counts.low || 0);
+function HazardDashboard({ counts, summary }: { counts: VisionAnalysisResult['hazard_count']; summary?: string }) {
+    // const total = (counts.critical || 0) + (counts.high || 0) + (counts.medium || 0) + (counts.low || 0);
 
     return (
         <div className="space-y-4">
@@ -235,7 +229,7 @@ function ActionModule({ action, index }: { action: CriticalAction; index: number
 // FINDINGS MODULE - HUD STYLE COLLAPSIBLE
 // ════════════════════════════════════════════════════════════════════════════════
 
-function FindingsModule({ title, icon: Icon, children, count, isOpen: defaultOpen }: any) {
+function FindingsModule({ title, icon: Icon, children, count, isOpen: defaultOpen }: { title: string; icon: any; children: React.ReactNode; count: number; isOpen: boolean }) {
     const [isOpen, setIsOpen] = useState(defaultOpen);
 
     return (
@@ -331,7 +325,7 @@ export function VisionResults({ result, isLoading }: VisionResultsProps) {
                         count={result.findings.site.hazards_identified?.length || 0}
                         isOpen={result.findings.site.overall_site_status !== 'SAFE'}
                     >
-                        {result.findings.site.hazards_identified?.map((h: any, i: number) => (
+                        {result.findings.site.hazards_identified?.map((h: HazardFinding, i: number) => (
                             <div key={i} className="p-3 rounded-xl bg-white/5 border border-white/5">
                                 <p className="text-xs font-bold text-white mb-1">{h.description}</p>
                                 <div className="flex justify-between items-center">
@@ -350,7 +344,7 @@ export function VisionResults({ result, isLoading }: VisionResultsProps) {
                         count={result.findings.ppe.summary?.fail || 0}
                         isOpen={result.findings.ppe.summary?.fail > 0}
                     >
-                        {result.findings.ppe.inspections?.map((p: any, i: number) => (
+                        {result.findings.ppe.inspections?.map((p: { status: string; type: string; owner_visible: string }, i: number) => (
                             <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-white/5">
                                 <div className="flex items-center gap-2">
                                     <div className={cn("w-2 h-2 rounded-full", p.status === 'PASS' ? 'bg-emerald-500' : 'bg-red-500')} />
@@ -372,7 +366,7 @@ export function VisionResults({ result, isLoading }: VisionResultsProps) {
                         isOpen={result.findings.equipment.overall_status !== 'PASS'}
                     >
                         <p className="text-[10px] text-gray-500 font-mono mb-2">IDENTIFIED: {result.findings.equipment.equipment_identified}</p>
-                        {result.findings.equipment.condition_findings?.map((f: any, i: number) => (
+                        {result.findings.equipment.condition_findings?.map((f: { component: string; condition: string }, i: number) => (
                             <div key={i} className="p-3 rounded-xl bg-white/5 border border-white/5">
                                 <p className="text-xs font-bold text-white">{f.component}</p>
                                 <p className="text-[10px] text-gray-400 mt-1">{f.condition}</p>

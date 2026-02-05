@@ -8,7 +8,8 @@ from typing import Optional
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
+from sqlalchemy.exc import IntegrityError
 import httpx
 import jwt
 from jwt import PyJWKClient
@@ -18,6 +19,9 @@ from app.core.deps import get_db
 from app.models.user import User, UserRole
 
 settings = get_settings()
+
+# Expected JWT issuer for audience validation
+CLERK_ISSUER = "https://usefull-catfish-47.clerk.accounts.dev"
 
 # HTTP Bearer scheme for JWT tokens
 security = HTTPBearer(auto_error=False)
@@ -46,12 +50,16 @@ class ClerkAuth:
             jwks_client = cls.get_jwks_client()
             signing_key = jwks_client.get_signing_key_from_jwt(token)
 
-            # Decode and verify
+            # Decode and verify with issuer validation
             payload = jwt.decode(
                 token,
                 signing_key.key,
                 algorithms=["RS256"],
-                options={"verify_aud": False}  # Clerk doesn't always set aud
+                issuer=CLERK_ISSUER,
+                options={
+                    "verify_aud": False,  # Clerk doesn't always set aud
+                    "verify_iss": True,   # Verify token is from our Clerk instance
+                }
             )
 
             return payload
@@ -108,25 +116,40 @@ async def get_current_user(
         # Extract email from Clerk token if available
         email = payload.get("email") or payload.get("primary_email_address") or f"{clerk_id}@clerk.user"
         name = payload.get("name") or payload.get("first_name") or "New User"
-        
-        # Check if this is the first user in the system
-        count_result = await db.execute(select(User))
-        existing_users = count_result.scalars().all()
-        
+
+        # Check user count atomically to prevent race condition
+        # Use COUNT(*) instead of loading all users
+        count_result = await db.execute(select(func.count()).select_from(User))
+        user_count = count_result.scalar() or 0
+
         # First user gets safety_director (root), others get field_worker
-        default_role = UserRole.SAFETY_DIRECTOR.value if len(existing_users) == 0 else UserRole.FIELD_WORKER.value
-        
-        user = User(
-            clerk_id=clerk_id,
-            email=email,
-            name=name,
-            role=default_role,
-            password="clerk_managed",  # Not used, Clerk handles auth
-        )
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
-        print(f"[AUTH] Auto-created user: {email} with role {default_role}")
+        # NOTE: There's still a small race window, but IntegrityError handles it
+        default_role = UserRole.SAFETY_DIRECTOR.value if user_count == 0 else UserRole.FIELD_WORKER.value
+
+        try:
+            user = User(
+                clerk_id=clerk_id,
+                email=email,
+                name=name,
+                role=default_role,
+                password="clerk_managed",  # Not used, Clerk handles auth
+            )
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
+            print(f"[AUTH] Auto-created user: {email} with role {default_role}")
+        except IntegrityError:
+            # Race condition: another request created the user first
+            await db.rollback()
+            result = await db.execute(
+                select(User).where(User.clerk_id == clerk_id)
+            )
+            user = result.scalar_one_or_none()
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to create or retrieve user"
+                )
     
     if not user.is_active:
         raise HTTPException(

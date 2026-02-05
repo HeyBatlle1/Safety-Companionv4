@@ -8,6 +8,7 @@ print(f"🔒 SSL Certificates configured: {certifi.where()}")
 from fastapi import FastAPI, Depends, BackgroundTasks, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.api.v1.jha import router as jha_router, analyze_checklist
@@ -26,6 +27,20 @@ import traceback
 
 settings = get_settings()
 
+
+# Security headers middleware
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        if request.url.scheme == "https":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
+
+
 app = FastAPI(
     title=settings.app_name,
     debug=settings.debug,
@@ -33,14 +48,20 @@ app = FastAPI(
     version="3.0.0"
 )
 
-# CORS middleware - Enhanced configuration for production
+# Security headers middleware
+app.add_middleware(SecurityHeadersMiddleware)
+
+# CORS middleware - Secure configuration for production
+# Only allow specific Vercel deployments, not wildcard
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_origin_regex=r"https://.*\.vercel\.app",  # Allow all Vercel preview deployments
+    allow_origins=[
+        *settings.cors_origins,
+        "https://safety-compv3-gzvb.vercel.app",  # Production frontend
+    ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],  # Explicit allowed headers
+    allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],
     expose_headers=["Content-Length", "X-Request-ID"],
     max_age=600,  # Cache preflight for 10 minutes
 )

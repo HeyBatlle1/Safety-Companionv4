@@ -8,15 +8,17 @@ ARCHITECTURE: Event Log with Replay
 - Logs are cleaned up after completion + TTL
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
-from typing import Dict, List
+from typing import Dict, List, Optional
 from dataclasses import dataclass, field
 import asyncio
 import json
 import time
 
 from app.core.deps import get_db
+from app.core.auth import get_current_user_optional
+from app.models.user import User
 
 router = APIRouter(prefix="/jha", tags=["jha-stream"])
 
@@ -99,17 +101,50 @@ async def cleanup_old_logs() -> None:
 @router.get("/stream/{analysis_id}")
 async def stream_progress(
     analysis_id: str,
-    db = Depends(get_db)
+    db = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
 ):
     """
     SSE endpoint for real-time progress updates with replay.
-    
+
+    Security: Validates that the requesting user owns the analysis.
+
     Flow:
-    1. Check if analysis already completed in DB → send completion immediately
-    2. If log exists → replay all past events first
-    3. Subscribe to future events
-    4. Stream until completion or disconnect
+    1. Verify user owns this analysis
+    2. Check if analysis already completed in DB → send completion immediately
+    3. If log exists → replay all past events first
+    4. Subscribe to future events
+    5. Stream until completion or disconnect
     """
+    # Security check: verify user owns this analysis
+    from app.models.analysis import AnalysisHistory
+    from sqlalchemy import select
+
+    result = await db.execute(
+        select(AnalysisHistory).where(AnalysisHistory.id == analysis_id)
+    )
+    record = result.scalar_one_or_none()
+
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Analysis not found"
+        )
+
+    # If user is authenticated, verify ownership
+    # Allow unauthenticated access only if analysis has no user_id (legacy/anonymous)
+    if current_user:
+        if record.user_id and record.user_id != str(current_user.id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to view this analysis"
+            )
+    elif record.user_id:
+        # Analysis has an owner but request is unauthenticated
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
     
     async def event_generator():
         # Cleanup old logs periodically
@@ -121,17 +156,9 @@ async def stream_progress(
         # Send initial connection event
         yield f"data: {json.dumps({'status': 'connected', 'analysis_id': analysis_id})}\n\n"
         
-        # STEP 1: Check DB for already-completed analysis
+        # STEP 1: Check if already-completed analysis (using record from auth check)
         try:
-            from app.models.analysis import AnalysisHistory
-            from sqlalchemy import select
-            
-            result = await db.execute(
-                select(AnalysisHistory).where(AnalysisHistory.id == analysis_id)
-            )
-            record = result.scalar_one_or_none()
-            
-            if record and record.response:
+            if record.response:
                 # Check if response contains actual analysis (not just "queued" status)
                 try:
                     response_data = json.loads(record.response)

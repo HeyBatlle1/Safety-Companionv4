@@ -7,13 +7,20 @@ Endpoints for:
 - Synthesizing multimodal updates into JHA
 """
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, BackgroundTasks
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, BackgroundTasks, status
+from pydantic import BaseModel, field_validator
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import json
+import re
 
 from app.services.vision_client import VisionClient, VisionProvider, ImageInput, DocumentInput
+
+# Security constants
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB max file size
+MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB max image size
+ALLOWED_IMAGE_MIMES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+ALLOWED_DOC_MIMES = {"application/pdf"}
 from app.agents.profiles.agent_5_vision_analyzer import Agent5VisionAnalyzer
 from app.core.auth import get_current_user
 from app.models.user import User
@@ -32,6 +39,22 @@ class ImageData(BaseModel):
     mime_type: str = "image/jpeg"
     category: str = "general"  # site, equipment, ppe, materials
     filename: Optional[str] = None
+
+    @field_validator('mime_type')
+    @classmethod
+    def validate_mime_type(cls, v):
+        if v not in ALLOWED_IMAGE_MIMES:
+            raise ValueError(f"Invalid image type. Allowed: {ALLOWED_IMAGE_MIMES}")
+        return v
+
+    @field_validator('data')
+    @classmethod
+    def validate_image_size(cls, v):
+        # Rough estimate: base64 is ~1.37x larger than binary
+        estimated_size = len(v) * 3 / 4
+        if estimated_size > MAX_IMAGE_SIZE:
+            raise ValueError(f"Image too large. Max size: {MAX_IMAGE_SIZE // (1024*1024)}MB")
+        return v
 
 
 class DocumentData(BaseModel):
@@ -277,9 +300,27 @@ async def analyze_document(
     Maps to OSHA requirements.
     """
     try:
-        # Read file
+        # Validate file size and type
         content = await document.read()
-        doc_input = DocumentInput(data=content, filename=document.filename)
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"File too large. Max size: {MAX_FILE_SIZE // (1024*1024)}MB"
+            )
+
+        # Validate MIME type
+        content_type = document.content_type or "application/octet-stream"
+        if content_type not in ALLOWED_DOC_MIMES:
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail=f"Invalid file type. Allowed: {ALLOWED_DOC_MIMES}"
+            )
+
+        # Sanitize filename
+        filename = document.filename or "document.pdf"
+        filename = re.sub(r'[^\w\-_\.]', '_', filename)[:255]
+
+        doc_input = DocumentInput(data=content, filename=filename)
         
         # Select provider
         prov = VisionProvider.ANTHROPIC if provider == "anthropic" else VisionProvider.GOOGLE

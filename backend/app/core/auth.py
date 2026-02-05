@@ -72,11 +72,7 @@ async def get_current_user(
 ) -> User:
     """
     Get the current authenticated user from Clerk token.
-    
-    Raises HTTPException if:
-    - No token provided
-    - Token is invalid
-    - User not found in database
+    Auto-creates user on first login with safety_director role.
     """
     if not credentials:
         raise HTTPException(
@@ -102,12 +98,29 @@ async def get_current_user(
     user = result.scalar_one_or_none()
     
     if not user:
-        # User authenticated with Clerk but not in our DB
-        # This happens on first login - could auto-create here
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User not found in system. Please contact administrator."
+        # AUTO-CREATE USER ON FIRST LOGIN
+        # Extract email from Clerk token if available
+        email = payload.get("email") or payload.get("primary_email_address") or f"{clerk_id}@clerk.user"
+        name = payload.get("name") or payload.get("first_name") or "New User"
+        
+        # Check if this is the first user in the system
+        count_result = await db.execute(select(User))
+        existing_users = count_result.scalars().all()
+        
+        # First user gets safety_director (root), others get field_worker
+        default_role = UserRole.SAFETY_DIRECTOR.value if len(existing_users) == 0 else UserRole.FIELD_WORKER.value
+        
+        user = User(
+            clerk_id=clerk_id,
+            email=email,
+            name=name,
+            role=default_role,
+            password="clerk_managed",  # Not used, Clerk handles auth
         )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        print(f"[AUTH] Auto-created user: {email} with role {default_role}")
     
     if not user.is_active:
         raise HTTPException(

@@ -59,6 +59,11 @@ class APIClient {
         });
     }
 
+    // User Profile
+    async getUserProfile(token?: string) {
+        return this.request<UserProfile>('/users/me', { token });
+    }
+
     async getRecentJHAs(limit: number = 10, offset: number = 0, token?: string) {
         return this.request<JHAListResponse>(`/jha/recent?limit=${limit}&offset=${offset}`, { token });
     }
@@ -174,4 +179,12 @@ export interface JHAListResponse {
     total: number;
     limit: number;
     offset: number;
+}
+
+export interface UserProfile {
+    id: string;
+    email: string;
+    name: string;
+    role: 'safety_director' | 'project_manager' | 'foreman' | 'field_worker' | 'master_admin';
+    is_active: boolean;
 }

@@ -1,9 +1,17 @@
+from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.orm import relationship
 from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey, Index, Boolean, JSON
-from sqlalchemy.dialects.postgresql import UUID
-
 from datetime import datetime
 import uuid
+import enum
 from app.models.base import Base, APP_SCHEMA
+
+class JHAStatus(str, enum.Enum):
+    """Status workflow for JHA"""
+    DRAFT = "draft"
+    PENDING_REVIEW = "pending_review"
+    COMPLETED = "completed"
+    SIGNED_OFF = "signed_off" # Locked, Safety Director only
 
 class AnalysisHistory(Base):
     """Analysis history - matches Drizzle analysisHistory table"""
@@ -30,7 +38,13 @@ class AnalysisHistory(Base):
     confidence_score = Column(Integer, name="confidence_score")
     behavior_indicators = Column(JSON, name="behavior_indicators")
     compliance_score = Column(Integer, name="compliance_score")
-    metadata_json = Column(JSON, name="metadata")
+    metadata_json = Column(JSON, name="metadata")  # SQLite compatible
+    
+    # RBAC & Workflow Fields
+    status = Column(Text, default=JHAStatus.DRAFT.value, nullable=False)
+    site_id = Column(String, ForeignKey("sites.id"), nullable=True)
+    site = relationship("Site", backref="jhas") # Relationship to Site model
+    
     created_at = Column(DateTime(timezone=True), name="created_at", default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), name="updated_at", onupdate=datetime.utcnow)
 

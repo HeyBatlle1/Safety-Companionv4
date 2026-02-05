@@ -5,7 +5,7 @@ RBAC-protected endpoints for user management.
 Filters data based on user's role and hierarchy.
 """
 
-from typing import List, Optional
+from typing import List, Optional, Dict
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,7 +31,10 @@ class UserResponse(BaseModel):
     role: str
     phone: Optional[str]
     department: Optional[str]
+    bio: Optional[str]
+    avatar_url: Optional[str]
     is_active: bool
+    certifications: List[Dict] = []
     
     class Config:
         from_attributes = True
@@ -71,54 +74,68 @@ async def get_current_user_info(
     return current_user
 
 
+class ProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone: Optional[str] = None
+    bio: Optional[str] = None
+    avatar_url: Optional[str] = None
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+
+@router.patch("/me", response_model=UserResponse)
+async def update_my_profile(
+    profile_data: ProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update current user's profile information"""
+    update_data = profile_data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(current_user, field, value)
+    
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
+
+@router.get("/me/sites")
+async def get_my_sites(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get sites assigned to the current user"""
+    result = await db.execute(
+        select(Site)
+        .join(SiteAssignment, Site.id == SiteAssignment.site_id)
+        .where(SiteAssignment.user_id == current_user.id)
+    )
+    return result.scalars().all()
+
+
 @router.get("", response_model=List[UserResponse])
 async def list_users(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    List users based on RBAC permissions.
+    List ALL employees in the system.
     
-    - Admin/Safety Director: See all users
-    - Project Manager: See their team
-    - Foreman: See their crew
-    - Field Worker: See only self
+    RESTRICTED: Only Safety Director can view employee database.
     """
-    # Admin sees all
-    if current_user.is_admin():
-        result = await db.execute(
-            select(User).where(User.is_active == True).order_by(User.name)
-        )
-        return result.scalars().all()
+    from app.core.permissions import PermissionService
     
-    # Project Manager sees their team
-    if current_user.role == UserRole.PROJECT_MANAGER.value:
-        result = await db.execute(
-            select(User).where(
-                or_(
-                    User.assigned_project_manager == current_user.id,
-                    User.id == current_user.id
-                ),
-                User.is_active == True
-            )
+    if not PermissionService.can_view_employees(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Safety Director can access employee database"
         )
-        return result.scalars().all()
     
-    # Foreman sees their crew
-    if current_user.role == UserRole.FOREMAN.value:
-        result = await db.execute(
-            select(User).where(
-                or_(
-                    User.reports_to == current_user.id,
-                    User.id == current_user.id
-                ),
-                User.is_active == True
-            )
-        )
-        return result.scalars().all()
-    
-    # Field worker sees only self
-    return [current_user]
+    # Safety Director sees all active users
+    result = await db.execute(
+        select(User).where(User.is_active == True).order_by(User.name)
+    )
+    return result.scalars().all()
 
 
 @router.get("/{user_id}", response_model=UserResponse)

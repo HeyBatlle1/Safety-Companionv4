@@ -7,9 +7,17 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from app.core.database import engine
 from app.models.base import Base
-# Import models to register them with Base
-from app.models.analysis import AnalysisHistory, AgentOutput
-from app.models.jha_updates import JHAUpdate
+# Import all models to register them with Base
+from app.models import (
+    User, 
+    AnalysisHistory, 
+    AgentOutput, 
+    JHAUpdate,
+    AgentConfiguration,
+    AgentPerformanceLog,
+    EAPQuestionnaire,
+    GeneratedEAP
+)
 
 async def init_models():
     print("Creating tables...")

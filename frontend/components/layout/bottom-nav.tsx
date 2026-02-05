@@ -9,6 +9,7 @@ import {
   Eye,
   Shield,
   ClockCounterClockwise,
+  User,
 } from '@phosphor-icons/react';
 import type { Icon as PhosphorIcon } from '@phosphor-icons/react';
 
@@ -16,45 +17,38 @@ interface NavItem {
   label: string;
   href: string;
   icon: PhosphorIcon;
-  gradient: string;
-  shadowColor: string;
 }
 
 const navItems: NavItem[] = [
   {
-    label: 'Dashboard',
+    label: 'Home',
     href: '/',
     icon: House,
-    gradient: 'from-primary/20 to-primary/5',
-    shadowColor: 'shadow-primary/10',
   },
   {
-    label: 'New Analysis',
+    label: 'JHA',
     href: '/jha/new',
     icon: ClipboardText,
-    gradient: 'from-primary/20 to-primary/5',
-    shadowColor: 'shadow-primary/10',
   },
   {
-    label: 'Vision HUD',
+    label: 'Vision',
     href: '/vision',
     icon: Eye,
-    gradient: 'from-primary/20 to-primary/5',
-    shadowColor: 'shadow-primary/10',
   },
   {
-    label: 'Protocol',
+    label: 'EAP',
     href: '/eap',
     icon: Shield,
-    gradient: 'from-primary/20 to-primary/5',
-    shadowColor: 'shadow-primary/10',
   },
   {
-    label: 'Archive',
+    label: 'Reports',
     href: '/reports',
     icon: ClockCounterClockwise,
-    gradient: 'from-primary/20 to-primary/5',
-    shadowColor: 'shadow-primary/10',
+  },
+  {
+    label: 'Profile',
+    href: '/profile',
+    icon: User,
   },
 ];
 
@@ -67,7 +61,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/5 bg-background/80 backdrop-blur-xl">
-      <div className="max-w-lg mx-auto px-6 h-18 flex items-center justify-between">
+      <div className="max-w-lg mx-auto px-4 h-16 flex items-center justify-between">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
@@ -77,20 +71,20 @@ export function BottomNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "relative flex flex-col items-center justify-center py-2 transition-all duration-200",
+                "relative flex flex-col items-center justify-center py-2 px-2 transition-all duration-200",
                 active ? "opacity-100" : "opacity-40 hover:opacity-70"
               )}
             >
-              {/* Technical Indicator Line */}
+              {/* Active Indicator */}
               <div className={cn(
-                "absolute -top-[1px] w-8 h-[2px] bg-primary rounded-full transition-all duration-300",
+                "absolute -top-[1px] w-6 h-[2px] bg-primary rounded-full transition-all duration-300",
                 active ? "opacity-100 scale-100" : "opacity-0 scale-50"
               )} />
 
-              <div className="relative mb-1">
+              <div className="relative mb-0.5">
                 <Icon
-                  weight={active ? "bold" : "regular"}
-                  size={20}
+                  weight={active ? "fill" : "regular"}
+                  size={18}
                   className={cn(
                     "transition-transform duration-200",
                     active && "scale-110 text-primary"
@@ -99,7 +93,7 @@ export function BottomNav() {
               </div>
 
               <span className={cn(
-                "text-[9px] font-medium uppercase tracking-[0.05em]",
+                "text-[8px] font-medium uppercase tracking-wider",
                 active ? "text-primary" : "text-foreground"
               )}>
                 {item.label}
@@ -108,7 +102,7 @@ export function BottomNav() {
           );
         })}
       </div>
-      {/* Precision Spacing for Mobile */}
+      {/* Safe Area for Mobile */}
       <div className="h-[env(safe-area-inset-bottom)]" />
     </nav>
   );

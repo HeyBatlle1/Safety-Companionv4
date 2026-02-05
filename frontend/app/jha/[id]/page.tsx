@@ -29,8 +29,6 @@ export default function JHADetailPage() {
     const router = useRouter();
     const id = params.id as string;
 
-    // Check if id is 'new' which would be the wizard route
-    if (id === 'new') return null;
 
     const { data: jha, isLoading, isError } = useJHADetails(id);
 
@@ -144,12 +142,14 @@ export default function JHADetailPage() {
     }
 
     // Handle processing/error/failed states - use router.refresh instead of window.location.reload
-    // @ts-ignore - status field not in strict type definition yet
+    : start_line: 145
+    // @ts-expect-error - status field not in strict type definition yet
     if (jha.status === 'processing' || jha.status === 'queued') {
         return <ProcessingView analysisId={id} onComplete={() => router.refresh()} />;
     }
 
-    // @ts-ignore
+    : start_line: 150
+    // @ts-expect-error
     if (jha.status === 'error' || jha.status === 'failed' || jha.status === 'broken') {
         return (
             <div className="flex h-[50vh] flex-col items-center justify-center gap-4">

@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db, get_jha_service
 from app.core.auth import get_current_user
+from app.core.permissions import PermissionService
 from app.models.user import User
 from app.services.jha_service import JHAService
 from app.core.database import AsyncSessionLocal
@@ -256,14 +257,13 @@ async def get_recent_jhas(
         # Limit max results
         limit = min(limit, 100)
         
-        # Query recent JHAs for the current user
+        # [RBAC] Get base query filtered by user permissions (RLS)
+        base_query = await PermissionService.get_visible_jhas_query(current_user, db)
+        
+        # Apply pagination
         query = (
-            select(AnalysisHistory)
-            .where(
-                AnalysisHistory.type == "jha_multi_agent_analysis",
-                AnalysisHistory.user_id == str(current_user.id)
-            )
-            .order_by(desc(AnalysisHistory.created_at))
+            base_query
+            .where(AnalysisHistory.type == "jha_multi_agent_analysis")
             .limit(limit)
             .offset(offset)
         )
@@ -325,11 +325,8 @@ async def get_jha_details(
         from sqlalchemy import select
         import json
         
-        # Query specific JHA and verify ownership
-        query = select(AnalysisHistory).where(
-            AnalysisHistory.id == str(jha_id),
-            AnalysisHistory.user_id == str(current_user.id)
-        )
+        # Query specific JHA
+        query = select(AnalysisHistory).where(AnalysisHistory.id == str(jha_id))
         result = await db.execute(query)
         jha = result.scalar_one_or_none()
         
@@ -337,6 +334,13 @@ async def get_jha_details(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"JHA {jha_id} not found"
+            )
+            
+        # [RBAC] Strict Permission Check
+        if not PermissionService.can_view_jha(current_user, jha):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to view this JHA"
             )
         
         # Parse complete analysis

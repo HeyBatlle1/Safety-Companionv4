@@ -14,11 +14,11 @@ from app.models.base import Base
 
 class UserRole(str, enum.Enum):
     """User role levels - ordered by permission level"""
-    MASTER_ADMIN = "master_admin"
-    SAFETY_DIRECTOR = "safety_director"
-    PROJECT_MANAGER = "project_manager"
-    FOREMAN = "foreman"
-    FIELD_WORKER = "field_worker"
+    SAFETY_DIRECTOR = "safety_director"   # Super Admin: Full access + Sign-off authority
+    PROJECT_MANAGER = "project_manager"   # Admin: Full access - Cannot edit signed-off
+    FOREMAN = "foreman"                   # Mid: Site-specific access + Create rights
+    FIELD_WORKER = "field_worker"         # Low: Read-only access to self
+    MASTER_ADMIN = "master_admin"         # (Legacy/System) treated same as Safety Director
 
 
 class User(Base):
@@ -50,6 +50,8 @@ class User(Base):
     phone = Column(Text)
     employee_id = Column(Text, name="employee_id")
     department = Column(Text)
+    bio = Column(Text)
+    avatar_url = Column(Text)
     certifications = Column(JSONB, default=list)
     emergency_contact_name = Column(Text, name="emergency_contact_name")
     emergency_contact_phone = Column(Text, name="emergency_contact_phone")

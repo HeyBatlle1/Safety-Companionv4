@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey, Index, Boolean, JSON
 from datetime import datetime
 import uuid
-from app.models.base import Base, APP_SCHEMA
+from app.models.base import Base
 
 class JHAUpdate(Base):
     """

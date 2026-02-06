@@ -2,7 +2,7 @@ from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey, Inde
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from datetime import datetime
 import uuid
-from app.models.base import Base, APP_SCHEMA
+from app.models.base import Base
 
 class SafetyReport(Base):
     """Safety reports - matches Drizzle safetyReports table"""
@@ -12,11 +12,10 @@ class SafetyReport(Base):
         Index('safety_reports_severity_idx', 'severity'),
         Index('safety_reports_status_idx', 'status'),
         Index('safety_reports_created_at_idx', 'created_at'),
-        {'schema': APP_SCHEMA}
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey(f'{APP_SCHEMA}.users.id', ondelete='CASCADE'), nullable=False)
+    user_id = Column(String, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     title = Column(Text, nullable=False)
     description = Column(Text, nullable=False)
     severity = Column(Text, nullable=False)
@@ -24,7 +23,7 @@ class SafetyReport(Base):
     location = Column(Text)
     incident_date = Column(DateTime(timezone=True), name="incident_date")
     reported_by = Column(Text, name="reported_by")
-    assigned_to = Column(UUID(as_uuid=True), ForeignKey(f'{APP_SCHEMA}.users.id', ondelete='SET NULL'), name="assigned_to")
+    assigned_to = Column(String, ForeignKey('users.id', ondelete='SET NULL'), name="assigned_to")
     resolution_notes = Column(Text, name="resolution_notes")
     resolved_at = Column(DateTime(timezone=True), name="resolved_at")
     attachments = Column(JSONB)
@@ -40,11 +39,10 @@ class RiskAssessment(Base):
         Index('risk_assessments_user_id_idx', 'user_id'),
         Index('risk_assessments_overall_risk_idx', 'overall_risk_level'),
         Index('risk_assessments_created_at_idx', 'created_at'),
-        {'schema': APP_SCHEMA}
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey(f'{APP_SCHEMA}.users.id', ondelete='CASCADE'), nullable=False)
+    user_id = Column(String, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     assessment_type = Column(Text, name="assessment_type", nullable=False)
     assessment_data = Column(JSONB, name="assessment_data", nullable=False)
     risk_factors = Column(JSONB, name="risk_factors")

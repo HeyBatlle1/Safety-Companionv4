@@ -8,7 +8,7 @@ Supporting the 4-agent EAP generation pipeline.
 from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey, Boolean, JSON
 from datetime import datetime
 import uuid
-from app.models.base import Base, APP_SCHEMA
+from app.models.base import Base
 
 
 class EAPQuestionnaire(Base):

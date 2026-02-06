@@ -4,7 +4,7 @@ from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey, Inde
 from datetime import datetime
 import uuid
 import enum
-from app.models.base import Base, APP_SCHEMA
+from app.models.base import Base
 
 class JHAStatus(str, enum.Enum):
     """Status workflow for JHA"""

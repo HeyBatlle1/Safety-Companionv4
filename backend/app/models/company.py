@@ -2,12 +2,11 @@ from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey, Inde
 from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
 from datetime import datetime
 import uuid
-from app.models.base import Base, APP_SCHEMA
+from app.models.base import Base
 
 class Company(Base):
     """Companies - matches Drizzle companies table"""
     __tablename__ = "companies"
-    __table_args__ = {'schema': APP_SCHEMA}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(Text, nullable=False)
@@ -34,11 +33,10 @@ class Project(Base):
         Index('projects_company_id_idx', 'company_id'),
         Index('projects_status_idx', 'status'),
         Index('projects_created_at_idx', 'created_at'),
-        {'schema': APP_SCHEMA}
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    company_id = Column(UUID(as_uuid=True), ForeignKey(f'{APP_SCHEMA}.companies.id', ondelete='CASCADE'), nullable=False)
+    company_id = Column(UUID(as_uuid=True), ForeignKey('companies.id', ondelete='CASCADE'), nullable=False)
     name = Column(Text, nullable=False)
     description = Column(Text)
     project_type = Column(Text, name="project_type")

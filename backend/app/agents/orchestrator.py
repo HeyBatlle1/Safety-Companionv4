@@ -204,15 +204,19 @@ class SafetyAnalysisOrchestrator:
             execution_time = (time.time() - start_time) * 1000
             print(f"✅ Pipeline complete in {execution_time:.0f}ms")
             
+            # Get the actual model being used from the registry
+            active_model = self.gemini_client.registry.get_available_models()[0] if self.gemini_client.registry.get_available_models() else "unknown"
+            model_display = "x-ai/grok-4.1-fast" if "openrouter-grok" in active_model else active_model
+
             # Build complete analysis result
             complete_analysis = {
                 "pipeline_metadata": {
-                    "version": "v3-gemini-faithful-port",
+                    "version": "v3-openrouter-grok",
                     "execution_time_ms": int(execution_time),
                     "agents_used": {
-                        "agent1_validator": {"success": True, "model": "gemini-2.5-flash"},
-                        "agent2_risk_assessor": {"success": True, "model": "gemini-2.5-flash"},
-                        "agent3_incident_predictor": {"success": True, "model": "gemini-2.5-flash"},
+                        "agent1_validator": {"success": True, "model": model_display},
+                        "agent2_risk_assessor": {"success": True, "model": model_display},
+                        "agent3_incident_predictor": {"success": True, "model": model_display},
                         "agent4_synthesizer": {"success": True, "model": "python-deterministic"}
                     }
                 },
@@ -294,7 +298,7 @@ class SafetyAnalysisOrchestrator:
                     "agent3": prediction
                 },
                 "metadata": {
-                    "version": "v3-gemini-faithful-port",
+                    "version": "v3-openrouter-grok",
                     "execution_time_ms": int(execution_time),
                     "error_traceback": error_traceback
                 }
@@ -311,9 +315,13 @@ class SafetyAnalysisOrchestrator:
         try:
             from app.models.analysis import AgentOutput
             
+            # Get the actual model being used
+            active_models = self.gemini_client.registry.get_available_models() if hasattr(self, 'gemini_client') else []
+            model_name = "x-ai/grok-4.1-fast" if any("openrouter-grok" in m for m in active_models) else (active_models[0] if active_models else "unknown")
+
             # Build execution metadata
             execution_metadata = {
-                "model": "gemini-2.5-flash",
+                "model": model_name,
                 "timestamp": datetime.now().isoformat(),
                 "output_size_bytes": len(json.dumps(output)) if output else 0
             }

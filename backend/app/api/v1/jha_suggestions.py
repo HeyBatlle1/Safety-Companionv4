@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from app.agents.adapters.google import GoogleGeminiAdapter
 from app.core.config import get_settings
 import json
 
@@ -22,10 +21,11 @@ async def generate_hazard_suggestions(
     settings = Depends(get_settings)
 ):
     """Generate AI-suggested specific hazards based on job context"""
-    
-    if not settings.gemini_api_key:
-        raise HTTPException(status_code=500, detail="Gemini API key not configured")
-    
+
+    # Prefer OpenRouter, fallback to Gemini
+    if not settings.openrouter_api_key and not settings.gemini_api_key:
+        raise HTTPException(status_code=500, detail="No AI API key configured (need OPENROUTER_API_KEY or GEMINI_API_KEY)")
+
     prompt = f"""You are a safety expert analyzing a construction job. Based on this context:
 
 Work Type: {request.work_type}
@@ -56,11 +56,20 @@ Example for "Glazing Curtainwall" in "Alaska" with "fall, weather" hazards:
 Generate suggestions now:"""
     
     try:
-        adapter = GoogleGeminiAdapter(
-            api_key=settings.gemini_api_key,
-            model="gemini-2.5-flash"
-        )
-        
+        # Use OpenRouter with Grok 4.1 fast (preferred), fallback to Gemini
+        if settings.openrouter_api_key:
+            from app.agents.adapters.openrouter import OpenRouterAdapter
+            adapter = OpenRouterAdapter(
+                api_key=settings.openrouter_api_key,
+                model="x-ai/grok-4.1-fast"
+            )
+        else:
+            from app.agents.adapters.google import GoogleGeminiAdapter
+            adapter = GoogleGeminiAdapter(
+                api_key=settings.gemini_api_key,
+                model="gemini-2.5-flash"
+            )
+
         result = await adapter.generate(
             prompt=prompt,
             temperature=0.3,

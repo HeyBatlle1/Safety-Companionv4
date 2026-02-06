@@ -141,7 +141,7 @@ async def health_check():
         "version": "3.0.0",
         "agents": {
             "orchestration": "ready",
-            "gemini_integration": "ready",
+            "ai_integration": "ready (x-ai/grok-4.1-fast via OpenRouter)",
             "database": "ready"
         }
     }

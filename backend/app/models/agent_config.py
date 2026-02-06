@@ -92,35 +92,34 @@ class AgentPerformanceLog(Base):
 
 
 # Default configurations for the 4 agents
-# Updated to use FREE OpenRouter models (production-ready, no API costs)
-# Model selection optimized for# Default agent configurations (used when no user config exists)
+# Uses OpenRouter with x-ai/grok-4.1-fast for all agents
 DEFAULT_AGENT_CONFIGS = {
     "validator": {
         "agent_name": "validator",
-        "model": "gemini-2.5-flash",
+        "model": "x-ai/grok-4.1-fast",
         "temperature": 0.3,
         "max_tokens": 12000,
-        "notes": "Gemini 2.5 Flash - Fast validation, completeness checks"
+        "notes": "Grok 4.1 Fast via OpenRouter - Fast validation, completeness checks"
     },
     "risk_assessor": {
         "agent_name": "risk_assessor",
-        "model": "gemini-2.5-flash",
+        "model": "x-ai/grok-4.1-fast",
         "temperature": 0.7,
         "max_tokens": 16000,
-        "notes": "Gemini 2.5 Flash - Deep reasoning for risk assessment"
+        "notes": "Grok 4.1 Fast via OpenRouter - Deep reasoning for risk assessment"
     },
     "swiss_cheese": {
         "agent_name": "swiss_cheese",
-        "model": "gemini-2.5-flash",
+        "model": "x-ai/grok-4.1-fast",
         "temperature": 0.5,
         "max_tokens": 16000,
-        "notes": "Gemini 2.5 Flash - OSHA compliance analysis"
+        "notes": "Grok 4.1 Fast via OpenRouter - OSHA compliance analysis"
     },
     "synthesizer": {
         "agent_name": "synthesizer",
-        "model": "gemini-2.5-flash",
+        "model": "x-ai/grok-4.1-fast",
         "temperature": 0.4,
         "max_tokens": 12000,
-        "notes": "Gemini 2.5 Flash - Fast final report generation"
+        "notes": "Grok 4.1 Fast via OpenRouter - Fast final report generation"
     }
 }

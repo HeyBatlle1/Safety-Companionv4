@@ -26,26 +26,25 @@ class AgentConfigBase(BaseModel):
 
     @validator('model')
     def validate_model(cls, v):
-        # List of supported free models
+        # List of supported models (Grok 4.1 fast is primary)
         valid_models = {
+            # Primary - Grok via OpenRouter
+            "x-ai/grok-4.1-fast",
+            "x-ai/grok-4-fast",
+            "x-ai/grok-4",
+            # Free tier alternatives
             "deepseek/deepseek-chat-v3.1:free",
             "qwen/qwen3-235b-a22b:free",
             "mistralai/mistral-small-3.2-24b-instruct:free",
             "gemini-2.5-flash",
             "anthropic/claude-3.5-sonnet",
             "openai/gpt-4o",
-            # Deprecated: "google/gemini-2.0-flash-exp:free" (EOL: Feb 26, 2026)
             "nvidia/nemotron-nano-9b-v2:free",
-            "z-ai/glm-4.5-air:free",
-            "moonshotai/kimi-k2:free",
-            "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
-            "meta-llama/llama-4-maverick:free",
-            "qwen/qwen2.5-vl-32b-instruct:free",
             "google/gemma-3-12b-it:free",
             "google/gemma-3-27b-it:free"
         }
         if v not in valid_models:
-            raise ValueError(f"Invalid model. Must be one of the supported free models: {valid_models}")
+            raise ValueError(f"Invalid model. Must be one of the supported models: {valid_models}")
         return v
 
 
@@ -144,75 +143,45 @@ class AgentPerformanceResponse(BaseModel):
 # Available models for frontend dropdown
 AVAILABLE_MODELS = [
     {
-        "value": "deepseek/deepseek-chat-v3.1:free",
-        "label": "DeepSeek Chat v3.1 (Recommended)",
-        "description": "Fast, accurate reasoning for validation tasks",
-        "best_for": ["validator", "swiss_cheese"]
-    },
-    {
-        "value": "qwen/qwen3-235b-a22b:free",
-        "label": "Qwen 235B",
-        "description": "Large model with excellent comprehension",
-        "best_for": ["risk_assessor", "synthesizer"]
-    },
-    {
-        "value": "mistralai/mistral-small-3.2-24b-instruct:free",
-        "label": "Mistral Small 3.2",
-        "description": "Balanced performance for structured tasks",
-        "best_for": ["validator", "risk_assessor"]
-    },
-    {
-        "value": "google/gemini-2.0-flash-exp:free",
-        "label": "Gemini 2.0 Flash (Current Default)",
-        "description": "Fast, reliable performance across all tasks",
+        "value": "x-ai/grok-4.1-fast",
+        "label": "Grok 4.1 Fast (Primary - Recommended)",
+        "description": "xAI's fastest model with excellent reasoning for safety analysis",
         "best_for": ["validator", "risk_assessor", "swiss_cheese", "synthesizer"]
     },
     {
-        "value": "nvidia/nemotron-nano-9b-v2:free",
-        "label": "Nemotron Nano 9B",
-        "description": "Efficient model for quick responses",
-        "best_for": ["validator"]
-    },
-    {
-        "value": "z-ai/glm-4.5-air:free",
-        "label": "GLM 4.5 Air",
-        "description": "Lightweight model with good reasoning",
-        "best_for": ["validator", "risk_assessor"]
-    },
-    {
-        "value": "moonshotai/kimi-k2:free",
-        "label": "Kimi K2",
-        "description": "Advanced reasoning capabilities",
-        "best_for": ["swiss_cheese", "synthesizer"]
-    },
-    {
-        "value": "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
-        "label": "Dolphin Mistral 24B",
-        "description": "Creative problem-solving model",
-        "best_for": ["swiss_cheese"]
-    },
-    {
-        "value": "meta-llama/llama-4-maverick:free",
-        "label": "Llama 4 Maverick",
-        "description": "Next-generation reasoning model",
-        "best_for": ["risk_assessor", "synthesizer"]
-    },
-    {
-        "value": "qwen/qwen2.5-vl-32b-instruct:free",
-        "label": "Qwen VL 32B",
-        "description": "Vision-language model for complex analysis",
+        "value": "x-ai/grok-4-fast",
+        "label": "Grok 4 Fast",
+        "description": "High-performance xAI model for complex analysis",
         "best_for": ["risk_assessor", "swiss_cheese"]
     },
     {
-        "value": "google/gemma-3-12b-it:free",
-        "label": "Gemma 3 12B",
-        "description": "Instruction-tuned for safety applications",
-        "best_for": ["validator", "synthesizer"]
+        "value": "x-ai/grok-4",
+        "label": "Grok 4 (Full)",
+        "description": "xAI's most capable model for deep reasoning",
+        "best_for": ["swiss_cheese", "synthesizer"]
+    },
+    {
+        "value": "gemini-2.5-flash",
+        "label": "Gemini 2.5 Flash (Fallback)",
+        "description": "Google's fast model - used if OpenRouter unavailable",
+        "best_for": ["validator", "risk_assessor", "swiss_cheese", "synthesizer"]
+    },
+    {
+        "value": "anthropic/claude-3.5-sonnet",
+        "label": "Claude 3.5 Sonnet",
+        "description": "Anthropic's balanced model for complex tasks",
+        "best_for": ["risk_assessor", "synthesizer"]
+    },
+    {
+        "value": "deepseek/deepseek-chat-v3.1:free",
+        "label": "DeepSeek Chat v3.1 (Free)",
+        "description": "Fast, accurate reasoning - free tier",
+        "best_for": ["validator", "swiss_cheese"]
     },
     {
         "value": "google/gemma-3-27b-it:free",
-        "label": "Gemma 3 27B",
-        "description": "Larger Gemma for complex reasoning",
+        "label": "Gemma 3 27B (Free)",
+        "description": "Google's open model for safety applications",
         "best_for": ["swiss_cheese", "synthesizer"]
     }
 ]

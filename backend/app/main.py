@@ -52,8 +52,16 @@ app = FastAPI(
 @app.on_event("startup")
 async def startup_event():
     """Initialize database tables on startup"""
-    from app.core.database import init_db
-    await init_db()
+    try:
+        print("🚀 Starting database initialization...")
+        from app.core.database import init_db
+        await init_db()
+        print("✅ Startup complete!")
+    except Exception as e:
+        print(f"❌ STARTUP FAILED: {e}")
+        print(f"❌ TRACEBACK: {traceback.format_exc()}")
+        # Don't re-raise - let the app start anyway so we can see health endpoint
+        # raise
 
 # Security headers middleware
 app.add_middleware(SecurityHeadersMiddleware)

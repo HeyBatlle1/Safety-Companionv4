@@ -56,9 +56,20 @@ async def get_db() -> AsyncSession:
 
 async def init_db():
     """Create all tables on startup"""
-    # Import all models to register them with Base
-    from app.models import user, analysis, agent_config, jha_updates, company, eap, notifications, safety
+    import traceback
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    print("✅ Database tables created/verified")
+    try:
+        print("📦 Importing models...")
+        # Import all models to register them with Base
+        from app.models import user, analysis, agent_config, jha_updates, company, eap, notifications, safety
+        print(f"📦 Models imported. Tables registered: {list(Base.metadata.tables.keys())}")
+
+        print("🔌 Connecting to database...")
+        async with engine.begin() as conn:
+            print("🔨 Creating tables...")
+            await conn.run_sync(Base.metadata.create_all)
+        print("✅ Database tables created/verified")
+    except Exception as e:
+        print(f"❌ init_db FAILED: {e}")
+        print(f"❌ TRACEBACK: {traceback.format_exc()}")
+        raise

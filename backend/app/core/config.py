@@ -41,30 +41,33 @@ class Settings(BaseSettings):
     @classmethod
     def parse_cors_origins(cls, v):
         """Parse CORS origins from JSON string, comma-separated, or list"""
-        # Production Vercel URL must ALWAYS be included
-        REQUIRED_ORIGINS = ["https://safety-compv3-gzvb.vercel.app"]
-
-        origins = []
+        if v is None:
+            return [
+                "https://safety-compv3-gzvb.vercel.app",
+                "http://localhost:3000",
+                "http://localhost:5173"
+            ]
         if isinstance(v, list):
-            origins = v
-        elif isinstance(v, str):
+            # Ensure Vercel URL is included
+            if "https://safety-compv3-gzvb.vercel.app" not in v:
+                v = ["https://safety-compv3-gzvb.vercel.app"] + list(v)
+            return v
+        if isinstance(v, str):
             # Try JSON parse first
             try:
                 parsed = json.loads(v)
                 if isinstance(parsed, list):
-                    origins = parsed
+                    if "https://safety-compv3-gzvb.vercel.app" not in parsed:
+                        parsed = ["https://safety-compv3-gzvb.vercel.app"] + parsed
+                    return parsed
             except json.JSONDecodeError:
                 pass
-            if not origins:
-                # Try comma-separated
-                origins = [origin.strip() for origin in v.split(',') if origin.strip()]
-
-        # Ensure required origins are always present
-        for required in REQUIRED_ORIGINS:
-            if required not in origins:
-                origins.insert(0, required)
-
-        return origins
+            # Try comma-separated
+            origins = [origin.strip() for origin in v.split(',') if origin.strip()]
+            if "https://safety-compv3-gzvb.vercel.app" not in origins:
+                origins = ["https://safety-compv3-gzvb.vercel.app"] + origins
+            return origins
+        return ["https://safety-compv3-gzvb.vercel.app", "http://localhost:3000"]
 
     model_config = SettingsConfigDict(
         env_file=".env",

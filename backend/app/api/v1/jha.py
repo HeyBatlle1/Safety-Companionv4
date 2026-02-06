@@ -305,6 +305,22 @@ async def get_recent_jhas(
         )
 
 
+@router.get("/health")
+async def health_check():
+    """Health check for JHA analysis system"""
+    return {
+        "status": "healthy",
+        "service": "jha-analysis",
+        "version": "3.0.0-grok",
+        "agents": {
+            "validator": "ready",
+            "risk_assessor": "ready",
+            "swiss_cheese": "ready",
+            "synthesizer": "ready"
+        }
+    }
+
+
 @router.get("/{jha_id}")
 async def get_jha_details(
     jha_id: str,
@@ -313,10 +329,10 @@ async def get_jha_details(
 ):
     """
     Get full details of a specific JHA analysis.
-    
+
     **Parameters:**
     - jha_id: ID of the JHA analysis
-    
+
     **Returns:**
     - Complete JHA analysis with all agent outputs
     """
@@ -371,19 +387,3 @@ async def get_jha_details(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch JHA details: {str(e)}"
         )
-
-
-@router.get("/health")
-async def health_check():
-    """Health check for JHA analysis system"""
-    return {
-        "status": "healthy",
-        "service": "jha-analysis",
-        "version": "2.0.0-python",
-        "agents": {
-            "validator": "ready",
-            "risk_assessor": "ready",
-            "swiss_cheese": "ready",
-            "synthesizer": "ready"
-        }
-    }

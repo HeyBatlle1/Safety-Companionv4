@@ -1,0 +1,5 @@
+id,user_id,agent_name,model,temperature,max_tokens,is_active,created_at,updated_at,last_used_at,total_executions,avg_execution_time_ms,notes
+1,admin,validator,deepseek/deepseek-chat-v3.1:free,0.3,3000,t,2025-11-16 03:55:04.81695,2025-11-16 03:55:04.816956,,0,,"Data validation requires precise, consistent responses"
+2,admin,risk_assessor,google/gemini-2.0-flash-exp:free,0.7,4000,t,2025-11-16 03:55:04.816957,2025-11-16 03:55:04.816958,,0,,Risk assessment benefits from balanced creativity and accuracy
+3,admin,swiss_cheese,deepseek/deepseek-chat-v3.1:free,1,5000,t,2025-11-16 03:55:04.816959,2025-11-16 03:55:04.81696,,0,,Incident prediction requires high creativity for scenario generation
+4,admin,synthesizer,google/gemini-2.0-flash-exp:free,0.5,6000,t,2025-11-16 03:55:04.816961,2025-11-16 03:55:04.816962,,0,,"Final synthesis needs structured, comprehensive reporting"

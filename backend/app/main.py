@@ -48,6 +48,13 @@ app = FastAPI(
     version="3.0.0"
 )
 
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database tables on startup"""
+    from app.core.database import init_db
+    await init_db()
+
 # Security headers middleware
 app.add_middleware(SecurityHeadersMiddleware)
 

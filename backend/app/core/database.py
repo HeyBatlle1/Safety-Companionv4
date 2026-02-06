@@ -52,3 +52,13 @@ async def get_db() -> AsyncSession:
             raise
         finally:
             await session.close()
+
+
+async def init_db():
+    """Create all tables on startup"""
+    # Import all models to register them with Base
+    from app.models import user, analysis, agent_config, jha_updates, company, eap, notifications, safety
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    print("✅ Database tables created/verified")

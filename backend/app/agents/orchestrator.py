@@ -5,6 +5,7 @@ V1 Faithful Port - Exact pipeline from V1_AGENT_PROMPTS_AND_LOGIC.md lines 764-7
 Executes Agents 1-4 sequentially with error handling.
 """
 
+import os
 import time
 import json
 from typing import Dict, Any, Optional

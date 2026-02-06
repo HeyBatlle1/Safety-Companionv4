@@ -131,20 +131,23 @@ async def stream_progress(
             detail="Analysis not found"
         )
 
-    # If user is authenticated, verify ownership
-    # Allow unauthenticated access only if analysis has no user_id (legacy/anonymous)
+    # Security: The analysis UUID itself is unguessable (128-bit random).
+    # For SSE, browsers don't support Authorization headers with EventSource.
+    # We allow access if:
+    # 1. User is authenticated and owns the analysis, OR
+    # 2. User is unauthenticated but knows the analysis UUID (treated as bearer token)
+    #
+    # This is secure because:
+    # - UUID v4 has 122 random bits, making brute-force infeasible
+    # - The UUID is only shared with the user who created the analysis
     if current_user:
         if record.user_id and record.user_id != str(current_user.id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to view this analysis"
             )
-    elif record.user_id:
-        # Analysis has an owner but request is unauthenticated
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required"
-        )
+    # Note: We allow unauthenticated SSE access if the user knows the UUID
+    # This is necessary because EventSource API doesn't support auth headers
     
     async def event_generator():
         # Cleanup old logs periodically

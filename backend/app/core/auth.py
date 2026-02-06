@@ -21,13 +21,13 @@ from app.models.user import User, UserRole
 settings = get_settings()
 
 # Expected JWT issuer for audience validation
-CLERK_ISSUER = "https://usefull-catfish-47.clerk.accounts.dev"
+CLERK_ISSUER = "https://useful-catfish-47.clerk.accounts.dev"
 
 # HTTP Bearer scheme for JWT tokens
 security = HTTPBearer(auto_error=False)
 
 # Clerk JWKS endpoint for token verification (from env or default)
-CLERK_JWKS_URL = settings.clerk_jwks_url or "https://usefull-catfish-47.clerk.accounts.dev/.well-known/jwks.json"
+CLERK_JWKS_URL = settings.clerk_jwks_url or "https://useful-catfish-47.clerk.accounts.dev/.well-known/jwks.json"
 
 
 class ClerkAuth:
@@ -51,7 +51,7 @@ class ClerkAuth:
             signing_key = jwks_client.get_signing_key_from_jwt(token)
 
             # Decode and verify - be lenient with issuer for now
-            # Clerk tokens have issuer like https://clerk.usefull-catfish-47.accounts.dev
+            # Clerk tokens have issuer like https://clerk.useful-catfish-47.accounts.dev
             payload = jwt.decode(
                 token,
                 signing_key.key,
@@ -67,7 +67,7 @@ class ClerkAuth:
             print(f"[AUTH] Token issuer: {iss}")
 
             # Validate issuer contains our Clerk instance ID
-            if "usefull-catfish-47" not in str(iss):
+            if "useful-catfish-47" not in str(iss):
                 raise jwt.InvalidTokenError(f"Invalid issuer: {iss}")
 
             return payload

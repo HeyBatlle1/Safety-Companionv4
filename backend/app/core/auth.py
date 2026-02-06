@@ -142,7 +142,6 @@ async def get_current_user(
                 email=email,
                 name=name,
                 role=default_role,
-                password="clerk_managed",  # Not used, Clerk handles auth
             )
             db.add(user)
             await db.commit()

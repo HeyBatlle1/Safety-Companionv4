@@ -36,7 +36,7 @@ class User(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     clerk_id = Column(Text, unique=True, nullable=True, index=True)  # Clerk auth ID
     email = Column(Text, unique=True, nullable=False)
-    password = Column(Text, nullable=False, default="legacy")
+    # password removed - Clerk handles authentication
     name = Column(Text)  # Full name
     first_name = Column(Text, name="first_name")
     last_name = Column(Text, name="last_name")

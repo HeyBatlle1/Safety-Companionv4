@@ -25,8 +25,13 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None  # Anthropic Claude (production vision)
     openweather_api_key: str | None = None  # Weather data for smart cards
 
-    # Security
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173", "http://localhost:5000"]
+    # Security - Production Vercel URL always included
+    cors_origins: list[str] = [
+        "https://safety-compv3-gzvb.vercel.app",  # Production frontend (REQUIRED)
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:5000"
+    ]
 
     # Authentication
     clerk_jwks_url: str = "https://useful-catfish-47.clerk.accounts.dev/.well-known/jwks.json"
@@ -36,19 +41,30 @@ class Settings(BaseSettings):
     @classmethod
     def parse_cors_origins(cls, v):
         """Parse CORS origins from JSON string, comma-separated, or list"""
+        # Production Vercel URL must ALWAYS be included
+        REQUIRED_ORIGINS = ["https://safety-compv3-gzvb.vercel.app"]
+
+        origins = []
         if isinstance(v, list):
-            return v
-        if isinstance(v, str):
+            origins = v
+        elif isinstance(v, str):
             # Try JSON parse first
             try:
                 parsed = json.loads(v)
                 if isinstance(parsed, list):
-                    return parsed
+                    origins = parsed
             except json.JSONDecodeError:
                 pass
-            # Try comma-separated
-            return [origin.strip() for origin in v.split(',') if origin.strip()]
-        return v
+            if not origins:
+                # Try comma-separated
+                origins = [origin.strip() for origin in v.split(',') if origin.strip()]
+
+        # Ensure required origins are always present
+        for required in REQUIRED_ORIGINS:
+            if required not in origins:
+                origins.insert(0, required)
+
+        return origins
 
     model_config = SettingsConfigDict(
         env_file=".env",

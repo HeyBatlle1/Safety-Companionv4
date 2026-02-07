@@ -52,12 +52,24 @@ class Agent2RiskAssessor:
     async def get_osha_data(self, naics_code: str) -> Dict[str, Any]:
         """
         Query NeonDB for OSHA/BLS industry data.
-        
+
         Returns industry injury rates and statistics.
         Falls back to construction baseline if not found.
         """
+        if not self.neon_url:
+            print("⚠️ DATABASE_URL not set, using fallback OSHA data")
+            return self.default_osha_data
+
         try:
-            conn = await asyncpg.connect(self.neon_url)
+            # Convert SQLAlchemy-style URL to asyncpg format if needed
+            db_url = self.neon_url
+            if "postgresql+asyncpg://" in db_url:
+                db_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
+            if "?sslmode=" not in db_url and "neon.tech" in db_url:
+                db_url = db_url + "?sslmode=require"
+
+            print(f"🔍 Querying OSHA data for NAICS {naics_code}...")
+            conn = await asyncpg.connect(db_url)
             
             # Query for exact match first
             row = await conn.fetchrow(

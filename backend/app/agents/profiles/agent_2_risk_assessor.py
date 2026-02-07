@@ -290,7 +290,7 @@ OUTPUT FORMAT (ONLY VALID JSON):
 {{
   "riskSummary": {{
     "overallRiskLevel": "EXTREME|HIGH|MEDIUM|LOW",
-    "highestRiskScore": {highest_risk_score},
+    "highestRiskScore": "<number 1-100>",
     "industryContext": "Brief comparison to {osha_data.get('industry_name', 'construction')} baseline"
   }},
   "hazards": [

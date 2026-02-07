@@ -19,7 +19,8 @@ from app.services.gemini_client import GeminiClient
 from app.agents.profiles.agent_1_validator import Agent1Validator
 from app.agents.profiles.agent_2_risk_assessor import Agent2RiskAssessor
 from app.agents.profiles.agent_3_incident_predictor import Agent3IncidentPredictor
-from app.agents.profiles.agent_4_synthesizer import Agent4Synthesizer
+from app.agents.profiles.agent_4_llm_synthesizer import Agent4LLMSynthesizer
+from app.agents.profiles.agent_4_synthesizer import Agent4Synthesizer  # Fallback
 from app.models.analysis import AnalysisHistory
 from app.api.v1.jha_stream import push_progress
 from app.services.report_formatter import ReportFormatter
@@ -60,7 +61,7 @@ class SafetyAnalysisOrchestrator:
         self.agent_1 = Agent1Validator(self.gemini_client)
         self.agent_2 = Agent2RiskAssessor(self.gemini_client, db)
         self.agent_3 = Agent3IncidentPredictor(self.gemini_client)
-        self.agent_4 = Agent4Synthesizer()
+        self.agent_4 = Agent4LLMSynthesizer(self.gemini_client)  # LLM-powered synthesis
     
     async def analyze(
         self,
@@ -74,18 +75,18 @@ class SafetyAnalysisOrchestrator:
     ) -> Dict[str, Any]:
         """
         Execute 4-agent pipeline.
-        
+
         Flow (from V1 lines 764-797):
         1. Agent 1: Validate data → validation
         2. Agent 2: Assess risk (with validation + OSHA data) → risk
         3. Agent 3: Predict incident (with risk + validation) → prediction
-        4. Agent 4: Synthesize report (with all outputs) → final_report
-        
+        4. Agent 4: Synthesize report (LLM-powered with Python fallback) → final_report
+
         Error handling:
         - If Agent 1 fails → return error (cannot proceed)
         - If Agent 2 fails → use fallback risk assessment, continue
         - If Agent 3 fails → use fallback prediction, continue
-        - Agent 4 never fails (pure Python)
+        - If Agent 4 LLM fails → use fallback Python synthesizer
         """
         start_time = time.time()
         
@@ -181,12 +182,12 @@ class SafetyAnalysisOrchestrator:
             await self.save_agent_output(analysis_id, "agent_3", "Incident Predictor", prediction)
             
             # ═══════════════════════════════════════════
-            # AGENT 4: REPORT SYNTHESIZER (NO LLM)
+            # AGENT 4: INTELLIGENT REPORT SYNTHESIZER (LLM)
             # ═══════════════════════════════════════════
             await update_progress("agent4_synthesis", "running", 80)
-            print(f"📄 Agent 4: Synthesizing report...")
-            
-            # Agent 4 never fails (pure Python)
+            print(f"📄 Agent 4: Synthesizing report with LLM intelligence...")
+
+            # Agent 4 uses LLM with Python fallback
             final_report = await self.agent_4.synthesize_report(
                 validation=validation,
                 risk=risk,
@@ -212,13 +213,13 @@ class SafetyAnalysisOrchestrator:
             # Build complete analysis result
             complete_analysis = {
                 "pipeline_metadata": {
-                    "version": "v3-openrouter-grok",
+                    "version": "v3.1-openrouter-grok-llm-synth",
                     "execution_time_ms": int(execution_time),
                     "agents_used": {
                         "agent1_validator": {"success": True, "model": model_display},
                         "agent2_risk_assessor": {"success": True, "model": model_display},
                         "agent3_incident_predictor": {"success": True, "model": model_display},
-                        "agent4_synthesizer": {"success": True, "model": "python-deterministic"}
+                        "agent4_synthesizer": {"success": True, "model": model_display, "type": "llm-intelligent"}
                     }
                 },
                 "agent_outputs": {

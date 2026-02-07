@@ -38,15 +38,13 @@ class PermissionService:
     def can_create_eap(user: User) -> bool:
         """
         Can the user create/edit EAPs?
-        Field Workers: NO
-        Foreman: NO
-        PM and Safety Director: YES
+        Field Workers: NO (read-only)
+        Foreman, PM, Safety Director: YES
         """
-        return user.role in [
-            UserRole.SAFETY_DIRECTOR.value,
-            UserRole.PROJECT_MANAGER.value,
-            UserRole.MASTER_ADMIN.value
-        ]
+        # Field workers are read-only
+        if user.role == UserRole.FIELD_WORKER.value:
+            return False
+        return True
 
     @staticmethod
     def can_view_jha(user: User, jha: AnalysisHistory) -> bool:

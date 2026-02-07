@@ -147,6 +147,31 @@ async def get_current_user(
             await db.commit()
             await db.refresh(user)
             print(f"[AUTH] Auto-created user: {email} with role {default_role}")
+
+            # RACE CONDITION FIX: If we claimed safety_director, verify we're the only one
+            # If multiple users raced to be first, demote extras to field_worker
+            if default_role == UserRole.SAFETY_DIRECTOR.value:
+                admin_count = await db.execute(
+                    select(func.count()).select_from(User).where(
+                        User.role.in_([UserRole.SAFETY_DIRECTOR.value, UserRole.MASTER_ADMIN.value])
+                    )
+                )
+                admin_total = admin_count.scalar() or 0
+                if admin_total > 1:
+                    # We're not the only admin - check if we're the oldest
+                    oldest_admin = await db.execute(
+                        select(User).where(
+                            User.role.in_([UserRole.SAFETY_DIRECTOR.value, UserRole.MASTER_ADMIN.value])
+                        ).order_by(User.created_at.asc()).limit(1)
+                    )
+                    first_admin = oldest_admin.scalar_one_or_none()
+                    if first_admin and first_admin.id != user.id:
+                        # We're not the first admin - demote to field_worker
+                        user.role = UserRole.FIELD_WORKER.value
+                        await db.commit()
+                        await db.refresh(user)
+                        print(f"[AUTH] Race condition resolved: {email} demoted to field_worker")
+
         except IntegrityError:
             # Race condition: another request created the user first
             await db.rollback()

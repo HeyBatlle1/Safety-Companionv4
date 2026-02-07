@@ -63,9 +63,18 @@ async def analyze_checklist(
     """
     Analyze Master JHA checklist through 4-agent pipeline (Background Task).
 
+    Requires authentication. Field workers are read-only and cannot create JHAs.
+
     This triggers the asynchronous analysis pipeline and returns immediately.
     Client should poll GET /jha/{id} for progress updates.
     """
+    # Check permission - field workers are read-only
+    if not PermissionService.can_create_jha(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Field workers cannot create JHAs (read-only access)"
+        )
+
     try:
         user_id = current_user.id
         print(f"🚀 Analysis started for user: {user_id}")
@@ -161,7 +170,15 @@ async def live_update(
 ):
     """
     Update existing JHA with live field conditions.
+    Field workers are read-only and cannot update JHAs.
     """
+    # Check permission - field workers are read-only
+    if not PermissionService.can_create_jha(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Field workers cannot update JHAs (read-only access)"
+        )
+
     try:
         user_id = current_user.id
         analysis_id = str(request.original_jha_id)

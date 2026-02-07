@@ -14,6 +14,9 @@ from pydantic import BaseModel, Field
 import json
 
 from app.core.deps import get_db
+from app.core.auth import get_current_user, require_role
+from app.core.permissions import PermissionService
+from app.models.user import User, UserRole
 from app.models.eap import EAPQuestionnaire, GeneratedEAP
 from app.services.eap_generator import get_eap_service
 
@@ -134,22 +137,32 @@ class GeneratedEAPResponse(BaseModel):
 @router.post("/generate", response_model=GeneratedEAPResponse)
 async def generate_eap(
     request: EAPQuestionnaireRequest,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Generate an OSHA-compliant Emergency Action Plan.
-    
+
+    Requires authentication. Field workers are read-only and cannot generate EAPs.
+
     This endpoint:
     1. Saves the questionnaire to the database
     2. Runs the 4-agent EAP generation pipeline
     3. Returns the complete generated EAP
-    
+
     The 4-agent pipeline:
     - Agent 1: EAP Analyzer - Analyzes questionnaire, identifies risks
     - Agent 2: Procedure Generator - Creates emergency procedures
     - Agent 3: OSHA Compliance Checker - Validates against 1910.38
     - Agent 4: Document Assembler - Compiles final EAP document
     """
+    # Check permission - field workers are read-only
+    if not PermissionService.can_create_eap(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Field workers cannot generate EAPs (read-only access)"
+        )
+
     try:
         # Convert request to dict for processing
         questionnaire_data = request.model_dump()
@@ -249,9 +262,10 @@ async def generate_eap(
 @router.get("/{eap_id}", response_model=GeneratedEAPResponse)
 async def get_eap(
     eap_id: str,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get a generated EAP by ID"""
+    """Get a generated EAP by ID. Requires authentication."""
     try:
         result = await db.execute(
             select(GeneratedEAP).where(GeneratedEAP.id == eap_id)
@@ -287,9 +301,10 @@ async def get_eap(
 @router.get("/questionnaire/{questionnaire_id}")
 async def get_questionnaire(
     questionnaire_id: str,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get an EAP questionnaire by ID"""
+    """Get an EAP questionnaire by ID. Requires authentication."""
     try:
         result = await db.execute(
             select(EAPQuestionnaire).where(EAPQuestionnaire.id == questionnaire_id)
@@ -329,9 +344,10 @@ async def get_questionnaire(
 @router.get("/list/recent")
 async def list_recent_eaps(
     limit: int = 20,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """List recently generated EAPs"""
+    """List recently generated EAPs. Requires authentication."""
     try:
         result = await db.execute(
             select(GeneratedEAP)
@@ -365,9 +381,17 @@ async def list_recent_eaps(
 @router.delete("/{eap_id}")
 async def delete_eap(
     eap_id: str,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Delete a generated EAP and its questionnaire"""
+    """Delete a generated EAP and its questionnaire. Requires Safety Director role."""
+    # Only Safety Director can delete EAPs
+    if not PermissionService.is_admin(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Safety Director can delete EAPs"
+        )
+
     try:
         from sqlalchemy import delete
         

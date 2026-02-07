@@ -34,7 +34,7 @@ class Agent3IncidentPredictor:
     
     def __init__(self, gemini_client: GeminiClient):
         self.client = gemini_client
-        self.temperature = 1.0  # Maximum creativity for causal reasoning
+        self.temperature = 0.7  # Balanced: creative reasoning but structured output
         self.max_tokens = 16000  # 2x increased for comprehensive Swiss Cheese analysis
     
     def calculate_fatigue(self, hours_worked: str, consecutive_days: str) -> str:

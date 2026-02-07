@@ -8,6 +8,7 @@ Executes Agents 1-4 sequentially with error handling.
 import os
 import time
 import json
+import asyncio
 from typing import Dict, Any, Optional
 from datetime import datetime
 from uuid import UUID
@@ -138,14 +139,22 @@ class SafetyAnalysisOrchestrator:
             print(f"⚠️ Agent 2: Assessing risks...")
             
             try:
-                risk = await self.agent_2.assess_risk(
-                    validation=validation,
-                    checklist_data=checklist_data,
-                    weather_data=weather_data,
-                    naics_code=naics_code
-                )
-                top_score = risk.get("hazards", [{}])[0].get("riskScore", 0)
-                print(f"✓ Agent 2 complete: Top risk score {top_score}/100")
+                # Agent 2 with 90-second timeout
+                try:
+                    risk = await asyncio.wait_for(
+                        self.agent_2.assess_risk(
+                            validation=validation,
+                            checklist_data=checklist_data,
+                            weather_data=weather_data,
+                            naics_code=naics_code
+                        ),
+                        timeout=90.0  # 90 seconds max for Agent 2
+                    )
+                    top_score = risk.get("hazards", [{}])[0].get("riskScore", 0)
+                    print(f"✓ Agent 2 complete: Top risk score {top_score}/100")
+                except asyncio.TimeoutError:
+                    print(f"⚠️ Agent 2 timed out after 90s, using fallback")
+                    risk = self._fallback_risk_assessment(validation, checklist_data)
             except Exception as e:
                 print(f"⚠️ Agent 2 failed: {e}, using fallback")
                 # Use fallback risk assessment
@@ -164,15 +173,23 @@ class SafetyAnalysisOrchestrator:
                 # Get top hazard for prediction
                 top_hazard = risk.get("hazards", [{}])[0]
                 osha_data = await self.agent_2.get_osha_data(naics_code)
-                
-                prediction = await self.agent_3.predict_incident(
-                    top_hazard=top_hazard,
-                    checklist_data=checklist_data,
-                    validation=validation,
-                    weather_data=weather_data,
-                    osha_data=osha_data
-                )
-                print(f"✓ Agent 3 complete: {prediction.get('incidentName', 'Unknown')}")
+
+                # Agent 3 with 90-second timeout (complex Swiss Cheese analysis)
+                try:
+                    prediction = await asyncio.wait_for(
+                        self.agent_3.predict_incident(
+                            top_hazard=top_hazard,
+                            checklist_data=checklist_data,
+                            validation=validation,
+                            weather_data=weather_data,
+                            osha_data=osha_data
+                        ),
+                        timeout=90.0  # 90 seconds max for Agent 3
+                    )
+                    print(f"✓ Agent 3 complete: {prediction.get('incidentName', 'Unknown')}")
+                except asyncio.TimeoutError:
+                    print(f"⚠️ Agent 3 timed out after 90s, using fallback")
+                    prediction = self._fallback_prediction(risk, checklist_data)
             except Exception as e:
                 print(f"⚠️ Agent 3 failed: {e}, using fallback")
                 # Use fallback prediction
@@ -187,15 +204,31 @@ class SafetyAnalysisOrchestrator:
             await update_progress("agent4_synthesis", "running", 80)
             print(f"📄 Agent 4: Synthesizing report with LLM intelligence...")
 
-            # Agent 4 uses LLM with Python fallback
-            final_report = await self.agent_4.synthesize_report(
-                validation=validation,
-                risk=risk,
-                prediction=prediction,
-                weather_data=weather_data,
-                checklist_data=checklist_data
-            )
-            
+            # Agent 4 uses LLM with Python fallback, 120-second timeout
+            try:
+                final_report = await asyncio.wait_for(
+                    self.agent_4.synthesize_report(
+                        validation=validation,
+                        risk=risk,
+                        prediction=prediction,
+                        weather_data=weather_data,
+                        checklist_data=checklist_data
+                    ),
+                    timeout=120.0  # 120 seconds max for Agent 4 (LLM synthesis)
+                )
+            except asyncio.TimeoutError:
+                print(f"⚠️ Agent 4 LLM timed out, using Python fallback")
+                # Use fallback Python-only Agent 4
+                from app.agents.profiles.agent_4_synthesizer import Agent4Synthesizer
+                fallback_agent4 = Agent4Synthesizer()
+                final_report = await fallback_agent4.synthesize_report(
+                    validation=validation,
+                    risk=risk,
+                    prediction=prediction,
+                    weather_data=weather_data,
+                    checklist_data=checklist_data
+                )
+
             print(f"✓ Agent 4 complete: {final_report.get('goNoGo', {}).get('decision', 'UNKNOWN')}")
             await update_progress("agent4_synthesis", "completed", 95)
             await self.save_agent_output(analysis_id, "agent_4", "Report Synthesizer", final_report)
@@ -568,24 +601,48 @@ class SafetyAnalysisOrchestrator:
         risk: Dict[str, Any],
         checklist_data: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Fallback prediction if Agent 3 fails"""
+        """Fallback prediction if Agent 3 fails - uses data from Agent 2"""
+        # Extract info from Agent 2's risk assessment
+        top_hazard = risk.get("hazards", [{}])[0]
+        hazard_name = top_hazard.get("name", "Unidentified hazard")
+        risk_score = top_hazard.get("riskScore", 50)
+        category = top_hazard.get("category", "General")
+
+        # Estimate probability from risk score
+        probability = min(risk_score, 75)  # Cap at 75% for fallback
+
+        # Generate basic causal chain from available data
+        inadequate_controls = top_hazard.get("inadequateControls", [])
+        causal_chain = []
+        if inadequate_controls:
+            for i, control in enumerate(inadequate_controls[:3]):
+                causal_chain.append({
+                    "stage": f"Defense Failure {i+1}",
+                    "description": control,
+                    "evidence": "From risk assessment"
+                })
+
         return {
-            "incidentName": "Unable to predict - Review manually",
+            "incidentName": f"{category} incident related to: {hazard_name}",
             "timeframe": "Next 4 hours",
-            "probability": 50,
+            "probability": probability,
             "confidence": "LOW",
-            "causalChain": [],
-            "leadingIndicators": [],
+            "causalChain": causal_chain or [{"stage": "Analysis pending", "description": "Swiss Cheese analysis unavailable - manual review recommended"}],
+            "leadingIndicators": [
+                {"type": "General", "indicator": "Monitor for unsafe conditions related to identified hazards"}
+            ],
             "interventions": {
-                "preventive": [],
-                "mitigative": [],
-                "recommended": "Manual review by safety officer"
+                "preventive": top_hazard.get("recommendedControls", [])[:3],
+                "mitigative": ["Ensure emergency response procedures are in place"],
+                "recommended": f"Address control gaps for {hazard_name}; conduct manual Swiss Cheese analysis"
             },
             "oshaPatternMatch": {
                 "similarIncidents": 0,
                 "matchConfidence": "LOW",
-                "citationsExpected": []
-            }
+                "citationsExpected": [top_hazard.get("regulatoryRequirement", "OSHA 1926")]
+            },
+            "fallbackUsed": True,
+            "fallbackReason": "Agent 3 timeout or error"
         }
 
     async def execute_full_analysis(

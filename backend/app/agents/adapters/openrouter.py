@@ -1,6 +1,7 @@
 from openai import AsyncOpenAI
 from datetime import datetime
 from typing import Dict, Any, Optional
+import httpx
 from app.agents.adapters.base_adapter import BaseModelAdapter
 from app.agents.base import ModelCapability
 
@@ -8,9 +9,12 @@ class OpenRouterAdapter(BaseModelAdapter):
     """Adapter for OpenRouter API using OpenAI-compatible interface"""
 
     def __init__(self, api_key: str, model: str = "google/gemma-3n-e4b-it:free"):
+        # Configure timeout: 120 seconds for complex prompts
+        timeout = httpx.Timeout(120.0, connect=10.0)
         self.client = AsyncOpenAI(
             base_url="https://openrouter.ai/api/v1",
-            api_key=api_key
+            api_key=api_key,
+            timeout=timeout
         )
         self.default_model = model  # Default model if not specified in generate()
         self.model_name = model     # Store model name for capabilities/cost

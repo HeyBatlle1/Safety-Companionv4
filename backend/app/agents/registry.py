@@ -30,10 +30,11 @@ class AgentRegistry:
 
         # Initialize OpenRouter (fallback only - has rate limits)
         if OPENROUTER_AVAILABLE and config.get("openrouter_api_key"):
-            # Use x-ai/grok-4.1-fast as requested by user
+            # TESTING: Using Claude Sonnet 4.5 instead of Grok
+            # Original: model="x-ai/grok-4.1-fast"
             self.adapters["openrouter-grok"] = OpenRouterAdapter(
                 api_key=config["openrouter_api_key"],
-                model="x-ai/grok-4.1-fast"
+                model="anthropic/claude-sonnet-4"  # Testing Claude Sonnet 4.5
             )
             # Paid tier models via OpenRouter (if needed)
             self.adapters["openrouter-claude-sonnet"] = OpenRouterAdapter(
@@ -44,7 +45,7 @@ class AgentRegistry:
                 api_key=config["openrouter_api_key"],
                 model="openai/gpt-4o"
             )
-            print("✅ OpenRouter initialized with x-ai/grok-4.1-fast")
+            print("✅ OpenRouter initialized with anthropic/claude-sonnet-4 (Testing)")
 
         # Initialize Direct Gemini (PREFERRED - use Tier 1 API key, no rate limits)
         if config.get("gemini_api_key"):
@@ -80,9 +81,9 @@ class AgentRegistry:
         Models are configured via database (agent_configurations table)
         """
 
-        # PRIORITY 1: User requested OpenRouter Grok Override
+        # PRIORITY 1: OpenRouter Primary Model (Testing Claude Sonnet 4.5)
         if "openrouter-grok" in self.adapters:
-            print("🚀 Using OpenRouter x-ai/grok-4.1-fast (User Override)")
+            print("🚀 Using OpenRouter anthropic/claude-sonnet-4 (Testing)")
             return self.adapters["openrouter-grok"]
 
         # PRIORITY 2: Use native Google Gemini if available

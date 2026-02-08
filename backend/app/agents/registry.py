@@ -30,17 +30,17 @@ class AgentRegistry:
 
         # Initialize OpenRouter models
         if OPENROUTER_AVAILABLE and config.get("openrouter_api_key"):
-            # PRIMARY: Grok for Agents 1, 2, 3 (fast reasoning)
+            # PRIMARY: Gemini 3 Flash Preview for Agents 1, 2, 3 (fast reasoning)
             self.adapters["openrouter-grok"] = OpenRouterAdapter(
                 api_key=config["openrouter_api_key"],
-                model="x-ai/grok-4.1-fast"
+                model="google/gemini-3-flash-preview"
             )
-            # AGENT 4 ONLY: Claude Sonnet 4.5 for synthesis (better writing)
+            # AGENT 4 ONLY: Claude Sonnet 4 for synthesis (better writing)
             self.adapters["openrouter-claude-sonnet-4"] = OpenRouterAdapter(
                 api_key=config["openrouter_api_key"],
                 model="anthropic/claude-sonnet-4"
             )
-            # Paid tier models via OpenRouter (if needed)
+            # Backup models via OpenRouter (if needed)
             self.adapters["openrouter-claude-sonnet"] = OpenRouterAdapter(
                 api_key=config["openrouter_api_key"],
                 model="anthropic/claude-3.5-sonnet"
@@ -49,7 +49,7 @@ class AgentRegistry:
                 api_key=config["openrouter_api_key"],
                 model="openai/gpt-4o"
             )
-            print("✅ OpenRouter: Grok for Agents 1-3, Claude Sonnet 4 for Agent 4")
+            print("✅ OpenRouter: Gemini 3 Flash for Agents 1-3, Claude Sonnet 4 for Agent 4")
 
         # Initialize Direct Gemini (PREFERRED - use Tier 1 API key, no rate limits)
         if config.get("gemini_api_key"):
@@ -85,9 +85,9 @@ class AgentRegistry:
         Models are configured via database (agent_configurations table)
         """
 
-        # PRIORITY 1: OpenRouter Grok for Agents 1-3
+        # PRIORITY 1: OpenRouter Gemini 3 Flash for Agents 1-3
         if "openrouter-grok" in self.adapters:
-            print("🚀 Using OpenRouter x-ai/grok-4.1-fast")
+            print("🚀 Using OpenRouter google/gemini-3-flash-preview")
             return self.adapters["openrouter-grok"]
 
         # PRIORITY 2: Use native Google Gemini if available

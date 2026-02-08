@@ -56,12 +56,12 @@ Example for "Glazing Curtainwall" in "Alaska" with "fall, weather" hazards:
 Generate suggestions now:"""
     
     try:
-        # Use OpenRouter with Grok 4.1 fast (preferred), fallback to Gemini
+        # Use OpenRouter with Gemini 3 Flash Preview, fallback to native Gemini
         if settings.openrouter_api_key:
             from app.agents.adapters.openrouter import OpenRouterAdapter
             adapter = OpenRouterAdapter(
                 api_key=settings.openrouter_api_key,
-                model="x-ai/grok-4.1-fast"
+                model="google/gemini-3-flash-preview"
             )
         else:
             from app.agents.adapters.google import GoogleGeminiAdapter

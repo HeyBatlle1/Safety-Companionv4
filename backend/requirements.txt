@@ -19,3 +19,8 @@ openai>=1.60.0
 anthropic>=0.40.0  # Agent 5 vision (optional, for production)
 PyJWT==2.8.0
 certifi>=2024.0.0
+
+# Vector embeddings (NO OPENAI)
+sentence-transformers==3.3.1
+torch>=2.0.0
+numpy>=1.24.0

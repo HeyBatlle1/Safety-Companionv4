@@ -70,15 +70,13 @@ class GeminiClient:
         temperature: float,
         max_tokens: int,
         system_instruction: Optional[str] = None,
-        adapter_name: Optional[str] = None,
-        raw_output: bool = False
+        adapter_name: Optional[str] = None
     ) -> dict:
         """
         Route generation request to the best available model via Registry.
 
         Args:
             adapter_name: Optional specific adapter to use (e.g. "openrouter-claude-sonnet-4")
-            raw_output: If True, return {"text": raw_response} instead of parsing JSON
         """
         try:
             # Get adapter - either specific one or route automatically
@@ -123,13 +121,8 @@ class GeminiClient:
 
             # OpenRouter adapter returns dict with 'text' field
             # Google adapter returns dict with 'text' field
+            # Helper extracts JSON
             response_text = result.get("text", "")
-
-            # Return raw text for markdown output (Agent 4)
-            if raw_output:
-                return {"text": response_text}
-
-            # Parse JSON for structured output (Agents 1-3)
             return self._extract_json(response_text)
 
         except Exception as e:

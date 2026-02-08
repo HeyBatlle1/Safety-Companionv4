@@ -4,6 +4,7 @@ import { ClerkClientProvider } from "@/components/clerk-provider";
 import "./globals.css";
 import { AppShell } from "@/components/layout";
 import { Providers } from "@/components/providers";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,6 +39,7 @@ export default function RootLayout({
           <Providers>
             <AppShell>{children}</AppShell>
           </Providers>
+          <Analytics />
         </body>
       </html>
     </ClerkClientProvider>

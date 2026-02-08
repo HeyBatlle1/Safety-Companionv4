@@ -1,9 +1,11 @@
 """
-AGENT 3: INCIDENT PREDICTOR
-Swiss Cheese Model with 6-stage causal chain (trimmed from 10)
+AGENT 3: INCIDENT PREDICTOR (WITH VECTOR PATTERN MATCHING)
+Swiss Cheese Model with 6-stage causal chain + historical incident patterns
 
 Purpose: Builds Swiss Cheese Model causal chains to predict the SPECIFIC
          incident most likely to occur in the next 4 hours.
+         NOW ENHANCED: Uses vector search to find similar historical incidents
+         for Bayesian priors and pattern validation.
 
 Temperature: 0.7 (Balanced creative reasoning with structured output)
 Max Tokens: 16,000
@@ -13,11 +15,18 @@ import json
 from datetime import datetime
 from typing import Dict, Any, Optional, List, Tuple
 from app.services.gemini_client import GeminiClient
+from app.services.vector_search import VectorSearchService
 
 
 class Agent3IncidentPredictor:
     """
-    Swiss Cheese Model Incident Predictor
+    Swiss Cheese Model Incident Predictor with Historical Pattern Matching
+    
+    NEW: Integrates vector search to:
+    1. Find similar historical incidents (pattern matching)
+    2. Calculate Bayesian priors from actual data (not industry averages)
+    3. Validate predicted chains against real OSHA incidents
+    4. Increase confidence when strong historical matches exist
 
     Uses 6-stage causal chain (classic Swiss Cheese):
     1. Organizational Influences (latent failure)
@@ -45,10 +54,96 @@ class Agent3IncidentPredictor:
         18: 1.1,   # Extended shift
     }
     
-    def __init__(self, gemini_client: GeminiClient):
+    def __init__(self, gemini_client: GeminiClient, vector_search: Optional[VectorSearchService] = None):
         self.client = gemini_client
-        self.temperature = 0.7  # Balanced: creative reasoning but structured output
+        self.vector_search = vector_search  # NEW: Vector search service
+        self.temperature = 0.7
         self.max_tokens = 16000
+
+    # ========== NEW: VECTOR PATTERN MATCHING ==========
+
+    async def find_similar_incidents(
+        self,
+        top_hazard: Dict[str, Any],
+        checklist_data: Dict[str, Any],
+        limit: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Find historically similar incidents for pattern matching.
+        
+        Returns:
+            List of matching incidents with Swiss Cheese chains and outcomes
+        """
+        if not self.vector_search:
+            return []
+        
+        # Build search query from current hazard
+        job_info = checklist_data.get("jobInfo", {})
+        
+        search_parts = []
+        if desc := top_hazard.get("description"):
+            search_parts.append(desc)
+        if work_type := job_info.get("workType"):
+            search_parts.append(f"Work Type: {work_type}")
+        if equipment := job_info.get("equipment"):
+            search_parts.append(f"Equipment: {equipment}")
+        
+        query = " ".join(search_parts)
+        
+        # Search with filters
+        try:
+            similar = await self.vector_search.search_similar_incidents(
+                query=query,
+                hazard_category=top_hazard.get("type"),
+                equipment_type=job_info.get("equipment"),
+                work_type=job_info.get("workType"),
+                limit=limit,
+                similarity_threshold=0.70  # 70% similarity minimum
+            )
+            return similar
+        except Exception as e:
+            logger.error(f"Vector search failed: {e}")
+            return []
+
+    async def get_historical_incident_rate(
+        self,
+        top_hazard: Dict[str, Any],
+        checklist_data: Dict[str, Any]
+    ) -> Dict[str, float]:
+        """
+        Calculate actual historical incident rate from vector DB.
+        Replaces generic industry averages with real data.
+        
+        Returns:
+            {
+                "incident_rate": <percent>,
+                "sample_size": <count>,
+                "confidence": "HIGH|MEDIUM|LOW"
+            }
+        """
+        if not self.vector_search:
+            return {
+                "incident_rate": 2.9,  # Construction industry default
+                "sample_size": 0,
+                "confidence": "LOW"
+            }
+        
+        job_info = checklist_data.get("jobInfo", {})
+        
+        try:
+            rate_data = await self.vector_search.get_incident_base_rate(
+                hazard_category=top_hazard.get("type", "Unknown"),
+                equipment_type=job_info.get("equipment"),
+                work_type=job_info.get("workType")
+            )
+            return rate_data
+        except Exception as e:
+            logger.error(f"Base rate calculation failed: {e}")
+            return {
+                "incident_rate": 2.9,
+                "sample_size": 0,
+                "confidence": "LOW"
+            }
 
     # ========== PREDICTION ALGORITHMS ==========
 
@@ -108,15 +203,15 @@ class Agent3IncidentPredictor:
         self,
         base_probability: float,
         data_quality_score: int,
-        historical_incident_rate: float = 2.9  # Default construction rate per 100 FTE
+        historical_incident_rate: float = 2.9  # Can now be overridden by vector DB
     ) -> Tuple[float, str]:
         """
         Bayesian adjustment of incident probability based on:
         - Data quality (lower quality = wider confidence intervals)
-        - Historical incident patterns (prior probability)
+        - Historical incident patterns (prior probability - NOW FROM VECTOR DB)
         Returns (adjusted_probability, confidence_level).
         """
-        # Prior from industry data (normalize to 0-1 scale)
+        # Prior from industry/historical data (normalize to 0-1 scale)
         prior = min(historical_incident_rate / 10.0, 1.0)
 
         # Likelihood from current assessment
@@ -243,20 +338,64 @@ class Agent3IncidentPredictor:
     ) -> Dict[str, Any]:
         """
         Predict specific incident with Swiss Cheese causal chain.
+        NOW ENHANCED: Integrates vector search for historical pattern matching.
+        
+        New capabilities:
+        - Finds 5 most similar historical incidents
+        - Uses actual incident rates (not industry averages)
+        - Validates predicted chain against real OSHA patterns
+        - Increases confidence when strong matches exist
         
         PROMPT SOURCE: V1_AGENT_PROMPTS_AND_LOGIC.md lines 360-598
-        Copied EXACTLY with Python variable substitution.
-        
-        Includes:
-        - 10-stage Swiss Cheese Model framework
-        - Leading indicators framework (Behavioral, Environmental, Organizational, Near-Miss)
-        - Intervention hierarchy (Preventive: Elimination→Engineering→Administrative→PPE, Mitigative)
-        - Confidence scoring with temporal adjustments
-        - OSHA pattern matching
+        Copied EXACTLY with Python variable substitution + vector enhancements.
         
         Returns:
             Incident prediction with causal chain and interventions
         """
+        
+        # ========== NEW: VECTOR PATTERN MATCHING ==========
+        
+        # Find similar historical incidents
+        similar_incidents = await self.find_similar_incidents(
+            top_hazard,
+            checklist_data,
+            limit=5
+        )
+        
+        # Get actual historical incident rate (replaces 2.9% default)
+        historical_rate_data = await self.get_historical_incident_rate(
+            top_hazard,
+            checklist_data
+        )
+        
+        # Build pattern matching context for LLM
+        pattern_context = ""
+        if similar_incidents:
+            pattern_context = "\n\nHISTORICAL PATTERN MATCHES:\n"
+            pattern_context += f"Found {len(similar_incidents)} similar incidents in database:\n\n"
+            
+            for i, incident in enumerate(similar_incidents, 1):
+                pattern_context += f"{i}. {incident.get('incident_type', 'Unknown')} "
+                pattern_context += f"(Similarity: {incident.get('similarity', 0):.0%})\n"
+                pattern_context += f"   Outcome: {incident.get('actual_outcome', 'Unknown')}\n"
+                pattern_context += f"   Time to incident: {incident.get('time_to_incident', 'Unknown')}\n"
+                
+                # Include Swiss Cheese chain if available
+                if chain := incident.get('swiss_cheese_chain'):
+                    pattern_context += f"   Chain pattern: {len(chain)} stages validated\n"
+                
+                pattern_context += "\n"
+        
+        # Historical incident rate
+        historical_rate = historical_rate_data.get("incident_rate", 2.9)
+        sample_size = historical_rate_data.get("sample_size", 0)
+        rate_confidence = historical_rate_data.get("confidence", "LOW")
+        
+        pattern_context += f"\nHISTORICAL INCIDENT RATE:\n"
+        pattern_context += f"- Base rate: {historical_rate}% (from {sample_size} similar JHAs)\n"
+        pattern_context += f"- Confidence: {rate_confidence}\n"
+        
+        # ========== EXISTING PREDICTION LOGIC ==========
         
         # Calculate fatigue level
         hours_worked = self._get_checklist_field(checklist_data, "hoursWorked")
@@ -290,6 +429,14 @@ class Agent3IncidentPredictor:
 3. Your mission is to predict the SPECIFIC incident most likely to occur in the next 4 hours.
 4. Output MUST be valid JSON only.
 
+### NEW CAPABILITY: HISTORICAL PATTERN MATCHING
+You now have access to similar historical incidents from the vector database.
+Use these patterns to:
+- Validate your predicted causal chain
+- Adjust probability based on actual outcomes
+- Increase confidence when strong matches exist (>80% similarity)
+- Reference specific incident patterns in your analysis
+
 ### 6-STAGE SWISS CHEESE MODEL (USE THIS EXACT STRUCTURE):
 1. Organizational Influences - Latent systemic failures (culture, resources, pressure)
 2. Unsafe Supervision - Supervisory gaps enabling hazards
@@ -314,6 +461,7 @@ class Agent3IncidentPredictor:
 {json.dumps(checklist_data, indent=2)}
 </checklist_data>
 
+{pattern_context}
 
 INDUSTRY INCIDENT HISTORY (OSHA):
 {osha_data.get('industry_name', 'Construction')} (NAICS {osha_data.get('naics_code', '23')})
@@ -364,11 +512,11 @@ STAGE 6 - INJURY MECHANISM (Energy Transfer):
 TEMPORAL RISK FACTOR:
 Current multiplier: {temporal_multiplier}x ({temporal_reason})
 
-PATTERN MATCHING:
-Search mental database of similar OSHA incidents:
-- Match on: Industry, hazard type, equipment, weather
-- Reference actual incident reports if strong match (>70% similarity)
-- Use to validate predicted chain and increase confidence
+PATTERN MATCHING (USE HISTORICAL DATA ABOVE):
+You have access to {len(similar_incidents)} similar incidents from the database.
+- Validate your predicted chain against these patterns
+- If multiple historical incidents share common failure modes, increase confidence
+- Reference incident similarity scores in your confidence calculation
 
 LEADING INDICATORS (Observable Now):
 Identify 3-5 conditions supervisor could see RIGHT NOW:
@@ -399,11 +547,12 @@ Adjustments:
 + Fatigue: Based on {fatigue_level} level
 + Defense gaps: {defense_gaps_percent}%
 + Weather deteriorating: If applicable
++ Historical pattern match: +10% if >3 similar incidents with >75% similarity
 
 Final Probability: Calculate based on above
 
 Confidence Rating:
-80-100%: HIGH (Incident likely in next 4 hours)
+80-100%: HIGH (Incident likely in next 4 hours - especially if historical matches exist)
 40-79%: MEDIUM (Incident possible in next 1-2 days)
 0-39%: LOW (Incident unlikely without major change)
 
@@ -427,6 +576,12 @@ OUTPUT (VALID JSON ONLY - EXACTLY 6 STAGES):
   "probability": <0-100>,
   "confidence": "HIGH|MEDIUM|LOW",
   "temporalRiskMultiplier": {temporal_multiplier},
+  "historicalMatches": {{
+    "count": {len(similar_incidents)},
+    "topSimilarity": <highest similarity score from matches>,
+    "rateFromData": {historical_rate},
+    "sampleSize": {sample_size}
+  }},
   "causalChain": [
     {{
       "stage": "Organizational Influences",
@@ -510,7 +665,7 @@ OUTPUT (VALID JSON ONLY - EXACTLY 6 STAGES):
     "recommended": "Primary + Backup + Immediate intervention summary"
   }},
   "oshaPatternMatch": {{
-    "similarIncidents": <number>,
+    "similarIncidents": {len(similar_incidents)},
     "matchConfidence": "HIGH|MEDIUM|LOW",
     "citationsExpected": ["1926.XXX", "1926.YYY"]
   }}
@@ -526,14 +681,32 @@ CRITICAL: Output ONLY valid JSON with EXACTLY 6 stages. Any non-JSON text will c
             system_instruction=system_instruction
         )
 
-        # Apply prediction algorithms to enhance result
-        result = self._enhance_prediction(result, validation)
+        # Apply prediction algorithms to enhance result (now with actual historical rate)
+        result = self._enhance_prediction(
+            result,
+            validation,
+            historical_incident_rate=historical_rate
+        )
+
+        # Add vector search metadata
+        result["vectorSearchMetadata"] = {
+            "similar_incidents_found": len(similar_incidents),
+            "historical_rate": historical_rate,
+            "sample_size": sample_size,
+            "rate_confidence": rate_confidence
+        }
 
         return result
 
-    def _enhance_prediction(self, result: Dict[str, Any], validation: Dict[str, Any]) -> Dict[str, Any]:
+    def _enhance_prediction(
+        self,
+        result: Dict[str, Any],
+        validation: Dict[str, Any],
+        historical_incident_rate: float = 2.9  # NOW passed from vector DB
+    ) -> Dict[str, Any]:
         """
         Apply prediction algorithms to enhance the LLM output.
+        NOW: Uses actual historical incident rate from vector DB.
         """
         # Get data quality score from Agent 1 validation
         data_quality = validation.get("qualityScore", 5)
@@ -550,11 +723,12 @@ CRITICAL: Output ONLY valid JSON with EXACTLY 6 stages. Any non-JSON text will c
         if causal_chain:
             result["causalChain"] = self.rank_failure_paths(causal_chain)
 
-        # Apply Bayesian confidence adjustment
+        # Apply Bayesian confidence adjustment (NOW with actual rate)
         base_prob = result.get("probability", 50)
         adjusted_prob, confidence = self.adjust_confidence_bayesian(
             base_prob,
-            data_quality
+            data_quality,
+            historical_incident_rate  # FROM VECTOR DB
         )
         result["adjustedProbability"] = adjusted_prob
         result["bayesianConfidence"] = confidence

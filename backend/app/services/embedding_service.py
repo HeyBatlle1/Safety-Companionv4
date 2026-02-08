@@ -1,15 +1,15 @@
 """
-Embedding Service - Google Gemini Integration
-Uses gemini-embedding-001 (768 dimensions) for semantic search over safety data.
-NO OPENAI - Google's embeddings API.
+Embedding Service - OpenRouter Integration
+Uses google/gemini-embedding-001 (768 dimensions) via OpenRouter for semantic search.
+ALL MODELS ROUTED THROUGH OPENROUTER - consistent with agent architecture.
 """
 
 import logging
 from typing import List, Optional, Dict, Any
 import numpy as np
 import os
-from functools import lru_cache
-import google.generativeai as genai
+from openai import OpenAI
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -18,16 +18,17 @@ class EmbeddingService:
     """
     Handles embedding generation for JHAs, hazards, and Swiss Cheese chains.
     
-    Model: gemini-embedding-001
+    Model: google/gemini-embedding-001 (via OpenRouter)
     - Dimensions: 768
-    - Provider: Google AI
+    - Provider: OpenRouter → Google
     - Speed: Fast API-based encoding
-    - Cost: FREE (up to quota)
+    - Cost: Via OpenRouter pricing
     """
     
     _instance = None
-    _model_name = "models/embedding-001"
-    _api_configured = False
+    _model_name = "google/gemini-embedding-001"
+    _client = None
+    dimension = 768
     
     def __new__(cls):
         """Singleton pattern - one client instance per process."""
@@ -36,21 +37,27 @@ class EmbeddingService:
         return cls._instance
     
     def __init__(self):
-        """Initialize Gemini API client."""
-        if not self._api_configured:
-            self._configure_api()
+        """Initialize OpenRouter client for embeddings."""
+        if self._client is None:
+            self._configure_client()
     
     @classmethod
-    def _configure_api(cls):
-        """Configure Google Gemini API once per process."""
-        if not cls._api_configured:
-            api_key = os.getenv("GOOGLE_API_KEY")
+    def _configure_client(cls):
+        """Configure OpenRouter client once per process."""
+        if cls._client is None:
+            api_key = os.getenv("OPENROUTER_API_KEY")
             if not api_key:
-                raise ValueError("GOOGLE_API_KEY environment variable not set")
+                raise ValueError("OPENROUTER_API_KEY environment variable not set")
             
-            genai.configure(api_key=api_key)
-            cls._api_configured = True
-            logger.info(f"Gemini API configured. Model: {cls._model_name}")
+            # Same timeout pattern as agent adapters
+            timeout = httpx.Timeout(120.0, connect=10.0)
+            
+            cls._client = OpenAI(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=api_key,
+                timeout=timeout
+            )
+            logger.info(f"OpenRouter embedding client configured. Model: {cls._model_name}")
     
     def encode_text(self, text: str) -> List[float]:
         """
@@ -66,14 +73,13 @@ class EmbeddingService:
             raise ValueError("Cannot encode empty text")
         
         try:
-            # Generate embedding via Gemini API
-            result = genai.embed_content(
+            response = self._client.embeddings.create(
                 model=self._model_name,
-                content=text,
-                task_type="retrieval_document"
+                input=text,
+                encoding_format="float"
             )
             
-            return result['embedding']
+            return response.data[0].embedding
             
         except Exception as e:
             logger.error(f"Encoding failed: {e}")
@@ -85,7 +91,7 @@ class EmbeddingService:
         
         Args:
             texts: List of input texts
-            batch_size: Number of texts to encode at once (Gemini supports up to 100)
+            batch_size: Number of texts to encode at once
         
         Returns:
             List of 768-dimensional embedding vectors
@@ -104,14 +110,15 @@ class EmbeddingService:
             for i in range(0, len(valid_texts), batch_size):
                 batch = valid_texts[i:i+batch_size]
                 
-                # Batch embed via Gemini API
-                result = genai.embed_content(
+                response = self._client.embeddings.create(
                     model=self._model_name,
-                    content=batch,
-                    task_type="retrieval_document"
+                    input=batch,
+                    encoding_format="float"
                 )
                 
-                all_embeddings.extend(result['embedding'])
+                # Extract embeddings from response
+                batch_embeddings = [data.embedding for data in response.data]
+                all_embeddings.extend(batch_embeddings)
             
             return all_embeddings
             
@@ -237,8 +244,8 @@ class EmbeddingService:
         return {
             "model_name": self._model_name,
             "dimensions": 768,
-            "provider": "Google Gemini",
-            "configured": self._api_configured
+            "provider": "OpenRouter → Google Gemini",
+            "configured": self._client is not None
         }
 
 

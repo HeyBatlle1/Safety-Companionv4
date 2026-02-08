@@ -7,10 +7,11 @@ Requires admin privileges for access.
 
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, and_, func, text
 from sqlalchemy.orm import selectinload
+import json
 import logging
 
 from app.core.deps import get_db
@@ -379,14 +380,13 @@ async def backfill_embeddings(
     batch_size = 10
     processed = 0
     errors = 0
-    offset = 0
-    
-    while processed + errors < total_pending:
-        # Fetch batch
+
+    while True:
+        # Fetch batch (no OFFSET — the NOT EXISTS clause already excludes processed rows)
         fetch_sql = text("""
-            SELECT 
+            SELECT
                 ah.id,
-                ah.metadata,
+                ah.metadata AS jha_metadata,
                 ah.created_at,
                 ah.risk_score
             FROM analysis_history ah
@@ -396,26 +396,32 @@ async def backfill_embeddings(
                 WHERE je.analysis_id = ah.id
             )
             ORDER BY ah.created_at DESC
-            LIMIT :limit OFFSET :offset
+            LIMIT :limit
         """)
-        
+
         batch_result = await db.execute(
             fetch_sql,
-            {"limit": batch_size, "offset": offset}
+            {"limit": batch_size}
         )
         batch = batch_result.fetchall()
-        
+
         if not batch:
             break
-        
+
         # Process each JHA
         for row in batch:
             try:
                 jha_id = row.id
-                metadata = row.metadata
-                
+                jha_meta = row.jha_metadata
+
+                # Handle metadata that may be a string or dict
+                if isinstance(jha_meta, str):
+                    jha_meta = json.loads(jha_meta)
+                if not jha_meta:
+                    jha_meta = {}
+
                 # Extract checklist_data
-                checklist_data = metadata.get("checklist_data", {})
+                checklist_data = jha_meta.get("checklist_data", {})
                 if not checklist_data:
                     logger.warning(f"JHA {jha_id} missing checklist_data, skipping")
                     errors += 1
@@ -498,13 +504,13 @@ async def backfill_embeddings(
                         "equipment_type": equipment_type,
                         "work_type": work_type,
                         "risk_score": risk_score,
-                        "metadata": {
+                        "metadata": json.dumps({
                             "project_name": job_info.get("projectName"),
                             "location": job_info.get("location"),
                             "crew_size": job_info.get("crewSize"),
                             "num_hazards": len(hazards),
                             "supervisor": job_info.get("supervisor")
-                        },
+                        }),
                         "created_at": row.created_at
                     }
                 )
@@ -518,7 +524,6 @@ async def backfill_embeddings(
         
         # Commit batch
         await db.commit()
-        offset += batch_size
     
     elapsed = (datetime.utcnow() - start_time).total_seconds()
     

@@ -22,15 +22,28 @@ import {
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useRecentJHAs } from "@/hooks/use-api";
-import { formatDistanceToNow, isToday, startOfDay } from "date-fns";
+import { formatDistanceToNow, isToday, startOfDay, format } from "date-fns";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { ActivityChart } from "@/components/dashboard/ActivityChart";
 import { ComplianceGauge } from "@/components/dashboard/ComplianceGauge";
 import { SiteConditionsWidget } from "@/components/dashboard/SiteConditionsWidget";
 import { DailyChecklistIcon, ConstructionCraneIcon } from "@/components/ui/custom-icons";
+import { useState, useEffect } from "react";
 
 export default function DashboardPage() {
   const { data: recentJHAs, isLoading } = useRecentJHAs(50);
+
+  // Hydration-safe date - only render on client
+  const [mounted, setMounted] = useState(false);
+  const [currentDate, setCurrentDate] = useState('');
+  const [currentMonth, setCurrentMonth] = useState('');
+
+  useEffect(() => {
+    setMounted(true);
+    const now = new Date();
+    setCurrentDate(format(now, 'EEEE, MMM d'));
+    setCurrentMonth(format(now, 'MMMM yyyy'));
+  }, []);
 
   // Calculate stats
   const totalSubmissions = recentJHAs?.length || 0;
@@ -84,7 +97,7 @@ export default function DashboardPage() {
             <span className="text-xs font-mono font-medium px-2 py-1 rounded bg-secondary border border-white/5 text-muted-foreground">v3.4.0</span>
           </h1>
           <p className="text-sm text-muted-foreground mt-2 max-w-md">
-            Consolidated safety analysis and incident prediction for {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}.
+            Consolidated safety analysis and incident prediction for {mounted ? currentMonth : 'this month'}.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -115,7 +128,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider text-emerald-400/80">Today's JHAs</p>
-                <p className="text-[10px] text-emerald-500/60">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</p>
+                <p className="text-[10px] text-emerald-500/60">{mounted ? currentDate : 'Today'}</p>
               </div>
             </div>
             <div className="flex items-end gap-3">

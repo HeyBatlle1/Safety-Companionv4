@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useAuth } from '@clerk/nextjs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -80,6 +81,7 @@ interface GeneratedEAP {
 export default function EAPResultsPage() {
     const params = useParams();
     const router = useRouter();
+    const { getToken } = useAuth();
     const eapId = params.id as string;
 
     const [eap, setEap] = useState<GeneratedEAP | null>(null);
@@ -91,10 +93,22 @@ export default function EAPResultsPage() {
     useEffect(() => {
         const fetchEAP = async () => {
             try {
+                const token = await getToken();
+                if (!token) {
+                    throw new Error('Please sign in to view this EAP');
+                }
+
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-                const response = await fetch(`${apiUrl}/api/v1/eap/${eapId}`);
+                const response = await fetch(`${apiUrl}/api/v1/eap/${eapId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
 
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        throw new Error('Please sign in to view this EAP');
+                    }
                     throw new Error('Failed to load EAP');
                 }
 
@@ -110,7 +124,7 @@ export default function EAPResultsPage() {
         if (eapId) {
             fetchEAP();
         }
-    }, [eapId]);
+    }, [eapId, getToken]);
 
     const toggleSection = (sectionNum: number) => {
         setExpandedSections(prev => {

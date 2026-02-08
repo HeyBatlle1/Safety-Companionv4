@@ -349,12 +349,13 @@ IMPORTANT:
 - Actions must reference actual job details - not generic like "Review required"
 - Write as if you're the senior safety professional making this call"""
 
-            # 6. Call the LLM
+            # 6. Call the LLM - Use Claude Sonnet 4 for synthesis (better writing)
             result = await self.client.generate(
                 prompt=prompt,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
-                system_instruction=system_instruction
+                system_instruction=system_instruction,
+                adapter_name="openrouter-claude-sonnet-4"  # Agent 4 uses Claude for synthesis
             )
 
             # 7. Merge LLM output with required structure

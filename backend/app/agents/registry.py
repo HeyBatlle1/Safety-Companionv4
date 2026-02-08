@@ -28,13 +28,17 @@ class AgentRegistry:
     def __init__(self, config: dict):
         self.adapters: Dict[str, BaseModelAdapter] = {}
 
-        # Initialize OpenRouter (fallback only - has rate limits)
+        # Initialize OpenRouter models
         if OPENROUTER_AVAILABLE and config.get("openrouter_api_key"):
-            # TESTING: Using Claude Sonnet 4.5 instead of Grok
-            # Original: model="x-ai/grok-4.1-fast"
+            # PRIMARY: Grok for Agents 1, 2, 3 (fast reasoning)
             self.adapters["openrouter-grok"] = OpenRouterAdapter(
                 api_key=config["openrouter_api_key"],
-                model="anthropic/claude-sonnet-4"  # Testing Claude Sonnet 4.5
+                model="x-ai/grok-4.1-fast"
+            )
+            # AGENT 4 ONLY: Claude Sonnet 4.5 for synthesis (better writing)
+            self.adapters["openrouter-claude-sonnet-4"] = OpenRouterAdapter(
+                api_key=config["openrouter_api_key"],
+                model="anthropic/claude-sonnet-4"
             )
             # Paid tier models via OpenRouter (if needed)
             self.adapters["openrouter-claude-sonnet"] = OpenRouterAdapter(
@@ -45,7 +49,7 @@ class AgentRegistry:
                 api_key=config["openrouter_api_key"],
                 model="openai/gpt-4o"
             )
-            print("✅ OpenRouter initialized with anthropic/claude-sonnet-4 (Testing)")
+            print("✅ OpenRouter: Grok for Agents 1-3, Claude Sonnet 4 for Agent 4")
 
         # Initialize Direct Gemini (PREFERRED - use Tier 1 API key, no rate limits)
         if config.get("gemini_api_key"):
@@ -81,9 +85,9 @@ class AgentRegistry:
         Models are configured via database (agent_configurations table)
         """
 
-        # PRIORITY 1: OpenRouter Primary Model (Testing Claude Sonnet 4.5)
+        # PRIORITY 1: OpenRouter Grok for Agents 1-3
         if "openrouter-grok" in self.adapters:
-            print("🚀 Using OpenRouter anthropic/claude-sonnet-4 (Testing)")
+            print("🚀 Using OpenRouter x-ai/grok-4.1-fast")
             return self.adapters["openrouter-grok"]
 
         # PRIORITY 2: Use native Google Gemini if available
@@ -132,3 +136,7 @@ class AgentRegistry:
     def get_available_models(self) -> list[str]:
         """Get list of currently available models"""
         return list(self.adapters.keys())
+
+    def get_adapter(self, adapter_name: str) -> Optional[BaseModelAdapter]:
+        """Get a specific adapter by name"""
+        return self.adapters.get(adapter_name)

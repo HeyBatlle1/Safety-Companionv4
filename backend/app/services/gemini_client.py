@@ -69,24 +69,42 @@ class GeminiClient:
         prompt: str,
         temperature: float,
         max_tokens: int,
-        system_instruction: Optional[str] = None
+        system_instruction: Optional[str] = None,
+        adapter_name: Optional[str] = None
     ) -> dict:
         """
         Route generation request to the best available model via Registry.
+
+        Args:
+            adapter_name: Optional specific adapter to use (e.g. "openrouter-claude-sonnet-4")
         """
         try:
-            # Create task definition
-            task = AgentTask(
-                task_type="generation",
-                input_data={"prompt": prompt},
-                required_capabilities=[ModelCapability.STRUCTURED_OUTPUT],
-                temperature=temperature,
-                max_tokens=max_tokens
-            )
-            
-            # Get best adapter
-            adapter = self.registry.route_task(task)
-            
+            # Get adapter - either specific one or route automatically
+            if adapter_name:
+                adapter = self.registry.get_adapter(adapter_name)
+                if not adapter:
+                    print(f"⚠️ Adapter {adapter_name} not found, falling back to default")
+                    adapter = self.registry.route_task(AgentTask(
+                        task_type="generation",
+                        input_data={"prompt": prompt},
+                        required_capabilities=[ModelCapability.STRUCTURED_OUTPUT],
+                        temperature=temperature,
+                        max_tokens=max_tokens
+                    ))
+                else:
+                    print(f"🎯 Using specific adapter: {adapter_name}")
+            else:
+                # Create task definition
+                task = AgentTask(
+                    task_type="generation",
+                    input_data={"prompt": prompt},
+                    required_capabilities=[ModelCapability.STRUCTURED_OUTPUT],
+                    temperature=temperature,
+                    max_tokens=max_tokens
+                )
+                # Get best adapter
+                adapter = self.registry.route_task(task)
+
             # Compatibility: If adapter doesn't support system_instruction natively
             # (like OpenRouter adapter might not), prepend it to prompt
             final_prompt = prompt
@@ -100,13 +118,13 @@ class GeminiClient:
                 temperature=temperature,
                 max_tokens=max_tokens
             )
-            
+
             # OpenRouter adapter returns dict with 'text' field
             # Google adapter returns dict with 'text' field
             # Helper extracts JSON
             response_text = result.get("text", "")
             return self._extract_json(response_text)
-            
+
         except Exception as e:
             print(f"❌ AI Generation error: {e}")
             raise

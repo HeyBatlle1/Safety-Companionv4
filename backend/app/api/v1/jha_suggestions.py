@@ -56,13 +56,12 @@ Example for "Glazing Curtainwall" in "Alaska" with "fall, weather" hazards:
 Generate suggestions now:"""
     
     try:
-        # Use OpenRouter (Testing Claude Sonnet 4.5), fallback to Gemini
-        # Original: model="x-ai/grok-4.1-fast"
+        # Use OpenRouter with Grok 4.1 fast (preferred), fallback to Gemini
         if settings.openrouter_api_key:
             from app.agents.adapters.openrouter import OpenRouterAdapter
             adapter = OpenRouterAdapter(
                 api_key=settings.openrouter_api_key,
-                model="anthropic/claude-sonnet-4"  # Testing Claude Sonnet 4.5
+                model="x-ai/grok-4.1-fast"
             )
         else:
             from app.agents.adapters.google import GoogleGeminiAdapter

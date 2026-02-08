@@ -23,8 +23,10 @@ import {
     CaretRight,
     UserCircle,
     IdentificationBadge,
+    FileText,
 } from '@phosphor-icons/react';
 import { SignOutButton } from '@clerk/nextjs';
+import { WorkerDocuments } from '@/components/profile/WorkerDocuments';
 
 // Role Display Config
 const ROLE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
@@ -266,30 +268,14 @@ export default function ProfilePage() {
                 </div>
             </motion.div>
 
-            {/* Certifications */}
+            {/* Worker Documents - Certifications, Drug Tests, HazCom */}
             <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 }}
-                className="rounded-xl bg-card border border-white/5 mb-4"
+                className="mb-4"
             >
-                <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Certifications</span>
-                    <span className="text-[10px] text-muted-foreground">{(user as any)?.certifications?.length || 0}</span>
-                </div>
-                <div className="p-4">
-                    {(user as any)?.certifications?.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                            {(user as any).certifications.map((cert: any, idx: number) => (
-                                <div key={idx} className="px-2 py-1 rounded-md bg-primary/10 border border-primary/20 text-xs font-medium text-primary">
-                                    {typeof cert === 'string' ? cert : cert.name}
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-sm text-muted-foreground">No certifications on file.</p>
-                    )}
-                </div>
+                <WorkerDocuments />
             </motion.div>
 
             {/* Active Sites */}

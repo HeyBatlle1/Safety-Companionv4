@@ -67,12 +67,14 @@ async def startup_event():
 app.add_middleware(SecurityHeadersMiddleware)
 
 # CORS middleware - Secure configuration for production
-# Only allow specific Vercel deployments, not wildcard
+# Allow specific deployments and custom domains
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         *settings.cors_origins,
-        "https://safety-compv3-gzvb.vercel.app",  # Production frontend
+        "https://safety-compv3-gzvb.vercel.app",  # Vercel deployment
+        "https://www.safebase3.com",  # Custom domain (www)
+        "https://safebase3.com",  # Custom domain (root)
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
@@ -116,9 +118,15 @@ async def global_exception_handler(request: Request, exc: Exception):
     
     # Determine allow origin from request to be dynamic but safe
     origin = request.headers.get("origin", "*")
-    if origin not in settings.cors_origins:
+    allowed_origins = [
+        *settings.cors_origins,
+        "https://www.safebase3.com",
+        "https://safebase3.com",
+        "https://safety-compv3-gzvb.vercel.app"
+    ]
+    if origin not in allowed_origins:
         # If not in allowed list, fallback to first allowed or *
-        origin = settings.cors_origins[0] if settings.cors_origins else "*"
+        origin = allowed_origins[0] if allowed_origins else "*"
 
     return JSONResponse(
         status_code=status_code,

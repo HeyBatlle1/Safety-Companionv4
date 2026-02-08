@@ -25,9 +25,11 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None  # Anthropic Claude (production vision)
     openweather_api_key: str | None = None  # Weather data for smart cards
 
-    # Security - Production Vercel URL always included
+    # Security - Production URLs always included
     cors_origins: list[str] = [
-        "https://safety-compv3-gzvb.vercel.app",  # Production frontend (REQUIRED)
+        "https://safety-compv3-gzvb.vercel.app",  # Vercel deployment
+        "https://www.safebase3.com",  # Custom domain (www)
+        "https://safebase3.com",  # Custom domain (root)
         "http://localhost:3000",
         "http://localhost:5173",
         "http://localhost:5000"
@@ -44,6 +46,8 @@ class Settings(BaseSettings):
         if v is None:
             return [
                 "https://safety-compv3-gzvb.vercel.app",
+                "https://www.safebase3.com",
+                "https://safebase3.com",
                 "http://localhost:3000",
                 "http://localhost:5173"
             ]

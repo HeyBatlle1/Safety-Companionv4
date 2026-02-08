@@ -7,10 +7,11 @@ Requires admin privileges for access.
 
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete, and_, func
+from sqlalchemy import select, update, delete, and_, func, text
 from sqlalchemy.orm import selectinload
+import logging
 
 from app.core.deps import get_db
 from app.models.agent_config import AgentConfiguration, AgentPerformanceLog, DEFAULT_AGENT_CONFIGS
@@ -27,6 +28,8 @@ from app.schemas.agent_config import (
 )
 
 from app.core.auth import require_admin
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["Admin - Agent Configuration"])
 
@@ -320,6 +323,218 @@ async def get_available_models():
     Get list of all available AI models with their capabilities.
     """
     return {"models": AVAILABLE_MODELS}
+
+
+# ========== VECTOR EMBEDDING BACKFILL ==========
+
+@router.post("/backfill-embeddings")
+async def backfill_embeddings(
+    current_user: Any = Depends(require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    ONE-TIME OPERATION: Generate embeddings for all historical JHAs.
+    
+    - Processes all JHAs in analysis_history without embeddings
+    - Batch processing (10 at a time) with progress tracking
+    - Idempotent: safe to run multiple times (skips already embedded)
+    - Returns stats: processed count, errors, time elapsed
+    
+    Run this once after deploying vector infrastructure.
+    Subsequent JHAs will be embedded automatically on creation.
+    """
+    from app.services.embedding_service import embedding_service
+    
+    start_time = datetime.utcnow()
+    logger.info("=== EMBEDDING BACKFILL STARTING ===")
+    
+    # Count JHAs needing embeddings
+    count_sql = text("""
+        SELECT COUNT(*)
+        FROM analysis_history ah
+        WHERE ah.type = 'jha_multi_agent_analysis'
+        AND NOT EXISTS (
+            SELECT 1 FROM jha_embeddings je
+            WHERE je.analysis_id = ah.id
+        )
+    """)
+    result = await db.execute(count_sql)
+    total_pending = result.scalar()
+    
+    if total_pending == 0:
+        return {
+            "status": "complete",
+            "message": "No JHAs need embeddings - all up to date",
+            "stats": {
+                "total_jhas": 0,
+                "processed": 0,
+                "errors": 0,
+                "time_elapsed_seconds": 0
+            }
+        }
+    
+    logger.info(f"Found {total_pending} JHAs needing embeddings")
+    
+    # Process in batches
+    batch_size = 10
+    processed = 0
+    errors = 0
+    offset = 0
+    
+    while processed + errors < total_pending:
+        # Fetch batch
+        fetch_sql = text("""
+            SELECT 
+                ah.id,
+                ah.metadata,
+                ah.created_at,
+                ah.risk_score
+            FROM analysis_history ah
+            WHERE ah.type = 'jha_multi_agent_analysis'
+            AND NOT EXISTS (
+                SELECT 1 FROM jha_embeddings je
+                WHERE je.analysis_id = ah.id
+            )
+            ORDER BY ah.created_at DESC
+            LIMIT :limit OFFSET :offset
+        """)
+        
+        batch_result = await db.execute(
+            fetch_sql,
+            {"limit": batch_size, "offset": offset}
+        )
+        batch = batch_result.fetchall()
+        
+        if not batch:
+            break
+        
+        # Process each JHA
+        for row in batch:
+            try:
+                jha_id = row.id
+                metadata = row.metadata
+                
+                # Extract checklist_data
+                checklist_data = metadata.get("checklist_data", {})
+                if not checklist_data:
+                    logger.warning(f"JHA {jha_id} missing checklist_data, skipping")
+                    errors += 1
+                    continue
+                
+                # Build searchable text
+                job_info = checklist_data.get("jobInfo", {})
+                hazards = checklist_data.get("hazards", [])
+                control_measures = checklist_data.get("controlMeasures", {})
+                
+                text_parts = []
+                
+                if desc := job_info.get("projectName"):
+                    text_parts.append(f"Project: {desc}")
+                if work_type := job_info.get("workType"):
+                    text_parts.append(f"Work Type: {work_type}")
+                if location := job_info.get("location"):
+                    text_parts.append(f"Location: {location}")
+                
+                if hazards:
+                    hazard_texts = [h.get("description", "")[:500] for h in hazards]
+                    if hazard_texts:
+                        text_parts.append(f"Hazards: {' | '.join(hazard_texts)}")
+                
+                if ppe := control_measures.get("ppe"):
+                    if isinstance(ppe, list) and ppe:
+                        text_parts.append(f"PPE: {'; '.join(ppe[:3])}")
+                
+                if procedures := control_measures.get("procedures"):
+                    if isinstance(procedures, list) and procedures:
+                        text_parts.append(f"Procedures: {'; '.join(procedures[:2])}")
+                
+                searchable_text = " | ".join(text_parts)
+                
+                # Generate embedding
+                embedding = embedding_service.encode_text(searchable_text)
+                
+                # Extract metadata
+                hazard_category = hazards[0].get("category", "Unknown") if hazards else "Unknown"
+                work_type = job_info.get("workType", "Unknown")
+                equipment_type = "Unknown"
+                
+                risk_score = row.risk_score
+                if not risk_score and hazards:
+                    high_severity = sum(1 for h in hazards if h.get("severity") == "high")
+                    risk_score = min(high_severity * 3, 10)
+                
+                # Insert embedding
+                insert_sql = text("""
+                    INSERT INTO jha_embeddings (
+                        analysis_id,
+                        embedding,
+                        content_type,
+                        hazard_category,
+                        equipment_type,
+                        work_type,
+                        risk_score,
+                        metadata,
+                        created_at
+                    )
+                    VALUES (
+                        :analysis_id,
+                        :embedding::vector,
+                        'jha_analysis',
+                        :hazard_category,
+                        :equipment_type,
+                        :work_type,
+                        :risk_score,
+                        :metadata::jsonb,
+                        :created_at
+                    )
+                """)
+                
+                await db.execute(
+                    insert_sql,
+                    {
+                        "analysis_id": jha_id,
+                        "embedding": str(embedding),
+                        "hazard_category": hazard_category,
+                        "equipment_type": equipment_type,
+                        "work_type": work_type,
+                        "risk_score": risk_score,
+                        "metadata": {
+                            "project_name": job_info.get("projectName"),
+                            "location": job_info.get("location"),
+                            "crew_size": job_info.get("crewSize"),
+                            "num_hazards": len(hazards),
+                            "supervisor": job_info.get("supervisor")
+                        },
+                        "created_at": row.created_at
+                    }
+                )
+                
+                processed += 1
+                logger.info(f"✓ Embedded JHA {jha_id[:8]}... ({processed}/{total_pending})")
+                
+            except Exception as e:
+                errors += 1
+                logger.error(f"✗ Failed to embed JHA {row.id}: {e}")
+        
+        # Commit batch
+        await db.commit()
+        offset += batch_size
+    
+    elapsed = (datetime.utcnow() - start_time).total_seconds()
+    
+    logger.info("=== EMBEDDING BACKFILL COMPLETE ===")
+    logger.info(f"Processed: {processed}, Errors: {errors}, Time: {elapsed:.1f}s")
+    
+    return {
+        "status": "complete",
+        "message": f"Successfully embedded {processed} JHAs",
+        "stats": {
+            "total_jhas": total_pending,
+            "processed": processed,
+            "errors": errors,
+            "time_elapsed_seconds": round(elapsed, 1)
+        }
+    }
 
 
 async def _create_default_configs(db: AsyncSession, user_id: str) -> List[AgentConfiguration]:

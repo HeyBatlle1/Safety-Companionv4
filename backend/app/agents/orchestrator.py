@@ -22,6 +22,7 @@ from app.agents.profiles.agent_2_risk_assessor import Agent2RiskAssessor
 from app.agents.profiles.agent_3_incident_predictor import Agent3IncidentPredictor
 from app.agents.profiles.agent_4_llm_synthesizer import Agent4LLMSynthesizer
 from app.agents.profiles.agent_4_synthesizer import Agent4Synthesizer  # Fallback
+from app.services.vector_search import VectorSearchService
 from app.models.analysis import AnalysisHistory
 from app.api.v1.jha_stream import push_progress
 from app.services.report_formatter import ReportFormatter
@@ -34,7 +35,7 @@ class SafetyAnalysisOrchestrator:
     Executes 4-agent safety analysis:
     1. Agent 1: Validate data → validation
     2. Agent 2: Assess risk (with validation + OSHA data) → risk
-    3. Agent 3: Predict incident (with risk + validation) → prediction
+    3. Agent 3: Predict incident (with risk + validation + vector search) → prediction
     4. Agent 4: Synthesize report (with all outputs) → final_report
     """
     
@@ -61,7 +62,9 @@ class SafetyAnalysisOrchestrator:
         # Initialize agents
         self.agent_1 = Agent1Validator(self.gemini_client)
         self.agent_2 = Agent2RiskAssessor(self.gemini_client, db)
-        self.agent_3 = Agent3IncidentPredictor(self.gemini_client)
+        # Wire vector search into Agent 3 for historical pattern matching
+        vector_search = VectorSearchService(db) if db else None
+        self.agent_3 = Agent3IncidentPredictor(self.gemini_client, vector_search=vector_search)
         self.agent_4 = Agent4LLMSynthesizer(self.gemini_client)  # LLM-powered synthesis
     
     async def analyze(
@@ -80,7 +83,7 @@ class SafetyAnalysisOrchestrator:
         Flow (from V1 lines 764-797):
         1. Agent 1: Validate data → validation
         2. Agent 2: Assess risk (with validation + OSHA data) → risk
-        3. Agent 3: Predict incident (with risk + validation) → prediction
+        3. Agent 3: Predict incident (with risk + validation + vector search) → prediction
         4. Agent 4: Synthesize report (LLM-powered with Python fallback) → final_report
 
         Error handling:
@@ -164,7 +167,7 @@ class SafetyAnalysisOrchestrator:
             await self.save_agent_output(analysis_id, "agent_2", "Risk Assessor", risk)
             
             # ═══════════════════════════════════════════
-            # AGENT 3: INCIDENT PREDICTOR
+            # AGENT 3: INCIDENT PREDICTOR (WITH VECTOR SEARCH)
             # ═══════════════════════════════════════════
             await update_progress("agent3_prediction", "running", 55)
             print(f"🔮 Agent 3: Predicting incidents...")

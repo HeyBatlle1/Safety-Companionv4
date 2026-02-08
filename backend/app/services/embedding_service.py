@@ -1,15 +1,15 @@
 """
-Embedding Service - Sentence-Transformers Integration
-Uses all-MiniLM-L6-v2 (384 dimensions) for semantic search over safety data.
-NO OPENAI - Fully open-source, runs locally.
+Embedding Service - Google Gemini Integration
+Uses gemini-embedding-001 (768 dimensions) for semantic search over safety data.
+NO OPENAI - Google's embeddings API.
 """
 
 import logging
 from typing import List, Optional, Dict, Any
 import numpy as np
-from sentence_transformers import SentenceTransformer
+import os
 from functools import lru_cache
-import torch
+import google.generativeai as genai
 
 logger = logging.getLogger(__name__)
 
@@ -18,40 +18,39 @@ class EmbeddingService:
     """
     Handles embedding generation for JHAs, hazards, and Swiss Cheese chains.
     
-    Model: all-MiniLM-L6-v2
-    - Dimensions: 384 (vs OpenAI 1536 = 4x faster)
-    - Performance: 85% of OpenAI quality
-    - Speed: ~3000 sentences/sec on CPU
-    - Cost: FREE (no API)
-    - Size: ~80MB
+    Model: gemini-embedding-001
+    - Dimensions: 768
+    - Provider: Google AI
+    - Speed: Fast API-based encoding
+    - Cost: FREE (up to quota)
     """
     
     _instance = None
-    _model = None
-    _model_name = "sentence-transformers/all-MiniLM-L6-v2"
+    _model_name = "models/embedding-001"
+    _api_configured = False
     
     def __new__(cls):
-        """Singleton pattern - one model instance per process."""
+        """Singleton pattern - one client instance per process."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
     
     def __init__(self):
-        """Initialize lazily - model loads on first use."""
-        pass
+        """Initialize Gemini API client."""
+        if not self._api_configured:
+            self._configure_api()
     
     @classmethod
-    def _load_model(cls):
-        """Load model once, cache for process lifetime."""
-        if cls._model is None:
-            logger.info(f"Loading embedding model: {cls._model_name}")
-            try:
-                cls._model = SentenceTransformer(cls._model_name)
-                logger.info(f"Model loaded successfully. Dimensions: 384")
-            except Exception as e:
-                logger.error(f"Failed to load embedding model: {e}")
-                raise
-        return cls._model
+    def _configure_api(cls):
+        """Configure Google Gemini API once per process."""
+        if not cls._api_configured:
+            api_key = os.getenv("GOOGLE_API_KEY")
+            if not api_key:
+                raise ValueError("GOOGLE_API_KEY environment variable not set")
+            
+            genai.configure(api_key=api_key)
+            cls._api_configured = True
+            logger.info(f"Gemini API configured. Model: {cls._model_name}")
     
     def encode_text(self, text: str) -> List[float]:
         """
@@ -61,34 +60,35 @@ class EmbeddingService:
             text: Input text (JHA description, hazard, etc.)
         
         Returns:
-            384-dimensional embedding vector
+            768-dimensional embedding vector
         """
         if not text or not text.strip():
             raise ValueError("Cannot encode empty text")
         
-        model = self._load_model()
-        
         try:
-            # Generate embedding (numpy array)
-            embedding = model.encode(text, convert_to_numpy=True)
+            # Generate embedding via Gemini API
+            result = genai.embed_content(
+                model=self._model_name,
+                content=text,
+                task_type="retrieval_document"
+            )
             
-            # Convert to Python list for JSON serialization
-            return embedding.tolist()
+            return result['embedding']
             
         except Exception as e:
             logger.error(f"Encoding failed: {e}")
             raise
     
-    def encode_batch(self, texts: List[str], batch_size: int = 32) -> List[List[float]]:
+    def encode_batch(self, texts: List[str], batch_size: int = 100) -> List[List[float]]:
         """
         Generate embeddings for multiple texts efficiently.
         
         Args:
             texts: List of input texts
-            batch_size: Number of texts to encode at once (default 32)
+            batch_size: Number of texts to encode at once (Gemini supports up to 100)
         
         Returns:
-            List of 384-dimensional embedding vectors
+            List of 768-dimensional embedding vectors
         """
         if not texts:
             return []
@@ -98,19 +98,22 @@ class EmbeddingService:
         if not valid_texts:
             raise ValueError("No valid texts to encode")
         
-        model = self._load_model()
-        
         try:
-            # Batch encode for efficiency
-            embeddings = model.encode(
-                valid_texts,
-                batch_size=batch_size,
-                convert_to_numpy=True,
-                show_progress_bar=False
-            )
+            # Process in batches
+            all_embeddings = []
+            for i in range(0, len(valid_texts), batch_size):
+                batch = valid_texts[i:i+batch_size]
+                
+                # Batch embed via Gemini API
+                result = genai.embed_content(
+                    model=self._model_name,
+                    content=batch,
+                    task_type="retrieval_document"
+                )
+                
+                all_embeddings.extend(result['embedding'])
             
-            # Convert to list of lists
-            return [emb.tolist() for emb in embeddings]
+            return all_embeddings
             
         except Exception as e:
             logger.error(f"Batch encoding failed: {e}")
@@ -233,9 +236,9 @@ class EmbeddingService:
         """Return model metadata for debugging."""
         return {
             "model_name": self._model_name,
-            "dimensions": 384,
-            "loaded": self._model is not None,
-            "device": str(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+            "dimensions": 768,
+            "provider": "Google Gemini",
+            "configured": self._api_configured
         }
 
 

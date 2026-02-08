@@ -12,9 +12,10 @@ import {
     Plus,
     FilePdf,
     Image as ImageIcon,
-    Target,
+    Camera,
     CheckCircle,
-    Warning
+    Warning,
+    Trash
 } from '@phosphor-icons/react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -46,45 +47,41 @@ interface VisionCaptureProps {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════
-// CATEGORY CONFIG - PREMIUM GRADIENTS
+// CATEGORY CONFIG - CLEAN & PROFESSIONAL
 // ════════════════════════════════════════════════════════════════════════════════
 
 const CAPTURE_CATEGORIES = [
     {
         id: 'site' as const,
-        label: 'SITE SCAN',
+        label: 'Site',
         icon: MapPin,
-        gradient: 'from-blue-600 to-indigo-600',
-        glow: 'shadow-blue-500/20',
-        description: 'Area & conditions',
-        accent: 'text-blue-400'
+        color: 'text-blue-400',
+        bg: 'bg-blue-500/10 hover:bg-blue-500/20',
+        border: 'border-blue-500/20'
     },
     {
         id: 'equipment' as const,
-        label: 'GEAR CHECK',
+        label: 'Equipment',
         icon: Wrench,
-        gradient: 'from-orange-600 to-amber-600',
-        glow: 'shadow-orange-500/20',
-        description: 'Tools & machinery',
-        accent: 'text-orange-400'
+        color: 'text-orange-400',
+        bg: 'bg-orange-500/10 hover:bg-orange-500/20',
+        border: 'border-orange-500/20'
     },
     {
         id: 'ppe' as const,
-        label: 'PPE VERIFY',
+        label: 'PPE',
         icon: HardHat,
-        gradient: 'from-emerald-600 to-teal-600',
-        glow: 'shadow-emerald-500/20',
-        description: 'Safety gear status',
-        accent: 'text-emerald-400'
+        color: 'text-emerald-400',
+        bg: 'bg-emerald-500/10 hover:bg-emerald-500/20',
+        border: 'border-emerald-500/20'
     },
     {
         id: 'materials' as const,
-        label: 'STOCK MAPPING',
+        label: 'Materials',
         icon: Package,
-        gradient: 'from-fuchsia-600 to-pink-600',
-        glow: 'shadow-fuchsia-500/20',
-        description: 'Staging & storage',
-        accent: 'text-fuchsia-400'
+        color: 'text-purple-400',
+        bg: 'bg-purple-500/10 hover:bg-purple-500/20',
+        border: 'border-purple-500/20'
     }
 ];
 
@@ -215,10 +212,19 @@ export function VisionCapture({
         onDocumentsChange?.(updated);
     }, [documents, onDocumentsChange]);
 
+    const clearAll = useCallback(() => {
+        setImages([]);
+        setDocuments([]);
+        onImagesChange?.([]);
+        onDocumentsChange?.([]);
+    }, [onImagesChange, onDocumentsChange]);
+
+    const totalItems = images.length + documents.length;
+
     return (
-        <div className="space-y-6">
-            {/* Category Grid */}
-            <div className="grid grid-cols-2 gap-3 pb-2">
+        <div className="space-y-4">
+            {/* Compact Category Buttons */}
+            <div className="flex flex-wrap gap-2">
                 {CAPTURE_CATEGORIES.map((category) => {
                     const Icon = category.icon;
                     const count = images.filter(img => img.category === category.id).length;
@@ -229,66 +235,52 @@ export function VisionCapture({
                             onClick={() => handleCapture(category)}
                             disabled={disabled || images.length >= maxImages}
                             className={cn(
-                                "group relative flex flex-col items-center justify-center p-6 rounded-3xl transition-all duration-300",
-                                "min-h-[140px] border border-white/5 bg-white/5 backdrop-blur-md",
-                                "hover:bg-white/10 hover:border-white/20 active:scale-95",
-                                "shadow-2xl overflow-hidden",
+                                "flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all",
+                                "border text-sm font-medium",
+                                category.bg,
+                                category.border,
                                 disabled && "opacity-50 cursor-not-allowed"
                             )}
                         >
-                            {/* Gradient Background Layer on Hover */}
-                            <div className={cn(
-                                "absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-10 transition-opacity duration-500",
-                                category.gradient
-                            )} />
-
-                            <div className={cn(
-                                "p-3 rounded-2xl mb-3 transition-transform duration-500 group-hover:scale-110 group-hover:-translate-y-1",
-                                "bg-gradient-to-br",
-                                category.gradient,
-                                category.glow
-                            )}>
-                                <Icon weight="fill" size={32} className="text-white" />
-                            </div>
-
-                            <div className="text-center relative z-10">
-                                <span className="block font-black text-xs tracking-widest text-white">{category.label}</span>
-                                <span className="block text-[9px] font-mono text-gray-500 mt-0.5 uppercase">{category.description}</span>
-                            </div>
-
-                            {/* Count Badge */}
+                            <Icon weight="bold" size={18} className={category.color} />
+                            <span className="text-white">{category.label}</span>
                             {count > 0 && (
-                                <Badge className="absolute top-3 right-3 bg-white text-black font-black border-none px-2 py-0.5 text-[10px] animate-in zoom-in">
+                                <Badge className="bg-white/20 text-white text-xs px-1.5 py-0 ml-1">
                                     {count}
                                 </Badge>
                             )}
-
-                            {/* HUD Corners */}
-                            <div className="absolute top-2 left-2 w-2 h-2 border-t border-l border-white/10 group-hover:border-white/40" />
-                            <div className="absolute bottom-2 right-2 w-2 h-2 border-b border-r border-white/10 group-hover:border-white/40" />
                         </button>
                     );
                 })}
             </div>
 
-            {/* Utility Rows */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Utility Buttons Row */}
+            <div className="flex gap-2">
                 <button
                     onClick={handleGalleryUpload}
                     disabled={disabled || images.length >= maxImages}
-                    className="flex items-center justify-center gap-2 p-4 rounded-2xl border border-white/5 bg-white/5 text-gray-400 text-xs font-bold hover:bg-white/10 transition-all uppercase tracking-tight"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-gray-400 text-sm font-medium hover:bg-white/10 transition-all disabled:opacity-50"
                 >
-                    <ImageIcon weight="bold" size={18} />
-                    Gallery
+                    <ImageIcon weight="bold" size={16} />
+                    <span>Gallery</span>
                 </button>
                 <button
                     onClick={handleDocumentUpload}
                     disabled={disabled || documents.length >= maxDocuments}
-                    className="flex items-center justify-center gap-2 p-4 rounded-2xl border border-white/5 bg-white/5 text-gray-400 text-xs font-bold hover:bg-white/10 transition-all uppercase tracking-tight"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-gray-400 text-sm font-medium hover:bg-white/10 transition-all disabled:opacity-50"
                 >
-                    <Plus weight="bold" size={18} />
-                    DWG/PDF
+                    <FilePdf weight="bold" size={16} />
+                    <span>PDF</span>
                 </button>
+                {totalItems > 0 && (
+                    <button
+                        onClick={clearAll}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-500/20 bg-red-500/10 text-red-400 text-sm font-medium hover:bg-red-500/20 transition-all ml-auto"
+                    >
+                        <Trash weight="bold" size={16} />
+                        <span>Clear All</span>
+                    </button>
+                )}
             </div>
 
             {/* Hidden Inputs */}
@@ -296,62 +288,64 @@ export function VisionCapture({
             <input ref={galleryInputRef} type="file" accept="image/*" multiple onChange={handleGalleryChange} className="hidden" />
             <input ref={documentInputRef} type="file" accept=".pdf" onChange={handleDocumentChange} className="hidden" />
 
-            {/* Previews */}
-            {(images.length > 0 || documents.length > 0) && (
-                <div className="space-y-4 pt-4 border-t border-white/5">
-                    <div className="flex items-center justify-between px-1">
-                        <div className="flex items-center gap-2">
-                            <Target weight="fill" className="text-violet-500" />
-                            <h3 className="text-xs font-black text-white tracking-widest uppercase">Payload Queue</h3>
-                        </div>
-                        <button
-                            onClick={() => { setImages([]); setDocuments([]); onImagesChange?.([]); onDocumentsChange?.([]); }}
-                            className="text-[10px] text-red-500/60 font-black uppercase tracking-tighter hover:text-red-400"
-                        >
-                            Flush All
-                        </button>
+            {/* Preview Grid */}
+            {totalItems > 0 && (
+                <div className="space-y-3 pt-2">
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                            {totalItems} file{totalItems !== 1 ? 's' : ''} ready
+                        </span>
                     </div>
 
-                    {/* Image Grid */}
+                    {/* Image Grid - Compact */}
                     {images.length > 0 && (
-                        <div className="grid grid-cols-3 gap-3">
-                            {images.map((img) => (
-                                <div key={img.id} className="relative group aspect-square rounded-2xl overflow-hidden border border-white/10 shadow-lg">
-                                    <NextImage src={img.preview} alt="Captured" fill className="object-cover" unoptimized />
-                                    <div className="absolute inset-x-0 bottom-0 p-1.5 bg-gradient-to-t from-black/80 to-transparent">
-                                        <Badge className="bg-white/10 text-white border-white/20 text-[8px] px-1 py-0 uppercase">
-                                            {img.category}
-                                        </Badge>
+                        <div className="grid grid-cols-4 gap-2">
+                            {images.map((img) => {
+                                const cat = CAPTURE_CATEGORIES.find(c => c.id === img.category);
+                                return (
+                                    <div key={img.id} className="relative group aspect-square rounded-lg overflow-hidden border border-white/10">
+                                        <NextImage src={img.preview} alt="Captured" fill className="object-cover" unoptimized />
+                                        {/* Category indicator */}
+                                        <div className={cn("absolute bottom-0 left-0 right-0 py-1 px-1.5 bg-black/60", cat?.color)}>
+                                            <span className="text-[9px] font-medium uppercase">{img.category}</span>
+                                        </div>
+                                        {/* Remove button */}
+                                        <button
+                                            onClick={() => removeImage(img.id)}
+                                            className="absolute top-1 right-1 p-1 bg-black/60 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                                        >
+                                            <X weight="bold" size={10} />
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => removeImage(img.id)}
-                                        className="absolute top-1 right-1 p-1 bg-red-600 rounded-lg text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                        <X weight="bold" size={12} />
-                                    </button>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
 
-                    {/* Document List */}
+                    {/* Document List - Compact */}
                     {documents.length > 0 && (
-                        <div className="space-y-2">
+                        <div className="space-y-1">
                             {documents.map((doc) => (
-                                <div key={doc.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 rounded-xl bg-violet-600/20">
-                                            <FilePdf weight="fill" className="text-violet-400" />
-                                        </div>
-                                        <span className="text-xs text-gray-300 font-mono truncate max-w-[150px]">{doc.name}</span>
+                                <div key={doc.id} className="flex items-center justify-between p-2 bg-white/5 rounded-lg border border-white/5">
+                                    <div className="flex items-center gap-2">
+                                        <FilePdf weight="fill" size={16} className="text-red-400" />
+                                        <span className="text-xs text-gray-300 truncate max-w-[180px]">{doc.name}</span>
                                     </div>
-                                    <button onClick={() => removeDocument(doc.id)} className="text-gray-600 hover:text-red-500 transition-colors">
-                                        <X weight="bold" size={16} />
+                                    <button onClick={() => removeDocument(doc.id)} className="text-gray-500 hover:text-red-400 transition-colors">
+                                        <X weight="bold" size={14} />
                                     </button>
                                 </div>
                             ))}
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* Empty State */}
+            {totalItems === 0 && (
+                <div className="text-center py-8 border border-dashed border-white/10 rounded-xl">
+                    <Camera weight="thin" size={32} className="mx-auto text-gray-600 mb-2" />
+                    <p className="text-sm text-gray-500">Tap a category above to capture photos</p>
                 </div>
             )}
         </div>

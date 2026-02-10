@@ -72,9 +72,9 @@ class APIClient {
         return this.request<JHAAnalysisResponse>(`/jha/${id}`, { token });
     }
 
-    // Weather Endpoint
-    async getWeather(lat: number, lon: number) {
-        return this.request(`/weather?lat=${lat}&lon=${lon}`);
+    // Weather Endpoint - takes city name (e.g., "Indianapolis" or "Indianapolis,IN,US")
+    async getWeather(location: string) {
+        return this.request(`/weather/current/${encodeURIComponent(location)}`);
     }
 
     // Dashboard Stats (placeholder - will need backend endpoint)

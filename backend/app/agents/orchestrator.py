@@ -17,7 +17,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.services.gemini_client import GeminiClient
-from app.services.weather_service import WeatherService
 from app.agents.profiles.agent_1_validator import Agent1Validator
 from app.agents.profiles.agent_2_risk_assessor import Agent2RiskAssessor
 from app.agents.profiles.agent_3_incident_predictor import Agent3IncidentPredictor
@@ -409,6 +408,168 @@ class SafetyAnalysisOrchestrator:
         
         return categories or ["general_safety"]
     
+    async def _fetch_weather(self, location: str) -> Dict[str, Any]:
+        """Fetch weather data directly from OpenWeather API"""
+        import httpx
+        from app.core.config import get_settings
+
+        if not location:
+            print("⚠️ No location provided for weather fetch")
+            return {
+                "fetch_status": "FAILED",
+                "error": "No location provided",
+                "temperature": 70,
+                "windSpeed": 5,
+                "conditions": "Unknown"
+            }
+
+        settings = get_settings()
+        api_key = settings.openweather_api_key
+
+        if not api_key:
+            print("⚠️ OPENWEATHER_API_KEY not set, using fallback weather")
+            return {
+                "fetch_status": "FAILED",
+                "error": "OpenWeather API key not configured",
+                "temperature": 70,
+                "windSpeed": 5,
+                "conditions": "Unknown"
+            }
+
+        try:
+            # Extract city name from address (take first part before comma)
+            city = location.split(",")[0].strip()
+
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    "https://api.openweathermap.org/data/2.5/weather",
+                    params={
+                        "q": city,
+                        "appid": api_key,
+                        "units": "imperial"
+                    },
+                    timeout=10.0
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+                    temp = data["main"]["temp"]
+                    feels_like = data["main"]["feels_like"]
+                    humidity = data["main"]["humidity"]
+                    wind_speed = data["wind"]["speed"]
+                    conditions = data["weather"][0]["description"]
+
+                    print(f"🌤️ Weather fetched for {city}: {temp}°F, {wind_speed}mph wind")
+
+                    # Calculate safety status
+                    safety_status = self._calculate_weather_safety(temp, wind_speed, humidity)
+
+                    return {
+                        "fetch_status": "SUCCESS",
+                        "temperature": round(temp, 1),
+                        "feelsLike": round(feels_like, 1),
+                        "windSpeed": round(wind_speed, 1),
+                        "windGust": round(data["wind"].get("gust", wind_speed), 1),
+                        "conditions": conditions.title(),
+                        "humidity": humidity,
+                        "visibility": data.get("visibility", 10000) / 1000,  # Convert to km
+                        "safetyStatus": safety_status,
+                        "alerts": self._generate_weather_alerts(temp, wind_speed, humidity),
+                        "source": "OpenWeather"
+                    }
+                elif response.status_code == 404:
+                    print(f"⚠️ Location not found: {city}")
+                    return {
+                        "fetch_status": "FAILED",
+                        "error": f"Location not found: {city}",
+                        "temperature": 70,
+                        "windSpeed": 5,
+                        "conditions": "Unknown"
+                    }
+                else:
+                    print(f"⚠️ OpenWeather API returned status {response.status_code}")
+                    return {
+                        "fetch_status": "FAILED",
+                        "error": f"API returned status {response.status_code}",
+                        "temperature": 70,
+                        "windSpeed": 5,
+                        "conditions": "Unknown"
+                    }
+
+        except Exception as e:
+            print(f"⚠️ Weather fetch failed: {e}")
+            return {
+                "fetch_status": "FAILED",
+                "error": str(e),
+                "temperature": 70,
+                "windSpeed": 5,
+                "conditions": "Unknown"
+            }
+
+    def _calculate_weather_safety(self, temp: float, wind_speed: float, humidity: float) -> Dict[str, Any]:
+        """Calculate construction safety status based on weather"""
+        wind_status = "SAFE"
+        wind_message = "Wind conditions acceptable"
+
+        if wind_speed >= 20:
+            wind_status = "CRITICAL"
+            wind_message = "Wind exceeds crane operation limits (20 mph)"
+        elif wind_speed >= 15:
+            wind_status = "WARNING"
+            wind_message = "Approaching crane operation limits"
+
+        temp_status = "SAFE"
+        temp_message = "Temperature within safe range"
+
+        if temp >= 95:
+            temp_status = "CRITICAL"
+            temp_message = "Extreme heat - mandatory rest breaks required"
+        elif temp >= 90:
+            temp_status = "WARNING"
+            temp_message = "Heat stress risk - implement heat illness prevention"
+        elif temp <= 20:
+            temp_status = "CRITICAL"
+            temp_message = "Extreme cold - limit outdoor exposure"
+        elif temp <= 32:
+            temp_status = "WARNING"
+            temp_message = "Freezing conditions - cold stress precautions required"
+
+        overall_status = "SAFE"
+        if wind_status == "CRITICAL" or temp_status == "CRITICAL":
+            overall_status = "CRITICAL"
+        elif wind_status == "WARNING" or temp_status == "WARNING":
+            overall_status = "WARNING"
+
+        return {
+            "overall": overall_status,
+            "wind": {"status": wind_status, "message": wind_message},
+            "temperature": {"status": temp_status, "message": temp_message}
+        }
+
+    def _generate_weather_alerts(self, temp: float, wind_speed: float, humidity: float) -> list:
+        """Generate safety alerts based on weather conditions"""
+        alerts = []
+
+        if wind_speed >= 20:
+            alerts.append("🛑 STOP WORK: Wind speed exceeds safe crane operation limits")
+        elif wind_speed >= 15:
+            alerts.append("⚠️ WARNING: Monitor wind speed - approaching crane limits")
+
+        if temp >= 95:
+            alerts.append("🌡️ EXTREME HEAT: Implement mandatory rest/water breaks")
+        elif temp >= 90:
+            alerts.append("☀️ HEAT ADVISORY: Monitor workers for heat illness signs")
+
+        if temp <= 20:
+            alerts.append("❄️ EXTREME COLD: Limit outdoor exposure time")
+        elif temp <= 32:
+            alerts.append("🧊 FREEZING: Cold stress precautions required")
+
+        if humidity >= 80 and temp >= 85:
+            alerts.append("💧 HIGH HUMIDITY: Increased heat stress risk")
+
+        return alerts
+    
     def _fallback_risk_assessment(
         self,
         validation: Dict[str, Any],
@@ -521,9 +682,9 @@ class SafetyAnalysisOrchestrator:
             "supervisor": job_info.get("supervisor"),
         }
         
-        # Fetch real weather data via WeatherService (cached, single source of truth)
+        # Fetch real weather data from API
         location = job_info.get("location", "")
-        weather_data = await WeatherService.get_weather(location)
+        weather_data = await self._fetch_weather(location)
         
         # NAICS code defaults based on work type
         work_type = job_info.get("workType", "").lower()
@@ -656,9 +817,9 @@ class SafetyAnalysisOrchestrator:
         # We reuse the analyze method but we might want a "partial" mode. 
         # For a "Live Update", we typically want to redo everything with the NEW context.
         
-        # Fetch fresh weather via WeatherService
+        # Fetch fresh weather if it's been a while (optional enhancement)
         location = checklist_data.get("location", "")
-        weather_data = await WeatherService.get_weather(location)
+        weather_data = await self._fetch_weather(location)
         
         # Re-run the full pipeline (or just Agents 2-4 if we want to save time)
         # But for correctness, re-running the full pipeline with merged context is safer.

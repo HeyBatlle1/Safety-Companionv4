@@ -267,4 +267,3 @@ export function useJHAProgress(analysisId: string | null) {
 
     return state;
 }
-

@@ -120,19 +120,24 @@ export function useJHADetails(id: string, options?: { refetchInterval?: number |
     });
 }
 
-// Weather Query
-export function useWeather(lat?: number, lon?: number) {
+// Weather Query - takes city name (e.g., "Indianapolis" or "Indianapolis,IN,US")
+export function useWeather(location?: string) {
     return useQuery({
-        queryKey: ['weather', lat, lon],
-        queryFn: () => apiClient.getWeather(lat!, lon!),
-        enabled: !!lat && !!lon, // Only fetch if coordinates are provided
+        queryKey: ['weather', location],
+        queryFn: () => apiClient.getWeather(location!),
+        enabled: !!location, // Only fetch if location is provided
         // Fallback to mock data
         placeholderData: {
             temperature: 72,
             windSpeed: 8,
-            precipitation: 0,
+            humidity: 50,
             conditions: 'Clear',
             alerts: [],
+            safetyStatus: {
+                overall: 'SAFE',
+                wind: { status: 'SAFE', message: 'Wind conditions acceptable', limit: 20 },
+                temperature: { status: 'SAFE', message: 'Temperature within safe range' },
+            },
         },
         retry: false,
         staleTime: 5 * 60 * 1000, // Weather data is fresh for 5 minutes

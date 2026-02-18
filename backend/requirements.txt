@@ -17,7 +17,7 @@ anthropic>=0.40.0
 PyJWT==2.8.0
 certifi>=2024.0.0
 
-# Agent adapters - Google Gemini SDK
+# Agent adapters - Google Gemini SDK (native fallback)
 google-genai
 
 # Embeddings - OpenRouter via OpenAI SDK (google/gemini-embedding-001, 768-dim)

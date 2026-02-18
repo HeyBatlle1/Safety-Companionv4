@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useJHAStore } from '@/stores/jha-store';
 import { useAnalyzeJHA } from '@/hooks/use-api';
 import { useSSEProgress } from '@/hooks/use-sse-progress';
+import { JHAAnalysisSubmitResponse } from '@/api/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -49,7 +50,7 @@ export function Step4Review() {
         try {
             // Submit to backend API (now returns immediately with queued status)
             console.log('Calling analyzeJHA mutation...');
-            const response = await analyzeJHA.mutateAsync({
+            const response: JHAAnalysisSubmitResponse = await analyzeJHA.mutateAsync({
                 jobInfo,
                 hazards,
                 controlMeasures,

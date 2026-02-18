@@ -31,11 +31,11 @@ class AgentRegistry:
         # Initialize OpenRouter models
         if OPENROUTER_AVAILABLE and config.get("openrouter_api_key"):
             # PRIMARY: Gemini 3 Flash Preview for Agents 1, 2, 3 (fast reasoning)
-            self.adapters["openrouter-grok"] = OpenRouterAdapter(
+            self.adapters["openrouter-gemini-3-flash"] = OpenRouterAdapter(
                 api_key=config["openrouter_api_key"],
                 model="google/gemini-3-flash-preview"
             )
-            # AGENT 4 ONLY: Claude Sonnet 4 for synthesis (better writing)
+            # AGENT 4: Claude Sonnet 4 for synthesis (better writing)
             self.adapters["openrouter-claude-sonnet-4"] = OpenRouterAdapter(
                 api_key=config["openrouter_api_key"],
                 model="anthropic/claude-sonnet-4"
@@ -45,11 +45,7 @@ class AgentRegistry:
                 api_key=config["openrouter_api_key"],
                 model="anthropic/claude-3.5-sonnet"
             )
-            self.adapters["openrouter-gpt4o"] = OpenRouterAdapter(
-                api_key=config["openrouter_api_key"],
-                model="openai/gpt-4o"
-            )
-            print("✅ OpenRouter: Gemini 3 Flash for Agents 1-3, Claude Sonnet 4 for Agent 4")
+            print("✅ OpenRouter: Gemini 3 Flash (Agents 1-3), Claude Sonnet 4 (Agent 4)")
 
         # Initialize Direct Gemini (PREFERRED - use Tier 1 API key, no rate limits)
         if config.get("gemini_api_key"):
@@ -86,9 +82,9 @@ class AgentRegistry:
         """
 
         # PRIORITY 1: OpenRouter Gemini 3 Flash for Agents 1-3
-        if "openrouter-grok" in self.adapters:
+        if "openrouter-gemini-3-flash" in self.adapters:
             print("🚀 Using OpenRouter google/gemini-3-flash-preview")
-            return self.adapters["openrouter-grok"]
+            return self.adapters["openrouter-gemini-3-flash"]
 
         # PRIORITY 2: Use native Google Gemini if available
         if "gemini-2.5-flash" in self.adapters:

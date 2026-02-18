@@ -12,10 +12,13 @@ Max Tokens: 16,000
 """
 
 import json
+import logging
 from datetime import datetime
 from typing import Dict, Any, Optional, List, Tuple
 from app.services.gemini_client import GeminiClient
 from app.services.vector_search import VectorSearchService
+
+logger = logging.getLogger(__name__)
 
 
 class Agent3IncidentPredictor:

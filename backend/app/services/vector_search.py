@@ -1,6 +1,10 @@
 """
 Vector Search Service - Semantic search over historical JHAs and incidents.
 Integrates with pgvector database for pattern matching.
+
+NOTE: All queries are wrapped with error handling + session rollback
+so that missing tables (jha_embeddings, incident_embeddings, osha_embeddings)
+don't poison the shared DB session used by the orchestrator pipeline.
 """
 
 import logging
@@ -15,16 +19,33 @@ logger = logging.getLogger(__name__)
 class VectorSearchService:
     """
     Semantic search over JHA history using pgvector + HNSW indexing.
-    
+
     Tables:
     - jha_embeddings: All past JHA analyses
     - incident_embeddings: Historical incidents with Swiss Cheese chains
     - osha_embeddings: Regulatory knowledge base
     """
-    
+
     def __init__(self, db_session: AsyncSession):
         self.db = db_session
-    
+
+    async def _safe_execute(self, sql, params: dict):
+        """
+        Execute a query safely — if it fails (e.g. table doesn't exist),
+        rollback the session so it stays usable for other operations.
+        Returns the result rows, or None on failure.
+        """
+        try:
+            result = await self.db.execute(sql, params)
+            return result
+        except Exception as e:
+            logger.warning(f"Vector search query failed: {e}")
+            try:
+                await self.db.rollback()
+            except Exception:
+                pass
+            return None
+
     async def search_similar_jhas(
         self,
         query: str,
@@ -36,22 +57,9 @@ class VectorSearchService:
     ) -> List[Dict[str, Any]]:
         """
         Find similar historical JHAs using semantic search.
-        
-        Args:
-            query: Natural language query or hazard description
-            hazard_category: Filter by hazard type (Falls, Electrical, etc.)
-            equipment_type: Filter by equipment used
-            work_type: Filter by work type
-            limit: Max results to return
-            similarity_threshold: Min cosine similarity (0-1)
-        
-        Returns:
-            List of matching JHAs with similarity scores
         """
-        # Generate query embedding
         query_embedding = embedding_service.encode_text(query)
-        
-        # Build SQL query with optional filters
+
         filters = []
         if hazard_category:
             filters.append(f"hazard_category = '{hazard_category}'")
@@ -59,11 +67,11 @@ class VectorSearchService:
             filters.append(f"equipment_type = '{equipment_type}'")
         if work_type:
             filters.append(f"work_type = '{work_type}'")
-        
+
         where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
-        
+
         sql = text(f"""
-            SELECT 
+            SELECT
                 je.analysis_id,
                 je.content_type,
                 je.hazard_category,
@@ -78,18 +86,20 @@ class VectorSearchService:
             ORDER BY je.embedding <=> :query_embedding::vector
             LIMIT :limit
         """)
-        
-        result = await self.db.execute(
+
+        result = await self._safe_execute(
             sql,
             {
                 "query_embedding": str(query_embedding),
                 "limit": limit
             }
         )
-        
+
+        if result is None:
+            return []
+
         matches = []
         for row in result:
-            # Filter by similarity threshold
             if row.similarity >= similarity_threshold:
                 matches.append({
                     "analysis_id": row.analysis_id,
@@ -102,10 +112,10 @@ class VectorSearchService:
                     "metadata": row.metadata,
                     "similarity": float(row.similarity)
                 })
-        
+
         logger.info(f"Found {len(matches)} similar JHAs (threshold: {similarity_threshold})")
         return matches
-    
+
     async def search_similar_incidents(
         self,
         query: str,
@@ -118,25 +128,10 @@ class VectorSearchService:
     ) -> List[Dict[str, Any]]:
         """
         Find similar historical incidents for pattern matching.
-        
         Critical for Agent 3: Provides Bayesian priors from real incident data.
-        
-        Args:
-            query: Incident description or Swiss Cheese chain text
-            hazard_category: Filter by hazard type
-            equipment_type: Filter by equipment
-            work_type: Filter by work type
-            incident_type: Filter by incident category (Fall, Struck-By, etc.)
-            limit: Max results
-            similarity_threshold: Min cosine similarity (higher = stricter)
-        
-        Returns:
-            List of matching incidents with causal chains and outcomes
         """
-        # Generate query embedding
         query_embedding = embedding_service.encode_text(query)
-        
-        # Build filters
+
         filters = []
         if hazard_category:
             filters.append(f"hazard_category = '{hazard_category}'")
@@ -146,11 +141,11 @@ class VectorSearchService:
             filters.append(f"work_type = '{work_type}'")
         if incident_type:
             filters.append(f"incident_type = '{incident_type}'")
-        
+
         where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
-        
+
         sql = text(f"""
-            SELECT 
+            SELECT
                 ie.analysis_id,
                 ie.incident_type,
                 ie.description,
@@ -167,15 +162,18 @@ class VectorSearchService:
             ORDER BY ie.embedding <=> :query_embedding::vector
             LIMIT :limit
         """)
-        
-        result = await self.db.execute(
+
+        result = await self._safe_execute(
             sql,
             {
                 "query_embedding": str(query_embedding),
                 "limit": limit
             }
         )
-        
+
+        if result is None:
+            return []
+
         matches = []
         for row in result:
             if row.similarity >= similarity_threshold:
@@ -192,10 +190,10 @@ class VectorSearchService:
                     "metadata": row.metadata,
                     "similarity": float(row.similarity)
                 })
-        
+
         logger.info(f"Found {len(matches)} similar incidents (threshold: {similarity_threshold})")
         return matches
-    
+
     async def search_osha_regulations(
         self,
         query: str,
@@ -204,21 +202,13 @@ class VectorSearchService:
     ) -> List[Dict[str, Any]]:
         """
         Search OSHA regulations relevant to current hazard.
-        
-        Args:
-            query: Hazard description or scenario
-            industry_applicability: Filter by industry (Construction, Maritime, etc.)
-            limit: Max results
-        
-        Returns:
-            Matching OSHA citations with descriptions
         """
         query_embedding = embedding_service.encode_text(query)
-        
+
         industry_filter = f"WHERE '{industry_applicability}' = ANY(industry_applicability)" if industry_applicability else ""
-        
+
         sql = text(f"""
-            SELECT 
+            SELECT
                 oe.citation_number,
                 oe.regulation_title,
                 oe.description,
@@ -231,15 +221,18 @@ class VectorSearchService:
             ORDER BY oe.embedding <=> :query_embedding::vector
             LIMIT :limit
         """)
-        
-        result = await self.db.execute(
+
+        result = await self._safe_execute(
             sql,
             {
                 "query_embedding": str(query_embedding),
                 "limit": limit
             }
         )
-        
+
+        if result is None:
+            return []
+
         matches = []
         for row in result:
             matches.append({
@@ -251,10 +244,10 @@ class VectorSearchService:
                 "metadata": row.metadata,
                 "similarity": float(row.similarity)
             })
-        
+
         logger.info(f"Found {len(matches)} relevant OSHA regulations")
         return matches
-    
+
     async def get_incident_base_rate(
         self,
         hazard_category: str,
@@ -263,66 +256,63 @@ class VectorSearchService:
     ) -> Dict[str, float]:
         """
         Calculate historical incident rate for Bayesian priors.
-        
         Critical for Agent 3: Replaces industry averages with actual data.
-        
-        Args:
-            hazard_category: Type of hazard
-            equipment_type: Specific equipment
-            work_type: Type of work
-        
-        Returns:
-            {
-                "incident_rate": <percent>,
-                "sample_size": <count>,
-                "confidence": "HIGH|MEDIUM|LOW"
-            }
         """
         filters = [f"hazard_category = '{hazard_category}'"]
         if equipment_type:
             filters.append(f"equipment_type = '{equipment_type}'")
         if work_type:
             filters.append(f"work_type = '{work_type}'")
-        
+
         where_clause = " AND ".join(filters)
-        
-        # Count total JHAs matching criteria
+
         total_sql = text(f"""
             SELECT COUNT(*) as total
             FROM jha_embeddings
             WHERE {where_clause}
         """)
-        
-        # Count incidents matching criteria
+
         incident_sql = text(f"""
             SELECT COUNT(*) as incidents
             FROM incident_embeddings
             WHERE {where_clause}
         """)
-        
-        total_result = await self.db.execute(total_sql)
-        incident_result = await self.db.execute(incident_sql)
-        
-        total = total_result.scalar()
-        incidents = incident_result.scalar()
-        
-        if total == 0:
+
+        total_result = await self._safe_execute(total_sql, {})
+        if total_result is None:
             return {
-                "incident_rate": 2.9,  # Fall back to construction industry average
+                "incident_rate": 2.9,
                 "sample_size": 0,
                 "confidence": "LOW"
             }
-        
+
+        incident_result = await self._safe_execute(incident_sql, {})
+        if incident_result is None:
+            return {
+                "incident_rate": 2.9,
+                "sample_size": 0,
+                "confidence": "LOW"
+            }
+
+        total = total_result.scalar()
+        incidents = incident_result.scalar()
+
+        if total == 0:
+            return {
+                "incident_rate": 2.9,
+                "sample_size": 0,
+                "confidence": "LOW"
+            }
+
         rate = (incidents / total) * 100
-        
-        # Confidence based on sample size
+
         if total >= 50:
             confidence = "HIGH"
         elif total >= 20:
             confidence = "MEDIUM"
         else:
             confidence = "LOW"
-        
+
         return {
             "incident_rate": round(rate, 2),
             "sample_size": total,

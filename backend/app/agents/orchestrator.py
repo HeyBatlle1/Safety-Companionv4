@@ -243,13 +243,13 @@ class SafetyAnalysisOrchestrator:
             print(f"✅ Pipeline complete in {execution_time:.0f}ms")
             
             # Get the actual model being used from the registry
-            active_model = self.gemini_client.registry.get_available_models()[0] if self.gemini_client.registry.get_available_models() else "unknown"
-            model_display = "x-ai/grok-4.1-fast" if "openrouter-grok" in active_model else active_model
+            active_models = self.gemini_client.registry.get_available_models()
+            model_display = active_models[0] if active_models else "unknown"
 
             # Build complete analysis result
             complete_analysis = {
                 "pipeline_metadata": {
-                    "version": "v3.1-openrouter-grok-llm-synth",
+                    "version": "v3.1-openrouter-multi-model",
                     "execution_time_ms": int(execution_time),
                     "agents_used": {
                         "agent1_validator": {"success": True, "model": model_display},
@@ -343,7 +343,7 @@ class SafetyAnalysisOrchestrator:
                     "agent3": prediction
                 },
                 "metadata": {
-                    "version": "v3-openrouter-grok",
+                    "version": "v3.1-openrouter-multi-model",
                     "execution_time_ms": int(execution_time),
                     "error_traceback": error_traceback
                 }

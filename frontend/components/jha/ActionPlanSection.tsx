@@ -17,10 +17,10 @@ interface ActionPlanSectionProps {
 }
 
 const priorityConfig = {
-    CRITICAL: { color: 'destructive', bg: 'bg-red-50 border-red-200', icon: '🚨' },
-    HIGH: { color: 'secondary', bg: 'bg-orange-50 border-orange-200', icon: '⚠️' },
-    MEDIUM: { color: 'outline', bg: 'bg-yellow-50 border-yellow-200', icon: '📋' },
-    LOW: { color: 'outline', bg: 'bg-blue-50 border-blue-200', icon: '📌' }
+    CRITICAL: { color: 'destructive', bg: 'bg-slate-900/50 border-l-4 border-red-500', textColor: 'text-red-400', icon: '🚨' },
+    HIGH: { color: 'secondary', bg: 'bg-slate-900/50 border-l-4 border-orange-500', textColor: 'text-orange-400', icon: '⚠️' },
+    MEDIUM: { color: 'outline', bg: 'bg-slate-900/50 border-l-4 border-yellow-500', textColor: 'text-yellow-400', icon: '📋' },
+    LOW: { color: 'outline', bg: 'bg-slate-900/50 border-l-4 border-blue-500', textColor: 'text-blue-400', icon: '📌' }
 };
 
 const categoryIcons = {
@@ -57,23 +57,23 @@ export function ActionPlanSection({ actionItems }: ActionPlanSectionProps) {
             <div className="mb-6">
                 <div className="flex items-center gap-2 mb-3">
                     <span className="text-lg">{config.icon}</span>
-                    <h4 className="font-semibold text-sm uppercase tracking-wide">{title}</h4>
+                    <h4 className={`font-semibold text-sm uppercase tracking-wide ${config.textColor}`}>{title}</h4>
                     <Badge variant={config.color as any} className="text-xs">
                         {items.length}
                     </Badge>
                 </div>
                 <div className="space-y-3">
                     {items.map((item, i) => (
-                        <Card key={i} className={`${config.bg} border`}>
+                        <Card key={i} className={`${config.bg} border-none`}>
                             <CardContent className="p-4">
                                 <div className="space-y-2">
                                     {/* Action */}
-                                    <p className="font-medium text-sm leading-relaxed">
+                                    <p className="font-medium text-sm leading-relaxed text-slate-200">
                                         {item.action}
                                     </p>
 
                                     {/* Metadata */}
-                                    <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                                    <div className="flex flex-wrap gap-3 text-xs text-slate-400">
                                         <div className="flex items-center gap-1">
                                             <Clock className="h-3 w-3" />
                                             <span>{item.timeframe}</span>
@@ -102,28 +102,28 @@ export function ActionPlanSection({ actionItems }: ActionPlanSectionProps) {
         <div>
             {/* Summary Stats */}
             <div className="grid grid-cols-4 gap-2 mb-6">
-                <Card className="border-red-200 bg-red-50">
+                <Card className="bg-slate-900/50 border-l-4 border-red-500 border-y-0 border-r-0">
                     <CardContent className="p-3 text-center">
-                        <div className="text-2xl font-bold text-red-700">{critical.length}</div>
-                        <div className="text-xs text-red-600">Critical</div>
+                        <div className="text-2xl font-bold text-red-400">{critical.length}</div>
+                        <div className="text-xs text-slate-400">Critical</div>
                     </CardContent>
                 </Card>
-                <Card className="border-orange-200 bg-orange-50">
+                <Card className="bg-slate-900/50 border-l-4 border-orange-500 border-y-0 border-r-0">
                     <CardContent className="p-3 text-center">
-                        <div className="text-2xl font-bold text-orange-700">{high.length}</div>
-                        <div className="text-xs text-orange-600">High</div>
+                        <div className="text-2xl font-bold text-orange-400">{high.length}</div>
+                        <div className="text-xs text-slate-400">High</div>
                     </CardContent>
                 </Card>
-                <Card className="border-yellow-200 bg-yellow-50">
+                <Card className="bg-slate-900/50 border-l-4 border-yellow-500 border-y-0 border-r-0">
                     <CardContent className="p-3 text-center">
-                        <div className="text-2xl font-bold text-yellow-700">{medium.length}</div>
-                        <div className="text-xs text-yellow-600">Medium</div>
+                        <div className="text-2xl font-bold text-yellow-400">{medium.length}</div>
+                        <div className="text-xs text-slate-400">Medium</div>
                     </CardContent>
                 </Card>
-                <Card className="border-blue-200 bg-blue-50">
+                <Card className="bg-slate-900/50 border-l-4 border-blue-500 border-y-0 border-r-0">
                     <CardContent className="p-3 text-center">
-                        <div className="text-2xl font-bold text-blue-700">{low.length}</div>
-                        <div className="text-xs text-blue-600">Low</div>
+                        <div className="text-2xl font-bold text-blue-400">{low.length}</div>
+                        <div className="text-xs text-slate-400">Low</div>
                     </CardContent>
                 </Card>
             </div>

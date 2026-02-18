@@ -92,14 +92,14 @@ export function Agent1Card({ data, defaultExpanded = true }: Agent1CardProps) {
 
                     {/* Missing Critical Fields */}
                     {missingCritical.length > 0 && (
-                        <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-4">
-                            <h4 className="text-sm font-bold text-red-500 mb-3 flex items-center gap-2">
+                        <div className="bg-slate-900/50 border-l-4 border-red-500 rounded-lg p-4">
+                            <h4 className="text-sm font-bold text-red-400 mb-3 flex items-center gap-2">
                                 <XCircle className="w-4 h-4" />
                                 Critical Gaps ({missingCritical.length})
                             </h4>
                             <ul className="space-y-2">
                                 {missingCritical.map((field: string, idx: number) => (
-                                    <li key={idx} className="flex items-start gap-2 text-sm">
+                                    <li key={idx} className="flex items-start gap-2 text-sm text-slate-300">
                                         <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
                                         {field}
                                     </li>
@@ -110,12 +110,12 @@ export function Agent1Card({ data, defaultExpanded = true }: Agent1CardProps) {
 
                     {/* Weather Conditions */}
                     {(weatherData.temperature || weatherData.windSpeed) && (
-                        <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
-                            <h4 className="text-sm font-bold text-blue-500 mb-3 flex items-center gap-2">
+                        <div className="bg-slate-900/50 border-l-4 border-blue-500 rounded-lg p-4">
+                            <h4 className="text-sm font-bold text-blue-400 mb-3 flex items-center gap-2">
                                 <CloudRain className="w-4 h-4" />
                                 Weather Conditions
                             </h4>
-                            <div className="grid grid-cols-3 gap-4 text-sm">
+                            <div className="grid grid-cols-3 gap-4 text-sm text-slate-300">
                                 <div className="flex items-center gap-2">
                                     <Thermometer className="w-4 h-4 text-blue-400" />
                                     <span>{weatherData.temperature || 'N/A'}°F</span>
@@ -125,7 +125,7 @@ export function Agent1Card({ data, defaultExpanded = true }: Agent1CardProps) {
                                     <span>{weatherData.windSpeed || 'N/A'} mph</span>
                                 </div>
                                 <div>
-                                    <span className="text-muted-foreground">Humidity: </span>
+                                    <span className="text-slate-400">Humidity: </span>
                                     <span>{weatherData.humidity || 'N/A'}%</span>
                                 </div>
                             </div>
@@ -134,11 +134,11 @@ export function Agent1Card({ data, defaultExpanded = true }: Agent1CardProps) {
 
                     {/* Weather Risks */}
                     {weatherRisks.length > 0 && (
-                        <div className="bg-orange-500/5 border border-orange-500/20 rounded-lg p-4">
-                            <h4 className="text-sm font-bold text-orange-500 mb-3">Weather Risks</h4>
+                        <div className="bg-slate-900/50 border-l-4 border-orange-500 rounded-lg p-4">
+                            <h4 className="text-sm font-bold text-orange-400 mb-3">Weather Risks</h4>
                             <ul className="space-y-2">
                                 {weatherRisks.map((risk: string, idx: number) => (
-                                    <li key={idx} className="text-sm flex items-start gap-2">
+                                    <li key={idx} className="text-sm text-slate-300 flex items-start gap-2">
                                         <span className="text-orange-500">⚠️</span>
                                         {risk}
                                     </li>
@@ -172,17 +172,22 @@ export function Agent1Card({ data, defaultExpanded = true }: Agent1CardProps) {
 
 // Helper Component
 function ConcernBadge({ level, items, color }: { level: string; items: string[]; color: string }) {
-    const colorMap: Record<string, string> = {
-        red: 'bg-red-500/10 border-red-500/30 text-red-500',
-        orange: 'bg-orange-500/10 border-orange-500/30 text-orange-500',
-        yellow: 'bg-yellow-500/10 border-yellow-500/30 text-yellow-500',
-        green: 'bg-green-500/10 border-green-500/30 text-green-500'
+    const colorMap: Record<string, { border: string; text: string; dot: string }> = {
+        red: { border: 'border-red-500', text: 'text-red-400', dot: 'bg-red-500' },
+        orange: { border: 'border-orange-500', text: 'text-orange-400', dot: 'bg-orange-500' },
+        yellow: { border: 'border-yellow-500', text: 'text-yellow-400', dot: 'bg-yellow-500' },
+        green: { border: 'border-emerald-500', text: 'text-emerald-400', dot: 'bg-emerald-500' }
     };
 
+    const colors = colorMap[color] || colorMap['orange'];
+
     return (
-        <div className={`p-3 rounded-lg border ${colorMap[color]}`}>
-            <div className="text-xs font-bold mb-2">{level}</div>
-            <div className="text-xs text-muted-foreground">{items.length} issue{items.length > 1 ? 's' : ''}</div>
+        <div className={`bg-slate-900/50 border-l-4 ${colors.border} p-3 rounded-lg`}>
+            <div className={`text-xs font-bold mb-2 ${colors.text} flex items-center gap-2`}>
+                <div className={`w-2 h-2 rounded-full ${colors.dot}`} />
+                {level}
+            </div>
+            <div className="text-xs text-slate-400">{items.length} issue{items.length > 1 ? 's' : ''}</div>
         </div>
     );
 }

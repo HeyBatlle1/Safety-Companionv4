@@ -125,6 +125,22 @@ export function NewJHAWizard() {
             // Transform form data to match backend schema
             const projectDetails = formData.project_details || {};
 
+            // Fetch weather data for the project location
+            let weatherData = null;
+            if (projectDetails.location) {
+                try {
+                    const weatherResponse = await fetch(
+                        `/api/weather/current/${encodeURIComponent(projectDetails.location)}`
+                    );
+                    if (weatherResponse.ok) {
+                        weatherData = await weatherResponse.json();
+                    }
+                } catch (error) {
+                    console.warn('Failed to fetch weather data:', error);
+                    // Continue without weather data - agents will handle missing weather
+                }
+            }
+
             const requestData = {
                 jobInfo: {
                     projectName: projectDetails.projectName || 'Untitled Project',
@@ -136,6 +152,7 @@ export function NewJHAWizard() {
                     buildingHeight: projectDetails.buildingHeight,
                     duration: projectDetails.duration,
                 },
+                weatherData: weatherData,
                 hazards: [
                     {
                         id: '1',

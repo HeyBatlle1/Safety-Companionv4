@@ -280,13 +280,20 @@ class SafetyAnalysisOrchestrator:
             
             # Update analysis record if provided
             if analysis_record:
-                analysis_record.response = json.dumps(complete_analysis)
-                analysis_record.risk_score = risk.get("hazards", [{}])[0].get("riskScore", 0)
-                analysis_record.urgency_level = self._determine_urgency_level(final_report)
-                analysis_record.safety_categories = self._extract_safety_categories(risk)
-                
-                await self.db.commit()
-                await self.db.refresh(analysis_record)
+                try:
+                    analysis_record.response = json.dumps(complete_analysis)
+                    analysis_record.risk_score = risk.get("hazards", [{}])[0].get("riskScore", 0)
+                    analysis_record.urgency_level = self._determine_urgency_level(final_report)
+                    analysis_record.safety_categories = self._extract_safety_categories(risk)
+
+                    await self.db.commit()
+                    await self.db.refresh(analysis_record)
+                except Exception as e:
+                    print(f"⚠️ Failed to save final analysis record: {e}")
+                    try:
+                        await self.db.rollback()
+                    except Exception:
+                        pass
             
             # Send completion event
             await push_progress(analysis_id, {
@@ -355,7 +362,7 @@ class SafetyAnalysisOrchestrator:
             
             # Get the actual model being used
             active_models = self.gemini_client.registry.get_available_models() if hasattr(self, 'gemini_client') else []
-            model_name = "x-ai/grok-4.1-fast" if any("openrouter-grok" in m for m in active_models) else (active_models[0] if active_models else "unknown")
+            model_name = active_models[0] if active_models else "unknown"
 
             # Build execution metadata
             execution_metadata = {
@@ -382,7 +389,11 @@ class SafetyAnalysisOrchestrator:
             
         except Exception as e:
             print(f"⚠️ Failed to save {agent_name} output: {e}")
-            # Don't fail the pipeline if save fails
+            # Roll back the failed transaction so the session stays usable
+            try:
+                await self.db.rollback()
+            except Exception:
+                pass
     
     def _determine_urgency_level(self, final_report: Dict[str, Any]) -> str:
         """Determine urgency level from final report"""

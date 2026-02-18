@@ -18,16 +18,12 @@ import time
 import uuid
 from datetime import datetime
 from typing import Dict, Any, List, Optional
-import google.generativeai as genai
-
-from app.core.config import get_settings
-
-settings = get_settings()
+from app.services.gemini_client import GeminiClient
 
 
 class EAPGeneratorService:
     """Emergency Action Plan Generator - 4-Agent Pipeline"""
-    
+
     # OSHA 1910.38 Required Elements
     OSHA_REQUIREMENTS = [
         "emergency_escape_procedures",
@@ -59,14 +55,14 @@ class EAPGeneratorService:
     }
 
     def __init__(self):
-        """Initialize with Gemini API"""
-        api_key = settings.google_api_key or settings.gemini_api_key
-        if api_key:
-            genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
-        else:
-            self.model = None
-            print("⚠️ EAP Generator: No API key, using templates only")
+        """Initialize with AI client via OpenRouter"""
+        try:
+            self.client = GeminiClient()
+            self.has_ai = True
+        except Exception:
+            self.client = None
+            self.has_ai = False
+            print("⚠️ EAP Generator: No API keys configured, using templates only")
 
     async def generate_eap(self, questionnaire: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -228,26 +224,22 @@ class EAPGeneratorService:
     ) -> Dict[str, Any]:
         """Generate a single emergency procedure"""
         
-        # Try Gemini first for intelligent generation
-        if self.model:
+        # Try AI generation first via OpenRouter
+        if self.has_ai:
             try:
                 prompt = self._build_procedure_prompt(emergency_type, questionnaire, analysis)
-                response = self.model.generate_content(prompt)
-                
-                # Parse JSON response
-                text = response.text
-                if "```json" in text:
-                    text = text.split("```json")[1].split("```")[0]
-                elif "```" in text:
-                    text = text.split("```")[1].split("```")[0]
-                
-                procedure = json.loads(text.strip())
+                # GeminiClient.generate() returns parsed JSON dict
+                procedure = await self.client.generate(
+                    prompt=prompt,
+                    temperature=0.5,
+                    max_tokens=4000
+                )
                 procedure["emergency_type"] = emergency_type
-                procedure["generated_by"] = "gemini"
+                procedure["generated_by"] = "openrouter"
                 return procedure
-                
+
             except Exception as e:
-                print(f"⚠️ Gemini procedure generation failed for {emergency_type}: {e}")
+                print(f"⚠️ AI procedure generation failed for {emergency_type}: {e}")
                 # Fall through to template
         
         # Fallback to template

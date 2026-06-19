@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Safety Companion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#101317; --panel:#1a1e24; --panel2:#222831; --line:#3a414d; --line2:#4a5260;
+  --amber:#e0b94f; --amber-deep:#c9a84c;
+  --text:#f2f5f9; --muted:#aab4c2;
+  --danger:#ff5d57; --warning:#ff9d3d; --caution:#f2d04e; --safe:#4fc06a; --notice:#6aa9e8;
+  --mono:'JetBrains Mono',monospace; --sans:'Instrument Sans',-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{background:var(--ink);color:var(--text);font:16px/1.55 var(--sans)}
+a{color:var(--amber);text-decoration:none}
+:focus-visible{outline:3px solid var(--amber);outline-offset:2px;border-radius:4px}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+
+/* shell */
+#shell{display:flex;min-height:100vh}
+nav{
+  width:196px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--line);
+  padding:18px 0;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh;
+}
+nav .brand{padding:0 18px 16px}
+nav .brand b{font:800 16px var(--mono);color:var(--amber);letter-spacing:1px}
+nav .brand small{display:block;color:var(--muted);font:500 11px var(--sans);margin-top:3px}
+nav a.st{
+  display:flex;align-items:center;gap:10px;min-height:46px;
+  font:600 14px var(--sans);color:var(--muted);
+  padding:10px 18px;border-left:3px solid transparent;
+}
+nav a.st:hover{color:var(--text);background:var(--panel2)}
+nav a.st.on{color:var(--text);border-left-color:var(--amber);background:var(--panel2)}
+nav a.st .ic{font-size:17px;width:22px;text-align:center}
+nav .pulse{margin-top:auto;padding:14px 18px;font:500 12px var(--sans);color:var(--muted)}
+nav .pulse b{color:var(--safe)}
+main{flex:1;padding:26px clamp(16px,4vw,52px);max-width:1100px;width:100%}
+h1{font:700 24px var(--sans);margin-bottom:6px}
+.sub{color:var(--muted);font-size:15px;margin-bottom:24px;max-width:62ch}
+h2{font:700 13px var(--sans);letter-spacing:1px;color:var(--muted);margin:28px 0 12px;text-transform:uppercase}
+
+/* tooltips: hover on desktop; helper lines cover phones */
+[data-tip]{position:relative}
+[data-tip]:hover::after,[data-tip]:focus-visible::after{
+  content:attr(data-tip);position:absolute;left:0;bottom:calc(100% + 8px);z-index:30;
+  background:#0a0c0f;color:var(--text);border:1px solid var(--line2);border-radius:6px;
+  padding:8px 12px;font:500 13px/1.4 var(--sans);width:max-content;max-width:300px;
+  box-shadow:0 6px 18px rgba(0,0,0,.5);
+}
+.help{font:500 13px var(--sans);color:var(--muted);margin-top:4px}
+
+/* panels & tables */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.tile .n{font:600 30px var(--mono);color:var(--text)}
+.tile .l{font:600 12px var(--sans);color:var(--muted);margin-top:2px}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th{font:700 12px var(--sans);letter-spacing:.5px;color:var(--muted);text-align:left;padding:10px 12px;border-bottom:2px solid var(--line2);text-transform:uppercase}
+td{padding:12px;border-bottom:1px solid var(--line)}
+tr.row{cursor:pointer}
+tr.row:hover{background:var(--panel2)}
+.chip{display:inline-block;font:800 12px var(--mono);letter-spacing:.5px;padding:5px 10px;border-radius:4px;color:#101317}
+
+/* the signature: ANSI placard */
+.placard{border:2px solid var(--line2);border-radius:8px;overflow:hidden;margin:20px 0}
+.placard .band{font:800 20px var(--mono);letter-spacing:4px;padding:14px 18px;text-align:center}
+.placard .body{padding:16px 18px;background:var(--panel);font-size:16px}
+.placard.danger .band{background:var(--danger);color:#101317}
+.placard.warning .band{background:var(--warning);color:#101317}
+.placard.caution .band{background:var(--caution);color:#101317}
+.placard.safe .band{background:var(--safe);color:#101317}
+
+/* hazard tape edge — only on pattern alerts: stripes mean "the memory flagged this" */
+.alert{background:var(--panel);border:1px solid var(--line);border-radius:0 8px 8px 0;border-left:none;
+  padding:12px 16px;margin:10px 0;position:relative}
+.alert::before{content:"";position:absolute;left:0;top:0;bottom:0;width:7px;
+  background:repeating-linear-gradient(45deg,var(--caution) 0 7px,#101317 7px 14px)}
+.alert .k{font:800 12px var(--mono);letter-spacing:1px;color:var(--caution);text-transform:uppercase}
+
+/* show the math */
+details.tape{margin-top:10px}
+details.tape summary{font:700 13px var(--sans);color:var(--amber);cursor:pointer;min-height:34px;display:flex;align-items:center}
+details.tape pre{font:400 13px/1.8 var(--mono);color:var(--muted);background:#0c0e11;
+  border-left:3px solid var(--amber);padding:12px 16px;margin-top:8px;overflow-x:auto;border-radius:0 6px 6px 0}
+.hazard{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px 18px;margin:12px 0}
+.hazard .prob{font:600 15px var(--mono)}
+.hazard .prob .res{color:var(--safe)}
+.hud{font:500 13px var(--sans);color:var(--muted)}
+.mono{font-family:var(--mono)}
+.huddle{background:var(--panel);border:2px solid var(--caution);border-radius:8px;padding:14px 16px;margin:12px 0;font-size:16px}
+.huddle .t{font:800 12px var(--mono);letter-spacing:1.5px;color:var(--caution);text-transform:uppercase;margin-bottom:6px}
+
+/* forms — glove-sized */
+label{display:block;font:700 13px var(--sans);color:var(--text);margin:16px 0 6px}
+input,select,textarea{
+  width:100%;background:#0c0e11;border:2px solid var(--line);border-radius:6px;
+  color:var(--text);font:16px var(--sans);padding:12px 14px;min-height:48px;
+}
+textarea{min-height:76px;resize:vertical}
+input:focus,select:focus,textarea:focus{border-color:var(--amber);outline:none}
+input::placeholder,textarea::placeholder{color:#6e7886}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:0 18px}
+button.go{
+  font:700 15px var(--sans);background:var(--amber);color:#101317;
+  border:none;border-radius:6px;padding:0 26px;min-height:50px;cursor:pointer;margin-top:20px;
+}
+button.go:hover{background:#ecc55e}
+button.go:disabled{opacity:.45;cursor:default}
+button.ghost{
+  font:600 14px var(--sans);background:var(--panel2);color:var(--text);
+  border:2px solid var(--line2);border-radius:6px;padding:0 16px;min-height:44px;cursor:pointer;
+}
+button.ghost:hover{border-color:var(--amber);color:var(--amber)}
+.btnrow{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.qa{display:grid;grid-template-columns:1fr 2fr auto;gap:10px;margin:8px 0;align-items:start}
+.qa button{min-height:48px}
+.checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-top:6px}
+.checks label{display:flex;align-items:center;gap:10px;font:500 15px var(--sans);margin:0;
+  background:var(--panel);border:2px solid var(--line);border-radius:6px;padding:10px 12px;min-height:48px;cursor:pointer}
+.checks input{width:20px;height:20px;min-height:0;accent-color:var(--amber)}
+.checks label:has(input:checked){border-color:var(--amber)}
+.progress{font:500 15px var(--sans);color:var(--text);padding:20px;border:2px dashed var(--line2);border-radius:8px;margin-top:20px}
+.progress b{color:var(--amber);font-family:var(--mono)}
+.err{color:var(--danger);font:500 14px var(--sans);margin-top:14px;white-space:pre-wrap}
+.okmsg{color:var(--safe);font:600 14px var(--sans);margin-top:12px}
+.empty{color:var(--muted);font-size:15px;padding:22px;text-align:center;border:2px dashed var(--line);border-radius:8px}
+.prov{font:400 12px var(--mono);color:var(--muted);border-top:1px solid var(--line);margin-top:24px;padding-top:12px}
+svg.spark{width:100%;height:80px;display:block}
+
+@media (max-width:780px){
+  #shell{flex-direction:column}
+  nav{width:100%;height:auto;position:sticky;top:0;z-index:20;flex-direction:row;align-items:center;gap:0;padding:6px 8px;overflow-x:auto;border-right:none;border-bottom:1px solid var(--line)}
+  nav .brand{padding:0 10px 0 6px}
+  nav .brand small{display:none}
+  nav a.st{padding:10px 12px;border-left:none;border-bottom:3px solid transparent;white-space:nowrap}
+  nav a.st.on{border-bottom-color:var(--amber);border-left:none}
+  nav .pulse{display:none}
+  .grid2,.grid3{grid-template-columns:1fr}
+  .qa{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div id="shell">
+  <nav>
+    <div class="brand"><b>SAFETY COMPANION</b><small>It watches so they go home.</small></div>
+    <a class="st" href="#/watch" data-st="watch" data-tip="Everything the system has seen and learned"><span class="ic">⌂</span>Dashboard</a>
+    <a class="st" href="#/analyze" data-st="analyze" data-tip="Run a pre-task plan through the safety check"><span class="ic">▶</span>Run JHA</a>
+    <a class="st" href="#/eap" data-st="eap" data-tip="Build a complete Emergency Action Plan from a few site facts"><span class="ic">✚</span>Emergency Plan</a>
+    <a class="st" href="/viewer" data-tip="View and analyze blueprints and shop drawings"><span class="ic">▦</span>Drawings</a>
+    <a class="st" href="#/truth" data-st="truth" data-tip="Report incidents and near misses — this is how it learns"><span class="ic">✎</span>Report Incident</a>
+    <a class="st" href="#/profile" data-st="profile" data-tip="Your certs, screens, tasking, and 911 card"><span class="ic">☺</span>My Profile</a>
+    <a class="st" href="#/admin" data-st="admin" id="adminlink" style="display:none" data-tip="People, screens, requests, scheduler"><span class="ic">⚙</span>Admin</a>
+    <div class="pulse">
+      <div style="margin-bottom:8px">
+        <button class="ghost" id="signbtn" style="width:100%;min-height:40px">Sign in</button>
+      </div>
+      system <b>●</b> <span id="pulse">checking…</span></div>
+  </nav>
+  <main id="main"></main>
+</div>
+
+<script>
+const $$ = s => document.querySelector(s);
+const esc = s => String(s??"").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ME = { id: localStorage.scid || "", name: localStorage.scname || "", role: localStorage.scrole || "", token: localStorage.sctoken || "" };
+const api = async (path, opts) => {
+  opts = opts || {};
+  const auth = ME.token ? {"Authorization": "Bearer " + ME.token} : (ME.id ? {"X-Person-Id": ME.id} : {});
+  opts.headers = Object.assign({}, opts.headers, auth);
+  const r = await fetch(path, opts);
+  if (!r.ok) throw new Error(r.status + " " + (await r.text()).slice(0,400));
+  return r.json();
+};
+
+/* verdicts → ANSI signal placards */
+const V = {
+  STOP_WORK:{cls:"danger",word:"DANGER",label:"STOP WORK",color:"var(--danger)"},
+  StopWork:{cls:"danger",word:"DANGER",label:"STOP WORK",color:"var(--danger)"},
+  REQUEST_CLARIFICATION:{cls:"warning",word:"WARNING",label:"FIX THE PLAN FIRST",color:"var(--warning)"},
+  RequestClarification:{cls:"warning",word:"WARNING",label:"FIX THE PLAN FIRST",color:"var(--warning)"},
+  PROCEED_WITH_CONTROLS:{cls:"caution",word:"CAUTION",label:"PROCEED WITH CONTROLS",color:"var(--caution)"},
+  ProceedWithControls:{cls:"caution",word:"CAUTION",label:"PROCEED WITH CONTROLS",color:"var(--caution)"},
+  PROCEED:{cls:"safe",word:"SAFE",label:"GOOD TO GO",color:"var(--safe)"},
+  Proceed:{cls:"safe",word:"SAFE",label:"GOOD TO GO",color:"var(--safe)"},
+};
+const vinfo = v => V[v] || {cls:"warning",word:"NOTICE",label:String(v),color:"var(--notice)"};
+const sevColor = s => ({CRITICAL:"var(--danger)",HIGH:"var(--warning)",MEDIUM:"var(--caution)",LOW:"var(--safe)",INFO:"var(--muted)"}[String(s).toUpperCase()]||"var(--muted)");
+
+/* router */
+const routes = { watch: renderWatch, analyze: renderAnalyze, eap: renderEap, truth: renderTruth, report: renderStoredReport, profile: renderProfile, admin: renderAdmin };
+function route(){
+  const hash = location.hash.replace(/^#\//,"") || "watch";
+  const [name, arg] = hash.split("/");
+  document.querySelectorAll("nav a.st").forEach(a => a.classList.toggle("on", a.dataset.st === (name==="report"?"watch":name)));
+  (routes[name] || renderWatch)(arg);
+}
+window.addEventListener("hashchange", route);
+
+/* ============ DASHBOARD ============ */
+async function renderWatch(){
+  const m = $$("#main");
+  m.innerHTML = `<h1>Dashboard</h1><div class="sub">Everything this system has analyzed, remembered, and noticed — across every crew and every day.</div><div id="w"></div>`;
+  try {
+    const [s, list] = await Promise.all([api("/v1/stats"), api("/v1/analyses")]);
+    const tiles = `
+      <div class="tiles">
+        <div class="tile" data-tip="Pre-task plans run through the full safety check"><div class="n">${s.analyses}</div><div class="l">Plans analyzed</div></div>
+        <div class="tile" data-tip="Individual hazards found and scored"><div class="n">${s.hazards}</div><div class="l">Hazards scored</div></div>
+        <div class="tile" data-tip="Incidents and near misses reported back — how the system learns"><div class="n">${s.incidents}</div><div class="l">Incidents reported</div></div>
+        <div class="tile" data-tip="Close calls with no injury — the most valuable reports"><div class="n">${s.near_misses}</div><div class="l">Near misses</div></div>
+      </div>`;
+    const trend = sparkline(s.trend);
+    const patterns = s.patterns.length
+      ? s.patterns.map(p => `<div class="alert"><span class="k">Repeating · ${esc(p.kind)}</span>
+          <div>Flagged ${p.n} times in the last 30 days · worst score ${p.worst.toFixed(0)}/100. Repeats are how incidents announce themselves.</div></div>`).join("")
+      : `<div class="empty">No repeating hazards yet. The system remembers every analysis and will flag anything it sees twice.</div>`;
+    const rows = list.length ? list.map(a => {
+      const v = vinfo(a.verdict);
+      return `<tr class="row" onclick="location.hash='#/report/${a.id}'" data-tip="Open the full report">
+        <td class="hud">${new Date(a.created_at).toLocaleString()}</td>
+        <td style="text-transform:capitalize">${esc(a.work_type)}</td>
+        <td><span class="chip" style="background:${v.color}">${v.label}</span></td>
+        <td class="mono">${a.risk.toFixed(0)}/100</td>
+        <td class="mono">${a.quality}/10</td></tr>`;
+    }).join("") : "";
+    $$("#w").innerHTML = tiles
+      + `<h2>Average risk · last 14 days</h2><div class="panel">${trend}</div>`
+      + `<h2>Repeating hazards the system is tracking</h2>${patterns}`
+      + `<h2>Recent analyses — tap any row for the full report</h2>`
+      + (rows ? `<div class="panel" style="padding:0;overflow-x:auto"><table><thead><tr>
+          <th>When</th><th>Trade</th><th>Call</th><th data-tip="Overall risk, 0–100">Risk</th><th data-tip="How complete the paperwork was, 0–10">Plan quality</th></tr></thead>
+          <tbody>${rows}</tbody></table></div>`
+        : `<div class="empty">Nothing analyzed yet. <a href="#/analyze">Run the first JHA.</a></div>`);
+  } catch(e){ $$("#w").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+
+function sparkline(trend){
+  if (!trend || !trend.length) return `<div class="empty">The trend line appears after a few days of analyses.</div>`;
+  const W=600,H=72,P=8;
+  const xs = trend.map((_,i)=> P + i*(W-2*P)/Math.max(1,trend.length-1));
+  const ys = trend.map(t => H-P - (t.risk/100)*(H-2*P));
+  const pts = xs.map((x,i)=>`${x.toFixed(1)},${ys[i].toFixed(1)}`).join(" ");
+  const last = trend[trend.length-1];
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="risk trend">
+    <line x1="${P}" y1="${H-P}" x2="${W-P}" y2="${H-P}" stroke="var(--line2)" stroke-width="1.5"/>
+    <polyline points="${pts}" fill="none" stroke="var(--amber)" stroke-width="2.5"/>
+    ${xs.map((x,i)=>`<circle cx="${x.toFixed(1)}" cy="${ys[i].toFixed(1)}" r="3.5" fill="var(--amber)"/>`).join("")}
+    <text x="${W-P}" y="14" text-anchor="end" font-size="12" font-weight="600" fill="var(--muted)">latest ${last.risk.toFixed(0)}/100</text>
+  </svg>`;
+}
+
+/* ============ RUN JHA ============ */
+const TRADES = {
+  general:{naics:"236220",label:"General / commercial building"},
+  roofing:{naics:"238160",label:"Roofing"},
+  electrical:{naics:"238210",label:"Electrical"},
+  crane:{naics:"236220",label:"Crane / heavy lift"},
+  excavation:{naics:"238910",label:"Excavation / trenching"},
+  steel:{naics:"238120",label:"Structural steel"},
+};
+const STD_FIELDS = ["Work description","Hazards identified","Hazard controls","Fall protection",
+  "Emergency evacuation plan","Worker certifications","Equipment specifications","PPE requirements"];
+
+const JHA_DEMO = {
+  trade:"roofing", temp:88, wind:28, cond:"gusty, scattered storms expected after lunch",
+  fields:{
+    "Work description":"Roofing tear-off and re-deck, 3-story commercial building, north face, 6 crew, 2 days",
+    "Hazards identified":"1) Falls from roof edge during tear-off, 2) falling debris to ground below, 3) heat stress at 88F, 4) gusting wind moving sheet material, 5) nail gun injuries",
+    "Hazard controls":"Warning lines at 6 ft plus personal fall arrest for edge work; barricaded drop zone with debris netting and a ground spotter; water and shade breaks every 45 minutes; all sheet handling stops above 24 mph sustained wind; sequential-trigger nailers only",
+    "Fall protection":"Full-body harnesses with shock-absorbing lanyards tied to certified roof anchors (Guardian CB-12, inspected 6/10). Warning line at 6 ft from all edges. Safety monitor: J. Reyes",
+    "Emergency evacuation plan":"Evacuate via the northeast stairwell to the flagpole in the front lot. Foreman carries the crew roster for headcount. Nearest hospital: Witham Health, 8 minutes",
+    "Worker certifications":"All 6 crew OSHA 10; foreman and safety monitor OSHA 30; 2 crew aerial-lift certified through 2027",
+    "Equipment specifications":"JLG 450AJ boom lift, ANSI inspection 5/28; Werner D6232-2 extension ladders checked daily; nailers with sequential triggers",
+    "PPE requirements":"Hard hats, safety glasses, cut-resistant gloves, high-vis vests, work boots; hearing protection during tear-off",
+  }
+};
+
+function renderAnalyze(){
+  $$("#main").innerHTML = `
+    <h1>Run a JHA</h1>
+    <div class="sub">Put the pre-task plan in. Three checks run on it — is the paperwork solid, what can hurt someone, and what does today's incident look like — then you get one clear call, with the math shown.</div>
+    <div class="btnrow"><button class="ghost" id="demo" data-tip="Loads a realistic example so you can see how it works without typing">Fill with example</button></div>
+    <div class="grid2">
+      <div><label>Trade</label><select id="trade">${Object.entries(TRADES).map(([k,t])=>`<option value="${k}">${t.label}</option>`).join("")}</select>
+        <div class="help">Picks the right industry injury rates and trade-specific checks.</div></div>
+      <div><label>NAICS code</label><input id="naics" value="236220">
+        <div class="help">Fills in automatically from the trade. Change it if you know your exact code.</div></div>
+    </div>
+    <h2>Conditions right now</h2>
+    <div class="grid3">
+      <div><label>Temperature °F</label><input id="temp" type="number" inputmode="numeric" placeholder="72"></div>
+      <div><label>Wind mph</label><input id="wind" type="number" inputmode="numeric" placeholder="8"></div>
+      <div><label>Sky / conditions</label><input id="cond" placeholder="clear · gusty · rain coming"></div>
+    </div>
+    <h2>The plan, question by question</h2>
+    <div class="help" style="margin-bottom:8px">Be specific. "Be careful" is not a control. The system rejects thin paperwork instead of pretending it's fine.</div>
+    <div id="qa"></div>
+    <div class="btnrow"><button class="ghost" id="addq">+ Add a question</button></div>
+    <div><button class="go" id="run">Run the analysis</button></div>
+    <div id="out"></div>`;
+  const qa = $$("#qa");
+  STD_FIELDS.forEach(f => addQA(qa, f, ""));
+  $$("#addq").onclick = () => addQA(qa, "", "");
+  $$("#trade").onchange = e => $$("#naics").value = TRADES[e.target.value].naics;
+  $$("#run").onclick = runAnalysis;
+  $$("#demo").onclick = () => {
+    $$("#trade").value = JHA_DEMO.trade; $$("#naics").value = TRADES[JHA_DEMO.trade].naics;
+    $$("#temp").value = JHA_DEMO.temp; $$("#wind").value = JHA_DEMO.wind; $$("#cond").value = JHA_DEMO.cond;
+    qa.innerHTML = "";
+    Object.entries(JHA_DEMO.fields).forEach(([q,a]) => addQA(qa, q, a));
+  };
+}
+function addQA(qa, label, val){
+  const row = document.createElement("div");
+  row.className = "qa";
+  row.innerHTML = `<input class="q" placeholder="Question" value="${esc(label)}">
+    <textarea class="a" placeholder="Specific answer">${esc(val)}</textarea>
+    <button class="ghost" title="Remove this question" data-tip="Remove this question">✕</button>`;
+  row.querySelector("button").onclick = () => row.remove();
+  qa.appendChild(row);
+}
+async function runAnalysis(){
+  const responses = {};
+  document.querySelectorAll("#qa .qa").forEach(r => {
+    const q = r.querySelector(".q").value.trim(), a = r.querySelector(".a").value.trim();
+    if (q) responses[q] = a || "No response";
+  });
+  const payload = {
+    checklist: { id: crypto.randomUUID(), responses,
+      work_type: $$("#trade").value, naics_code: $$("#naics").value.trim() || "236220",
+      submitted_at: new Date().toISOString() },
+    weather: { temperature_f: parseFloat($$("#temp").value) || null,
+      wind_speed_mph: parseFloat($$("#wind").value) || null,
+      conditions: $$("#cond").value || null },
+  };
+  const out = $$("#out"), btn = $$("#run");
+  btn.disabled = true;
+  const t0 = Date.now();
+  out.innerHTML = `<div class="progress">Three checks run one after another. This usually takes 1–3 minutes — about the time it takes to pour a coffee.<br>Working… <b id="el">0s</b></div>`;
+  const timer = setInterval(()=>{ const el=$$("#el"); if(el) el.textContent = Math.round((Date.now()-t0)/1000)+"s"; }, 1000);
+  try {
+    const r = await fetch("/v1/analyze", { method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify(payload) });
+    clearInterval(timer);
+    if (!r.ok) { out.innerHTML = `<div class="err">The analysis didn't finish: ${r.status}\n${esc((await r.text()).slice(0,400))}\nTry again — if it keeps failing the models may be busy.</div>`; return; }
+    out.innerHTML = renderReport(await r.json());
+    out.scrollIntoView({behavior:"smooth"});
+  } catch(e){ clearInterval(timer); out.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+  finally { btn.disabled = false; }
+}
+
+/* ============ shared report renderer ============ */
+function renderReport(r){
+  const v = vinfo(r.verdict);
+  const placard = `<div class="placard ${v.cls}">
+    <div class="band">${v.word} — ${v.label}</div>
+    <div class="body">${esc(r.summary)}</div></div>`;
+
+  const hazards = (r.risk?.hazards||[]).map(h => `
+    <div class="hazard">
+      <div style="margin-bottom:8px;font-weight:600">${esc(h.description)}</div>
+      <div class="prob" data-tip="Chance of an incident before controls → after the controls you listed">
+        ${(h.probability*100).toFixed(0)}% chance → <span class="res">${((h.residual_probability??h.probability)*100).toFixed(0)}% with your controls</span>
+        <span class="hud"> · ${esc(h.severity)} · score ${h.risk_score.toFixed(0)}/100${h.osha_citations?.length?` · OSHA ${esc(h.osha_citations.join(", "))}`:""}</span></div>
+      ${h.controls?.length?`<div class="hud" style="margin-top:8px;font-weight:700">CONTROLS THAT COUNT</div><ul style="margin:4px 0 0 20px;font-size:15px">${h.controls.map(c=>`<li>${esc(c)}</li>`).join("")}</ul>`:""}
+      ${h.inspection_checkpoints?.length?`<div class="hud" style="margin-top:8px;font-weight:700">WALK OUT AND CHECK THESE FIRST</div><ul style="margin:4px 0 0 20px;font-size:15px">${h.inspection_checkpoints.map(c=>`<li>${esc(c)}</li>`).join("")}</ul>`:""}
+      ${h.factor_trail?.length?`<details class="tape"><summary data-tip="Every number traced to a named factor — nothing hidden">Show the math</summary><pre>${h.factor_trail.map(esc).join("\n")}</pre></details>`:""}
+    </div>`).join("");
+
+  const scenarios = (r.prediction?.scenarios||[]).map(s => `
+    <div class="hazard">
+      <div class="hud" style="color:${sevColor(s.severity)};font-weight:700">${esc(String(s.severity).toUpperCase())} · ${esc(s.incident_type)} · ${(s.likelihood*100).toFixed(0)}% likely</div>
+      <div style="margin:8px 0;font-size:16px">${esc(s.narrative)}</div>
+      ${s.prevention?.length?`<div class="hud" style="font-weight:700">WHAT BREAKS THE CHAIN</div><ul style="margin:4px 0 0 20px;font-size:15px">${s.prevention.map(p=>`<li>${esc(p)}</li>`).join("")}</ul>`:""}
+      ${s.toolbox_talk?`<div class="huddle"><div class="t">Toolbox talk — read this to the crew</div>${esc(s.toolbox_talk)}</div>`:""}
+    </div>`).join("");
+
+  const alerts = (r.pattern_alerts||[]).map(a => `
+    <div class="alert"><span class="k">${esc(a.pattern_kind.replace(/_/g," "))} · ${esc(a.severity)}</span><div>${esc(a.description)}</div></div>`).join("");
+
+  const leading = (r.prediction?.leading_indicators||[]);
+  const p = r.provenance || {};
+  const ms = Object.entries(p.agent_latency_ms||{}).map(([k,t])=>`${k} ${(t/1000).toFixed(0)}s`).join(" · ");
+
+  return placard
+    + (alerts?`<h2>This site's history is talking</h2>${alerts}`:"")
+    + (hazards?`<h2>What can hurt someone today</h2>${hazards}`:"")
+    + (leading.length?`<h2>Check these in the next 30 minutes</h2><div class="panel"><ul style="margin-left:20px;font-size:15px">${leading.map(l=>`<li>${esc(l)}</li>`).join("")}</ul></div>`:"")
+    + (scenarios?`<h2>The incident this prevents — written before it happens</h2>${scenarios}`:"")
+    + `<div class="hud" style="margin-top:16px" data-tip="The system is never allowed to be more confident than the paperwork supports">Plan quality ${r.validation?.quality_score}/10 · prediction confidence ${((r.prediction?.confidence||0)*100).toFixed(0)}%</div>`
+    + `<div class="prov">record ${esc(r.id)} · engine ${esc(p.engine_version||"")} · schema ${esc(p.schema_version||"4.0")}${ms?` · ${esc(ms)}`:""}</div>`;
+}
+
+async function renderStoredReport(id){
+  const m = $$("#main");
+  m.innerHTML = `<h1>Report</h1><div class="sub"><a href="#/watch">← Back to dashboard</a></div><div id="rep">Loading…</div>`;
+  try { $$("#rep").innerHTML = renderReport(await api("/v1/analyses/"+id)); }
+  catch(e){ $$("#rep").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+
+/* ============ EMERGENCY PLAN ============ */
+const EAP_DEMO = {
+  project_name:"Maple Street Medical Office Building", site_address:"1420 Maple St, Lebanon, IN 46052",
+  assembly_point:"Flagpole at the northeast corner of the front parking lot",
+  site_supervisor:"M. Carter", supervisor_phone:"(317) 555-0148",
+  nearest_hospital:"Witham Health Services", hospital_address:"2605 N Lebanon St, Lebanon, IN",
+  alarm_method:"Three long air-horn blasts, repeated",
+  utility_shutoffs:"Electrical: main panel, NE mechanical room. Gas: meter on the west wall. Water: curb stop at the SE entrance",
+  hazards:["crane","fall_rescue"]
+};
+const HAZ_OPTS = [
+  ["crane","Crane on site"],["excavation","Open excavation / trench"],
+  ["confined_space","Confined spaces"],["hazmat","Hazardous materials"],["fall_rescue","Work at height (fall rescue)"]
+];
+
+function renderEap(){
+  $$("#main").innerHTML = `
+    <h1>Emergency Plan</h1>
+    <div class="sub">Nine facts about the site go in. A complete, OSHA-mapped Emergency Action Plan comes out — printable, shareable by link, and on permanent record. The hours of writing are done by the compiler; you supply what only you know.</div>
+    <div class="btnrow"><button class="ghost" id="edemo" data-tip="Loads a realistic example site so you can see a finished plan in one click">Fill with example</button></div>
+    <div class="grid2">
+      <div><label>Project name</label><input id="ep_name" placeholder="Maple Street Medical Office"></div>
+      <div><label>Site address</label><input id="ep_addr" placeholder="Street address responders will use">
+        <div class="help">This is what gets read to 911. Make it exact.</div></div>
+    </div>
+    <div class="grid2">
+      <div><label>Assembly point</label><input id="ep_muster" placeholder="Flagpole, NE corner of the lot">
+        <div class="help">Somewhere everyone can name and find. Specific beats close.</div></div>
+      <div><label>Alarm signal</label><input id="ep_alarm" placeholder="Three long air-horn blasts">
+        <div class="help">How the site sounds the alarm — horn, PA, phone tree.</div></div>
+    </div>
+    <div class="grid2">
+      <div><label>Site supervisor</label><input id="ep_sup" placeholder="Name"></div>
+      <div><label>Supervisor phone</label><input id="ep_phone" inputmode="tel" placeholder="(xxx) xxx-xxxx"></div>
+    </div>
+    <div class="grid2">
+      <div><label>Nearest hospital</label><input id="ep_hosp" placeholder="Hospital name"></div>
+      <div><label>Hospital address <span class="hud">(optional)</span></label><input id="ep_hospaddr"></div>
+    </div>
+    <label>Utility shutoffs <span class="hud">(optional)</span></label>
+    <input id="ep_util" placeholder="Where to kill power, gas, water">
+    <label>What's on this site?</label>
+    <div class="help" style="margin-bottom:4px">Each one you check adds its own emergency procedure to the plan.</div>
+    <div class="checks" id="ep_haz">${HAZ_OPTS.map(([v,l])=>`<label><input type="checkbox" value="${v}">${l}</label>`).join("")}</div>
+    <div><button class="go" id="ep_go">Build the plan</button></div>
+    <div id="ep_out"></div>
+    <h2>Plans on record</h2><div id="ep_list">Loading…</div>`;
+  $$("#edemo").onclick = () => {
+    const d = EAP_DEMO;
+    ep_name.value=d.project_name; ep_addr.value=d.site_address; ep_muster.value=d.assembly_point;
+    ep_alarm.value=d.alarm_method; ep_sup.value=d.site_supervisor; ep_phone.value=d.supervisor_phone;
+    ep_hosp.value=d.nearest_hospital; ep_hospaddr.value=d.hospital_address; ep_util.value=d.utility_shutoffs;
+    document.querySelectorAll("#ep_haz input").forEach(c => c.checked = d.hazards.includes(c.value));
+  };
+  $$("#ep_go").onclick = buildEap;
+  loadEaps();
+}
+async function buildEap(){
+  const out = $$("#ep_out"), btn = $$("#ep_go");
+  const payload = {
+    project_name: ep_name.value.trim(), site_address: ep_addr.value.trim(),
+    assembly_point: ep_muster.value.trim(), alarm_method: ep_alarm.value.trim(),
+    site_supervisor: ep_sup.value.trim(), supervisor_phone: ep_phone.value.trim(),
+    nearest_hospital: ep_hosp.value.trim(),
+    hospital_address: ep_hospaddr.value.trim() || null,
+    utility_shutoffs: ep_util.value.trim() || null,
+    special_hazards: [...document.querySelectorAll("#ep_haz input:checked")].map(c=>c.value),
+  };
+  for (const [k,label] of [["project_name","Project name"],["site_address","Site address"],["assembly_point","Assembly point"],
+    ["alarm_method","Alarm signal"],["site_supervisor","Site supervisor"],["supervisor_phone","Supervisor phone"],["nearest_hospital","Nearest hospital"]]){
+    if (!payload[k]) { out.innerHTML = `<div class="err">${label} is required — responders and crews need it.</div>`; return; }
+  }
+  btn.disabled = true;
+  const t0 = Date.now();
+  out.innerHTML = `<div class="progress">Compiling the plan and tailoring it to your site… usually under a minute. <b id="ep_el">0s</b></div>`;
+  const timer = setInterval(()=>{ const el=$$("#ep_el"); if(el) el.textContent = Math.round((Date.now()-t0)/1000)+"s"; }, 1000);
+  try {
+    const r = await fetch("/v1/eap", { method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify(payload) });
+    clearInterval(timer);
+    if (!r.ok) { out.innerHTML = `<div class="err">Couldn't build the plan: ${r.status}\n${esc((await r.text()).slice(0,300))}</div>`; return; }
+    const d = await r.json();
+    const url = location.origin + "/eap/" + d.id;
+    out.innerHTML = `
+      <div class="placard ${d.osha_compliant?'safe':'warning'}">
+        <div class="band">${d.osha_compliant?'PLAN COMPLETE':'REVIEW REQUIRED'}</div>
+        <div class="body">${d.sections.length} sections · all OSHA 1910.38 elements ${d.osha_compliant?'present':'NOT met'} ·
+          ${d.needs_review?'template procedures — have a competent person review before posting':'tailored to this site'}
+          <div class="btnrow" style="margin-top:14px">
+            <button class="go" style="margin:0" onclick="window.open('${url}','_blank')">Open the plan</button>
+            <button class="ghost" onclick="navigator.clipboard.writeText('${url}').then(()=>this.textContent='Link copied')">Copy share link</button>
+            <button class="ghost" onclick="location.href='mailto:?subject='+encodeURIComponent('Emergency Action Plan — ${esc(d.input.project_name).replace(/'/g,"")}')+'&body='+encodeURIComponent('${url}')">Email it</button>
+          </div>
+        </div>
+      </div>`;
+    loadEaps();
+  } catch(e){ clearInterval(timer); out.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+  finally { btn.disabled = false; }
+}
+async function loadEaps(){
+  try {
+    const list = await api("/v1/eap");
+    $$("#ep_list").innerHTML = list.length ? `<div class="panel" style="padding:0;overflow-x:auto"><table>
+      <thead><tr><th>Project</th><th>Address</th><th>OSHA</th><th>Created</th></tr></thead><tbody>` +
+      list.map(p => `<tr class="row" onclick="window.open('/eap/${p.id}','_blank')" data-tip="Open the printable plan">
+        <td style="font-weight:600">${esc(p.project_name)}</td><td class="hud">${esc(p.site_address)}</td>
+        <td><span class="chip" style="background:${p.osha_compliant?'var(--safe)':'var(--warning)'}">${p.osha_compliant?'COMPLETE':'REVIEW'}</span></td>
+        <td class="hud">${new Date(p.created_at).toLocaleDateString()}</td></tr>`).join("") + `</tbody></table></div>`
+      : `<div class="empty">No plans yet. Build the first one — it takes about a minute.</div>`;
+  } catch(e){ $$("#ep_list").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+
+/* ============ REPORT INCIDENT ============ */
+function renderTruth(){
+  $$("#main").innerHTML = `
+    <h1>Report an incident</h1>
+    <div class="sub">Incidents and near misses are how this system gets smarter. Every report sharpens every future prediction — a near miss with no injury is the most valuable report there is.</div>
+    <div class="grid3">
+      <div><label>What kind</label><select id="itype">
+        <option>fall</option><option>struck-by</option><option>caught-between</option><option>electrocution</option><option>other</option></select></div>
+      <div><label>How bad</label><select id="isev"><option>LOW</option><option>MEDIUM</option><option selected>HIGH</option><option>CRITICAL</option></select></div>
+      <div><label>When</label><input id="iwhen" type="datetime-local"></div>
+    </div>
+    <label style="display:flex;align-items:center;gap:12px;font:600 16px var(--sans);min-height:48px;cursor:pointer">
+      <input type="checkbox" id="inm" style="width:22px;height:22px;min-height:0;accent-color:var(--amber)" checked> Near miss — nobody was hurt</label>
+    <label>What happened</label>
+    <textarea id="idesc" placeholder="The sequence of events. What almost happened, and what stopped it."></textarea>
+    <div class="help">Names aren't needed. The system cares about the conditions, not the people.</div>
+    <div><button class="go" id="isend">Record it</button></div>
+    <div id="imsg"></div>
+    <h2>On record</h2><div id="ilist">Loading…</div>`;
+  $$("#iwhen").value = new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
+  $$("#isend").onclick = async () => {
+    const msg = $$("#imsg");
+    try {
+      await api("/v1/incidents", { method:"POST", headers:{"content-type":"application/json"},
+        body: JSON.stringify({
+          incident_type: $$("#itype").value, severity: $$("#isev").value,
+          near_miss: $$("#inm").checked, description: $$("#idesc").value.trim() || "No description",
+          occurred_at: new Date($$("#iwhen").value).toISOString() })});
+      msg.innerHTML = `<div class="okmsg">Recorded. Every future analysis just got a little sharper.</div>`;
+      $$("#idesc").value = ""; loadIncidents();
+    } catch(e){ msg.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+  };
+  loadIncidents();
+}
+async function loadIncidents(){
+  try {
+    const list = await api("/v1/incidents");
+    $$("#ilist").innerHTML = list.length ? list.map(i => `
+      <div class="hazard">
+        <div class="hud" style="color:${sevColor(i.severity)};font-weight:700">${esc(i.severity)} · ${esc(i.incident_type)}${i.near_miss?" · NEAR MISS":""} · ${new Date(i.occurred_at).toLocaleString()}</div>
+        <div style="margin-top:6px">${esc(i.description)}</div>
+      </div>`).join("")
+      : `<div class="empty">Nothing on record yet. The first report closes the learning loop.</div>`;
+  } catch(e){ $$("#ilist").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+
+fetch("/health").then(r=>r.json()).then(h => $$("#pulse").textContent = "v"+h.version)
+  .catch(()=> $$("#pulse").textContent = "unreachable");
+
+/* ============ MY PROFILE ============ */
+async function renderProfile(){
+  const m = $$("#main");
+  if (!ME.id) { m.innerHTML = `<h1>My Profile</h1><div class="empty">Pick your name in the bottom-left corner first.</div>`; return; }
+  m.innerHTML = `<h1>My Profile</h1><div class="sub">Your cards, your certs, your record. Drug screens show pass/fail only — the details stay with the office.</div><div id="pf">Loading…</div>`;
+  try {
+    const me = await api("/v1/me");
+    const screenBoxes = (me.screens||[]).map(s => `<div data-tip="${esc(s.date)}" style="width:46px;height:46px;border-radius:8px;display:flex;align-items:center;justify-content:center;font:600 11px var(--mono);color:#101317;background:${s.color==='green'?'var(--safe)':s.color==='red'?'var(--danger)':'var(--line2)'}">${new Date(s.date).toLocaleDateString('en-US',{month:'numeric',day:'numeric'})}</div>`).join("");
+    const certs = (me.certs||[]).map(c => `<div class="hazard" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <div><b>${esc(c.cert_name)}</b>${c.issuer?` · ${esc(c.issuer)}`:""}<div class="hud">${c.expires_on?`expires ${esc(c.expires_on)}`:"no expiry on file"}</div></div></div>`).join("");
+    const incs = (me.incidents||[]).map(i => `<div class="hazard"><div class="hud" style="color:${sevColor(i.severity)};font-weight:700">${esc(i.severity)} · ${esc(i.incident_type)}${i.near_miss?" · NEAR MISS":""} · ${new Date(i.occurred_at).toLocaleDateString()}</div><div style="margin-top:4px">${esc(i.description)}</div></div>`).join("");
+    $$("#pf").innerHTML = `
+      <div class="grid2">
+        <div class="panel" style="border:2px solid var(--amber)">
+          <div style="font:800 13px var(--mono);letter-spacing:2px;color:var(--amber)">NAME CARD</div>
+          <div style="font:700 22px var(--sans);margin:6px 0 2px">${esc(me.name)}</div>
+          <div class="hud" style="text-transform:capitalize">${esc(me.role.replace("_"," "))}${me.phone?` · ${esc(me.phone)}`:""}</div>
+          <div style="margin-top:10px"><b>Current job tasking</b><div class="hud" id="jt_view">${esc(me.job_tasking||"— not set —")}</div></div>
+        </div>
+        <div class="panel" style="border:2px solid var(--danger)">
+          <div style="font:800 13px var(--mono);letter-spacing:2px;color:var(--danger)">911 CONTACT CARD</div>
+          <div style="margin:6px 0"><b>${esc(me.emergency_contact_name||"— add a contact —")}</b></div>
+          <div class="hud">${esc(me.emergency_contact_phone||"")}</div>
+          <div class="hud" style="margin-top:8px">${esc(me.emergency_medical_notes||"No medical notes on file")}</div>
+        </div>
+      </div>
+      <h2>Update my info</h2>
+      <div class="grid3">
+        <div><label>Phone</label><input id="pf_phone" value="${esc(me.phone||"")}"></div>
+        <div><label>Emergency contact</label><input id="pf_ecn" value="${esc(me.emergency_contact_name||"")}"></div>
+        <div><label>Their phone</label><input id="pf_ecp" value="${esc(me.emergency_contact_phone||"")}"></div>
+      </div>
+      <label>Current job tasking</label><input id="pf_jt" value="${esc(me.job_tasking||"")}" placeholder="What you're on this week">
+      <label>Medical notes for responders <span class="hud">(allergies, conditions — optional)</span></label>
+      <input id="pf_med" value="${esc(me.emergency_medical_notes||"")}">
+      <div class="btnrow"><button class="go" id="pf_save">Save</button><span id="pf_msg"></span></div>
+      <h2>Drug screens <span class="hud" style="text-transform:none">— pass/fail only, newest first</span></h2>
+      <div class="btnrow">${screenBoxes || '<div class="empty" style="flex:1">None on file.</div>'}</div>
+      <h2>My certifications</h2>${certs || '<div class="empty">None on file yet.</div>'}
+      <div class="grid3">
+        <div><label>Add a cert</label><input id="c_name" placeholder="OSHA 30, aerial lift…"></div>
+        <div><label>Issuer</label><input id="c_iss" placeholder="Who issued it"></div>
+        <div><label>Expires</label><input id="c_exp" type="date"></div>
+      </div>
+      <div class="btnrow"><button class="ghost" id="c_add">Add certification</button><span id="c_msg"></span></div>
+      <h2>My incident reports</h2>${incs || '<div class="empty">Nothing on record. Good.</div>'}`;
+    $$("#pf_save").onclick = async () => {
+      try { await api("/v1/me",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({
+        phone: pf_phone.value, job_tasking: pf_jt.value, emergency_contact_name: pf_ecn.value,
+        emergency_contact_phone: pf_ecp.value, emergency_medical_notes: pf_med.value })});
+        $$("#pf_msg").innerHTML = '<span class="okmsg">Saved.</span>'; renderProfile();
+      } catch(e){ $$("#pf_msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+    };
+    $$("#c_add").onclick = async () => {
+      try { await api("/v1/people/"+ME.id+"/certs",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+        cert_name: c_name.value.trim(), issuer: c_iss.value.trim()||null, expires_on: c_exp.value||null })});
+        renderProfile();
+      } catch(e){ $$("#c_msg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+    };
+  } catch(e){ $$("#pf").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+
+/* ============ ADMIN ============ */
+async function renderAdmin(){
+  const m = $$("#main");
+  const sd = ME.role === "safety_director";
+  if (!ME.id || (ME.role!=="admin" && !sd)) { m.innerHTML = `<h1>Admin</h1><div class="empty">Admins and the safety director only.</div>`; return; }
+  m.innerHTML = `<h1>Admin</h1><div class="sub">People, screens, certifications${sd?", the scheduler, requests, and the wellbeing scan":""}. Deleting anything is admin-and-up by design.</div>
+    <h2>Add a person</h2>
+    <div class="grid3">
+      <div><label>Name</label><input id="ap_name"></div>
+      <div><label>Role</label><select id="ap_role"><option value="employee">Employee</option><option value="admin">Admin</option>${sd?'<option value="safety_director">Safety director</option>':''}</select></div>
+      <div><label>Phone</label><input id="ap_phone"></div>
+    </div>
+    <div class="btnrow"><button class="go" id="ap_go">Add person</button><span id="ap_msg"></span></div>
+    <h2>Look up a person</h2>
+    <select id="ad_pick"><option value="">— choose —</option></select>
+    <div id="ad_detail"></div>
+    ${sd ? `
+    <h2>Test requests waiting on you</h2><div id="rq_list">Loading…</div>
+    <h2>Drug screen scheduler <span class="hud" style="text-transform:none">— safety director only</span></h2>
+    <div class="grid3">
+      <div><label>Date</label><input id="ds_date" type="date"></div>
+      <div><label>Type</label><select id="ds_type"><option>random</option><option>suspicion</option><option>medical</option><option>for_cause</option><option>pre_employment</option></select></div>
+      <div><label>Random pick <span class="hud">(N employees)</span></label><input id="ds_n" type="number" inputmode="numeric" placeholder="e.g. 3"></div>
+    </div>
+    <div class="btnrow"><button class="go" id="ds_go">Schedule</button><span id="ds_msg"></span></div>
+    <div id="ds_list"></div>
+    <h2>Wellbeing <span class="hud" style="text-transform:none">— visible to you alone, framed as care</span></h2>
+    <div class="btnrow"><button class="ghost" id="wb_go" data-tip="Deep scan runs every 14 days; this forces a fresh one">Run pattern scan now</button></div>
+    <div id="wb_out">Loading…</div>` : `
+    <h2>Request a drug test</h2>
+    <div class="help" style="margin-bottom:6px">Goes to the safety director with your name on it.</div>
+    <div class="grid3">
+      <div><label>Person</label><select id="rq_pick"></select></div>
+      <div><label>Why</label><select id="rq_cl"><option value="suspicion">Suspicion</option><option value="medical">Medical</option><option value="for_cause">For cause</option></select></div>
+      <div><label>Note</label><input id="rq_note" placeholder="What you observed"></div>
+    </div>
+    <div class="btnrow"><button class="go" id="rq_go">Send to safety director</button><span id="rq_msg"></span></div>`}`;
+  const dir = await api("/v1/people/directory");
+  const opts = dir.map(p=>`<option value="${p.id}">${esc(p.name)} · ${esc(p.role)}</option>`).join("");
+  $$("#ad_pick").innerHTML += opts;
+  if ($$("#rq_pick")) $$("#rq_pick").innerHTML = opts;
+  $$("#ap_go").onclick = async () => {
+    try { await api("/v1/people",{method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify({name: ap_name.value.trim(), role: ap_role.value, phone: ap_phone.value||null})});
+      $$("#ap_msg").innerHTML='<span class="okmsg">Added.</span>'; renderAdmin();
+    } catch(e){ $$("#ap_msg").innerHTML=`<span class="err">${esc(e.message)}</span>`; }
+  };
+  $$("#ad_pick").onchange = async e => {
+    if (!e.target.value) return;
+    const p = await api("/v1/people/"+e.target.value);
+    const screens = (p.screens||[]).map(s=>`<tr><td>${esc(s.date)}</td><td>${esc(s.type)}</td>
+      <td><span class="chip" style="background:${s.passed===true?'var(--safe)':s.passed===false?'var(--danger)':'var(--line2)'}">${s.passed===true?'PASS':s.passed===false?'FAIL':'PENDING'}</span></td>
+      <td class="hud">${esc(s.full_result||"")}</td>
+      <td><button class="ghost" onclick="api('/v1/screens/${s.id}',{method:'DELETE'}).then(()=>ad_pick.onchange({target:ad_pick}))">Delete</button></td></tr>`).join("");
+    const certs = (p.certs||[]).map(c=>`<tr><td><b>${esc(c.cert_name)}</b></td><td>${esc(c.issuer||"")}</td><td>${esc(c.expires_on||"—")}</td>
+      <td><button class="ghost" onclick="api('/v1/certs/${c.id}',{method:'DELETE'}).then(()=>ad_pick.onchange({target:ad_pick}))">Delete</button></td></tr>`).join("");
+    $$("#ad_detail").innerHTML = `
+      <div class="panel" style="margin-top:12px">
+        <b style="font-size:18px">${esc(p.name)}</b> <span class="hud" style="text-transform:capitalize">· ${esc(p.role.replace("_"," "))}${p.phone?` · ${esc(p.phone)}`:""}</span>
+        <div class="hud" style="margin-top:4px">Tasking: ${esc(p.job_tasking||"—")} · 911: ${esc(p.emergency_contact_name||"—")} ${esc(p.emergency_contact_phone||"")}</div>
+        <h2>Drug screens — full results</h2>
+        <table><thead><tr><th>Date</th><th>Type</th><th>Result</th><th>Detail</th><th></th></tr></thead><tbody>${screens||""}</tbody></table>
+        <div class="grid3" style="margin-top:8px">
+          <div><label>Date</label><input id="ns_date" type="date"></div>
+          <div><label>Type</label><select id="ns_type"><option>random</option><option>suspicion</option><option>medical</option><option>for_cause</option><option>pre_employment</option></select></div>
+          <div><label>Result</label><select id="ns_pass"><option value="">Pending</option><option value="true">Pass</option><option value="false">Fail</option></select></div>
+        </div>
+        <label>Full result detail <span class="hud">(admin eyes only)</span></label><input id="ns_full">
+        <div class="btnrow"><button class="ghost" id="ns_add">Add screen</button></div>
+        <h2>Certifications</h2>
+        <table><thead><tr><th>Cert</th><th>Issuer</th><th>Expires</th><th></th></tr></thead><tbody>${certs||""}</tbody></table>
+        <div class="grid3" style="margin-top:8px">
+          <div><label>Cert</label><input id="nc_name"></div>
+          <div><label>Issuer</label><input id="nc_iss"></div>
+          <div><label>Expires</label><input id="nc_exp" type="date"></div>
+        </div>
+        <div class="btnrow"><button class="ghost" id="nc_add">Add cert</button></div>
+      </div>`;
+    $$("#ns_add").onclick = async () => {
+      await api("/v1/people/"+p.id+"/screens",{method:"POST",headers:{"content-type":"application/json"},
+        body:JSON.stringify({screen_date: ns_date.value, screen_type: ns_type.value,
+          passed: ns_pass.value===""?null:ns_pass.value==="true", full_result: ns_full.value||null})});
+      ad_pick.onchange({target: ad_pick});
+    };
+    $$("#nc_add").onclick = async () => {
+      await api("/v1/people/"+p.id+"/certs",{method:"POST",headers:{"content-type":"application/json"},
+        body:JSON.stringify({cert_name: nc_name.value.trim(), issuer: nc_iss.value||null, expires_on: nc_exp.value||null})});
+      ad_pick.onchange({target: ad_pick});
+    };
+  };
+  if (sd) {
+    loadRequests(); loadSchedule(); loadWellbeing(false);
+    $$("#ds_go").onclick = async () => {
+      try { const r = await api("/v1/drug-schedule",{method:"POST",headers:{"content-type":"application/json"},
+        body:JSON.stringify({scheduled_for: ds_date.value, screen_type: ds_type.value,
+          random_n: ds_n.value?parseInt(ds_n.value):null, person_ids: []})});
+        $$("#ds_msg").innerHTML=`<span class="okmsg">${r.scheduled} scheduled.</span>`; loadSchedule();
+      } catch(e){ $$("#ds_msg").innerHTML=`<span class="err">${esc(e.message)}</span>`; }
+    };
+    $$("#wb_go").onclick = () => loadWellbeing(true);
+  } else {
+    $$("#rq_go").onclick = async () => {
+      try { await api("/v1/drugtest-requests",{method:"POST",headers:{"content-type":"application/json"},
+        body:JSON.stringify({person_id: rq_pick.value, classifier: rq_cl.value, note: rq_note.value||null})});
+        $$("#rq_msg").innerHTML='<span class="okmsg">Sent.</span>';
+      } catch(e){ $$("#rq_msg").innerHTML=`<span class="err">${esc(e.message)}</span>`; }
+    };
+  }
+}
+async function loadRequests(){
+  try { const list = await api("/v1/drugtest-requests");
+    $$("#rq_list").innerHTML = list.length ? list.map(r=>`<div class="hazard" style="display:flex;justify-content:space-between;gap:10px;align-items:center">
+      <div><b>${esc(r.person)}</b> · ${esc(r.classifier)} · from ${esc(r.requested_by)} <span class="hud">${esc(r.note||"")}</span>
+        <div class="hud">${new Date(r.created_at).toLocaleString()} · ${esc(r.status)}</div></div>
+      ${r.status==='open'?`<div class="btnrow">
+        <button class="ghost" onclick="api('/v1/drugtest-requests/${r.id}',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({status:'approved'})}).then(loadRequests)">Approve</button>
+        <button class="ghost" onclick="api('/v1/drugtest-requests/${r.id}',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({status:'declined'})}).then(loadRequests)">Decline</button></div>`:""}
+    </div>`).join("") : '<div class="empty">Nothing waiting.</div>';
+  } catch(e){ $$("#rq_list").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+async function loadSchedule(){
+  try { const list = await api("/v1/drug-schedule");
+    $$("#ds_list").innerHTML = list.length ? `<div class="panel" style="padding:0;margin-top:12px;overflow-x:auto"><table>
+      <thead><tr><th>Date</th><th>Person</th><th>Type</th><th>Status</th></tr></thead><tbody>` +
+      list.map(s=>`<tr><td>${esc(s.scheduled_for)}</td><td>${esc(s.person)}</td><td>${esc(s.type)}</td><td class="hud">${esc(s.status)}</td></tr>`).join("")
+      + `</tbody></table></div>` : "";
+  } catch(e){}
+}
+async function loadWellbeing(force){
+  $$("#wb_out").innerHTML = force ? '<div class="progress">Scanning the last 30 days of check-ins…</div>' : 'Loading…';
+  try {
+    const w = await api("/v1/wellbeing" + (force ? "?force=true" : ""));
+    const acute = (w.acute_recent||[]).map(a=>`<div class="alert"><span class="k">ACUTE · same-day attention</span>
+      <div><b>${esc(a.name)}</b> · ${new Date(a.at).toLocaleString()}<div class="hud">"${esc(a.answer)}"</div></div></div>`).join("");
+    const stClr = s => ({ok:"var(--safe)",watch:"var(--caution)",reach_out:"var(--danger)"}[s]||"var(--line2)");
+    const scan = Array.isArray(w.scan) ? w.scan.map(p=>`<div class="hazard" style="display:flex;gap:12px;align-items:flex-start">
+      <span class="chip" style="background:${stClr(p.status)}">${esc((p.status||"ok").replace("_"," ").toUpperCase())}</span>
+      <div><b>${esc(p.name)}</b><div class="hud">${esc(p.rationale||"")}</div></div></div>`).join("") : `<div class="hud">${esc(JSON.stringify(w.scan))}</div>`;
+    $$("#wb_out").innerHTML = (acute?`${acute}`:"")
+      + (scan || '<div class="empty">No check-ins to scan yet.</div>')
+      + `<div class="hud" style="margin-top:8px">${w.fresh?"Fresh scan":"Last scan"} · ${w.scanned_at?new Date(w.scanned_at).toLocaleString():""} · deep scans run every 14 days; acute flags never wait</div>`;
+  } catch(e){ $$("#wb_out").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+
+/* sign-in: name + PIN, signed token stored on this device */
+function signOut(){ ["scid","scname","scrole","sctoken"].forEach(k=>localStorage.removeItem(k)); location.reload(); }
+async function initSignin(){
+  const btn = $$("#signbtn");
+  if (ME.token) {
+    btn.textContent = (ME.name||"signed in") + " · sign out";
+    btn.onclick = signOut;
+    if (ME.role==="admin"||ME.role==="safety_director") $$("#adminlink").style.display="flex";
+    checkinBanner();
+  } else {
+    btn.textContent = "Sign in";
+    btn.onclick = showLogin;
+  }
+}
+async function showLogin(){
+  let dir = [];
+  try { dir = await api("/v1/people/directory"); } catch(e){}
+  const wrap = document.createElement("div");
+  wrap.id = "loginmodal";
+  wrap.style.cssText = "position:fixed;inset:0;background:rgba(8,10,13,.85);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px";
+  wrap.innerHTML = `<div class="panel" style="max-width:380px;width:100%;border:2px solid var(--amber)">
+    <div style="font:800 16px var(--mono);color:var(--amber);margin-bottom:14px">SIGN IN</div>
+    <label>Your name</label>
+    <select id="lg_who">${dir.length?dir.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join(""):'<option value="">no people yet — create one in Admin</option>'}</select>
+    <label>PIN</label>
+    <input id="lg_pin" type="password" inputmode="numeric" autocomplete="off" placeholder="4–8 digits">
+    <div id="lg_setarea" style="display:none">
+      <div class="help" style="margin-top:8px">First time signing in — set a PIN you'll remember.</div>
+      <label>New PIN</label><input id="lg_newpin" type="password" inputmode="numeric" placeholder="4–8 digits">
+    </div>
+    <div class="btnrow"><button class="go" id="lg_go">Sign in</button>
+      <button class="ghost" onclick="document.getElementById('loginmodal').remove()">Cancel</button></div>
+    <div id="lg_msg"></div>
+  </div>`;
+  document.body.appendChild(wrap);
+  $$("#lg_go").onclick = doLogin;
+  $$("#lg_pin").addEventListener("keydown", e=>{ if(e.key==="Enter") doLogin(); });
+}
+async function doLogin(){
+  const id = $$("#lg_who").value, msg = $$("#lg_msg");
+  const setArea = $$("#lg_setarea"), settingPin = setArea.style.display !== "none";
+  if (!id) { msg.innerHTML='<div class="err">Pick your name first.</div>'; return; }
+  try {
+    if (settingPin) {
+      const np = $$("#lg_newpin").value;
+      const r = await api("/v1/auth/set-pin", {method:"POST",headers:{"content-type":"application/json"},
+        body: JSON.stringify({person_id:id, new_pin:np})});
+      finishLogin(id, r);
+      return;
+    }
+    const r = await api("/v1/auth/login", {method:"POST",headers:{"content-type":"application/json"},
+      body: JSON.stringify({person_id:id, pin:$$("#lg_pin").value})});
+    if (r.must_set_pin) {
+      setArea.style.display="block";
+      msg.innerHTML='<div class="okmsg">Set your PIN to finish.</div>';
+      return;
+    }
+    finishLogin(id, r);
+  } catch(e){ msg.innerHTML=`<div class="err">${esc(e.message)}</div>`; }
+}
+function finishLogin(id, r){
+  if (!r.token) return;
+  const name = ($$("#lg_who").selectedOptions[0]||{}).textContent || "";
+  localStorage.scid=id; localStorage.scname=name; localStorage.scrole=r.role||""; localStorage.sctoken=r.token;
+  location.reload();
+}
+async function checkinBanner(){
+  try {
+    const c = await api("/v1/checkin");
+    if (!c.due) return;
+    const b = document.createElement("div");
+    b.className = "panel"; b.style.cssText = "border-color:var(--amber);margin-bottom:18px";
+    b.innerHTML = `<div style="font-weight:700;margin-bottom:6px">Quick check-in, ${esc(ME.name.split(" ")[0])} — 30 seconds, straight answer.</div>
+      <div style="font-size:16px;margin-bottom:8px">${esc(c.question)}</div>
+      <textarea id="ci_a" placeholder="Honest beats polished."></textarea>
+      <div class="btnrow"><button class="go" style="margin-top:10px" id="ci_go">Send it</button></div>
+      <div id="ci_msg"></div>`;
+    $$("#main").prepend(b);
+    $$("#ci_go").onclick = async () => {
+      try {
+        const r = await api("/v1/checkin", {method:"POST",headers:{"content-type":"application/json"},
+          body: JSON.stringify({answer: $$("#ci_a").value.trim() || "no answer"})});
+        if (r.support) { $$("#ci_msg").innerHTML = `<div class="huddle" style="margin-top:10px"><div class="t">We hear you</div>${esc(r.support)}</div>`; $$("#ci_go").style.display="none"; }
+        else b.innerHTML = `<div class="okmsg">Thanks. That's it until ${"MWF".includes("M")?"next time":""} — back to work.</div>`;
+      } catch(e){ $$("#ci_msg").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+    };
+  } catch(e){}
+}
+initSignin();
+route();
+</script>
+</body>
+</html>

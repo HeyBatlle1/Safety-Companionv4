@@ -1,0 +1,6 @@
+# Caddy fronts scd. Point your DNS at this box and Caddy handles TLS
+# automatically. You own the URL — portable to any host, any registrar.
+{$SC_DOMAIN:localhost} {
+    encode gzip
+    reverse_proxy scd:8787
+}

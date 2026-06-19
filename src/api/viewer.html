@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Safety Companion — Drawing Viewer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.1/openseadragon.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root { --amber:#c9a84c; --bg:#0d0f12; --panel:#15181d; --text:#d8dce2; }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--bg); color:var(--text); font:14px/1.4 -apple-system,'Segoe UI',sans-serif; height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+  header { display:flex; gap:8px; align-items:center; padding:8px 12px; background:var(--panel); border-bottom:1px solid #23272e; flex-wrap:wrap; }
+  header .brand { color:var(--amber); font-weight:700; letter-spacing:.5px; margin-right:auto; }
+  select,button,input[type=file]::file-selector-button {
+    background:#1d2128; color:var(--text); border:1px solid #2c313a; border-radius:6px;
+    padding:7px 12px; font-size:13px; cursor:pointer;
+  }
+  button:active { background:var(--amber); color:#000; }
+  #osd { flex:1; background:#0a0b0d; touch-action:none; }
+  #status { position:fixed; bottom:10px; left:12px; font-size:12px; color:#7b8290; pointer-events:none; }
+  #pagebar { display:none; gap:6px; align-items:center; }
+  #pagebar.on { display:flex; }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">SC // DRAWINGS</span>
+  <select id="files" title="Stored drawings"><option value="">— select drawing —</option></select>
+  <input type="file" id="upload" accept=".pdf,.png,.jpg,.jpeg,.webp,.svg" title="Upload a sheet">
+  <span id="pagebar">
+    <button id="prev">◀</button><span id="pageinfo">1/1</span><button id="next">▶</button>
+  </span>
+  <button id="rotL" title="Rotate left">⟲ 90</button>
+  <button id="rotR" title="Rotate right">⟳ 90</button>
+  <button id="fit"  title="Fit to screen">FIT</button>
+  <button id="analyze" title="Agent 5: vision safety analysis of current view" style="border-color:var(--amber);color:var(--amber)">ANALYZE</button>
+  <button id="mk_toggle" title="Markup mode: draw on the print. Your marks are your own layer.">✏ MARKUP</button>
+  <span id="mk_tools" style="display:none;gap:6px;align-items:center">
+    <select id="mk_tool" title="Tool"><option value="pen">Pen</option><option value="arrow">Arrow</option><option value="box">Box</option><option value="text">Text</option></select>
+    <select id="mk_color" title="Color"><option value="#ff5d57">Red</option><option value="#e0b94f">Amber</option><option value="#4fc06a">Green</option></select>
+    <button id="mk_undo" title="Undo my last mark">↶</button>
+    <button id="mk_save" title="Save my markup layer to the record">SAVE</button>
+  </span>
+  <button id="full" title="Fullscreen">⛶</button>
+</header>
+<div id="osd"></div>
+<div id="status">pinch to zoom · two-finger twist to rotate · drag to pan</div>
+<div id="panel" style="display:none;position:fixed;top:54px;right:0;bottom:0;width:min(420px,90vw);background:var(--panel);border-left:1px solid #23272e;overflow:auto;padding:14px;z-index:9">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <strong style="color:var(--amber)">AGENT 5 — VISION FINDINGS</strong>
+    <button onclick="document.getElementById('panel').style.display='none'">✕</button>
+  </div>
+  <div id="findings">…</div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+const viewer = OpenSeadragon({
+  id: "osd",
+  prefixUrl: "https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.1/images/",
+  showNavigationControl: false,
+  maxZoomPixelRatio: 8,
+  minZoomImageRatio: 0.5,
+  visibilityRatio: 0.3,
+  animationTime: 0.25,
+  gestureSettingsTouch: { pinchToZoom: true, pinchRotate: true, flickEnabled: true },
+  gestureSettingsMouse: { clickToZoom: false, dblClickToZoom: true, scrollToZoom: true }
+});
+
+let pdfDoc = null, pageNum = 1;
+const $ = id => document.getElementById(id);
+
+function setStatus(t){ $("status").textContent = t; }
+
+function openImageUrl(url){
+  viewer.open({ type: "image", url, buildPyramid: true });
+}
+
+async function renderPdfPage(n){
+  const page = await pdfDoc.getPage(n);
+  // Render at high DPI so deep zoom stays crisp on dimension text.
+  const scale = Math.min(4, 6000 / page.getViewport({scale:1}).width);
+  const vp = page.getViewport({ scale });
+  const canvas = document.createElement("canvas");
+  canvas.width = vp.width; canvas.height = vp.height;
+  await page.render({ canvasContext: canvas.getContext("2d"), viewport: vp }).promise;
+  lastCanvasDataUrl = canvas.toDataURL("image/png");
+  openImageUrl(lastCanvasDataUrl);
+  $("pageinfo").textContent = `${n}/${pdfDoc.numPages}`;
+  $("pagebar").classList.toggle("on", pdfDoc.numPages > 1);
+}
+
+async function loadDrawing(name){
+  setStatus("loading " + name + " …");
+  const url = "/v1/drawings/" + encodeURIComponent(name);
+  pdfDoc = null; pageNum = 1; lastCanvasDataUrl = null; $("pagebar").classList.remove("on");
+  if (name.toLowerCase().endsWith(".pdf")) {
+    const data = await (await fetch(url)).arrayBuffer();
+    pdfDoc = await pdfjsLib.getDocument({ data }).promise;
+    await renderPdfPage(1);
+  } else {
+    openImageUrl(url);
+  }
+  setStatus(name + " — pinch to zoom · twist to rotate");
+}
+
+async function refreshList(selectName){
+  const names = await (await fetch("/v1/drawings")).json();
+  const sel = $("files");
+  sel.innerHTML = '<option value="">— select drawing —</option>' +
+    names.map(n => `<option ${n===selectName?'selected':''}>${n}</option>`).join("");
+}
+
+$("files").onchange = e => e.target.value && loadDrawing(e.target.value);
+$("prev").onclick = () => pdfDoc && pageNum > 1 && renderPdfPage(--pageNum);
+$("next").onclick = () => pdfDoc && pageNum < pdfDoc.numPages && renderPdfPage(++pageNum);
+$("rotL").onclick = () => viewer.viewport.setRotation(viewer.viewport.getRotation() - 90);
+$("rotR").onclick = () => viewer.viewport.setRotation(viewer.viewport.getRotation() + 90);
+$("fit").onclick  = () => { viewer.viewport.setRotation(0); viewer.viewport.goHome(true); };
+$("full").onclick = () => document.fullscreenElement
+  ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+
+$("upload").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  setStatus("uploading " + f.name + " …");
+  const r = await fetch("/v1/drawings/" + encodeURIComponent(f.name), { method:"PUT", body:f });
+  if (r.ok) { await refreshList(f.name); await loadDrawing(f.name); }
+  else setStatus("upload failed: " + r.status);
+};
+
+let lastCanvasDataUrl = null;
+
+async function currentImageB64(){
+  // PDFs were already rasterized into lastCanvasDataUrl; images get fetched.
+  if (lastCanvasDataUrl) return lastCanvasDataUrl.split(",")[1];
+  const name = $("files").value; if (!name) return null;
+  const blob = await (await fetch("/v1/drawings/" + encodeURIComponent(name))).blob();
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement("canvas");
+      const scale = Math.min(1, 2400 / img.width);
+      c.width = img.width * scale; c.height = img.height * scale;
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      res(c.toDataURL("image/png").split(",")[1]);
+    };
+    img.src = URL.createObjectURL(blob);
+  });
+}
+
+const sevColor = s => ({CRITICAL:"#ff5d5d",HIGH:"#ff9d4d",MEDIUM:"#e8c95a",LOW:"#7fb069",INFO:"#7b8290"}[s]||"#7b8290");
+
+$("analyze").onclick = async () => {
+  const b64 = await currentImageB64();
+  if (!b64) { setStatus("load a drawing first"); return; }
+  $("panel").style.display = "block";
+  $("findings").innerHTML = "Agent 5 is reading the sheet… (free-tier models can take a minute)";
+  try {
+    const r = await fetch("/v1/vision/analyze", {
+      method: "POST", headers: {"content-type":"application/json"},
+      body: JSON.stringify({ image_b64: b64, media_type: "image/png", kind: "drawing",
+        context: "Sheet: " + ($("files").value || "uploaded") })
+    });
+    if (!r.ok) { $("findings").textContent = "analysis failed: " + r.status + " " + (await r.text()).slice(0,300); return; }
+    const rep = await r.json();
+    $("findings").innerHTML =
+      `<p style="margin-bottom:10px">${rep.summary}</p>` +
+      (rep.findings||[]).map(f =>
+        `<div style="border-left:3px solid ${sevColor(f.severity)};padding:6px 10px;margin:8px 0;background:#1a1e24;border-radius:0 6px 6px 0">
+           <div style="font-size:11px;color:${sevColor(f.severity)}">${f.severity} · ${f.category}${f.location_hint?` · ${f.location_hint}`:""}</div>
+           <div>${f.description}</div>
+           ${f.recommendation?`<div style="color:#9aa3af;font-size:12px;margin-top:4px">→ ${f.recommendation}</div>`:""}
+         </div>`).join("") +
+      `<div style="color:#7b8290;font-size:11px;margin-top:10px">confidence ${(rep.confidence*100).toFixed(0)}% · ${rep.model||""}</div>`;
+  } catch(e) { $("findings").textContent = "error: " + e; }
+};
+
+/* ===== markup suite: per-author layers in image coordinates ===== */
+let mkOn=false, mkShapes=[], mkOthers=[], mkCur=null, imgW=1, imgH=1;
+const mkKey = () => ($("files").value||"upload") + (pdfDoc ? "#p"+pageNum : "");
+const author = () => localStorage.scname || "field";
+
+viewer.addHandler("open", () => {
+  const item = viewer.world.getItemAt(0);
+  if (!item) return;
+  const size = item.getContentSize(); imgW=size.x; imgH=size.y;
+  let el = document.getElementById("mk_svg");
+  if (el) viewer.removeOverlay(el);
+  el = document.createElementNS("http://www.w3.org/2000/svg","svg");
+  el.id = "mk_svg";
+  el.setAttribute("viewBox", `0 0 ${imgW} ${imgH}`);
+  el.style.cssText = "width:100%;height:100%;pointer-events:none";
+  viewer.addOverlay({element: el, location: viewer.viewport.imageToViewportRectangle(0,0,imgW,imgH)});
+  loadMarkups();
+});
+
+async function loadMarkups(){
+  mkShapes=[]; mkOthers=[];
+  try {
+    const layers = await (await fetch("/v1/markups/"+encodeURIComponent(mkKey()))).json();
+    for (const l of layers){
+      if (l.author === author()) mkShapes = l.shapes || [];
+      else mkOthers.push(...(l.shapes||[]).map(s => Object.assign({}, s, {locked:true, by:l.author})));
+    }
+  } catch(e){}
+  mkDraw();
+}
+function shapeSvg(s, dim){
+  const sw = Math.max(2, imgW/600), op = s.locked ? .8 : 1;
+  if (s.t==="pen") return `<polyline points="${s.p.map(q=>q.join(",")).join(" ")}" fill="none" stroke="${s.c}" stroke-width="${sw*1.5}" stroke-linecap="round" opacity="${op}"/>`;
+  if (s.t==="box") { const [a,b]=s.p; return `<rect x="${Math.min(a[0],b[0])}" y="${Math.min(a[1],b[1])}" width="${Math.abs(b[0]-a[0])}" height="${Math.abs(b[1]-a[1])}" fill="none" stroke="${s.c}" stroke-width="${sw*1.5}" opacity="${op}"/>`; }
+  if (s.t==="arrow") { const [a,b]=s.p; const ang=Math.atan2(b[1]-a[1],b[0]-a[0]), L=sw*6;
+    const h1=[b[0]-L*Math.cos(ang-0.5), b[1]-L*Math.sin(ang-0.5)], h2=[b[0]-L*Math.cos(ang+0.5), b[1]-L*Math.sin(ang+0.5)];
+    return `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${s.c}" stroke-width="${sw*1.5}" opacity="${op}"/>
+      <polyline points="${h1.join(",")} ${b.join(",")} ${h2.join(",")}" fill="none" stroke="${s.c}" stroke-width="${sw*1.5}" opacity="${op}"/>`; }
+  if (s.t==="text") { const [a]=s.p; return `<text x="${a[0]}" y="${a[1]}" fill="${s.c}" font-size="${sw*9}" font-family="sans-serif" font-weight="700" opacity="${op}">${(s.x||"").replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))}${s.by?` —${s.by}`:""}</text>`; }
+  return "";
+}
+function mkDraw(){
+  const el = document.getElementById("mk_svg"); if (!el) return;
+  el.innerHTML = [...mkOthers, ...mkShapes, ...(mkCur?[mkCur]:[])].map(shapeSvg).join("");
+}
+function toImg(ev){
+  const r = viewer.element.getBoundingClientRect();
+  const pt = viewer.viewport.viewerElementToImageCoordinates(new OpenSeadragon.Point(ev.clientX-r.left, ev.clientY-r.top));
+  return [Math.round(pt.x), Math.round(pt.y)];
+}
+$("mk_toggle").onclick = () => {
+  mkOn = !mkOn;
+  viewer.setMouseNavEnabled(!mkOn);
+  $("mk_tools").style.display = mkOn ? "inline-flex" : "none";
+  $("mk_toggle").style.borderColor = mkOn ? "var(--amber)" : "";
+  $("mk_toggle").style.color = mkOn ? "var(--amber)" : "";
+  setStatus(mkOn ? "markup on — draw on the print; SAVE keeps your layer" : "markup off");
+};
+const osdEl = document.getElementById("osd");
+osdEl.addEventListener("pointerdown", ev => {
+  if (!mkOn) return;
+  const tool = $("mk_tool").value, c = $("mk_color").value, p0 = toImg(ev);
+  if (tool === "text") {
+    const txt = prompt("Note:"); if (txt) { mkShapes.push({t:"text", c, p:[p0], x:txt}); mkDraw(); }
+    return;
+  }
+  mkCur = {t:tool, c, p: tool==="pen" ? [p0] : [p0, p0]};
+  ev.preventDefault();
+});
+osdEl.addEventListener("pointermove", ev => {
+  if (!mkOn || !mkCur) return;
+  const p = toImg(ev);
+  if (mkCur.t==="pen") mkCur.p.push(p); else mkCur.p[1]=p;
+  mkDraw();
+});
+osdEl.addEventListener("pointerup", () => {
+  if (!mkOn || !mkCur) return;
+  mkShapes.push(mkCur); mkCur=null; mkDraw();
+});
+$("mk_undo").onclick = () => { mkShapes.pop(); mkDraw(); };
+$("mk_save").onclick = async () => {
+  const r = await fetch("/v1/markups/"+encodeURIComponent(mkKey()), {method:"PUT",
+    headers:{"content-type":"application/json"},
+    body: JSON.stringify({author: author(), shapes: mkShapes})});
+  setStatus(r.ok ? "markup saved — " + author() + "'s layer" : "save failed: "+r.status);
+};
+
+// boot: list drawings; honor ?file=name deep links (Procore embed pattern)
+refreshList().then(() => {
+  const f = new URLSearchParams(location.search).get("file");
+  if (f) { $("files").value = f; loadDrawing(f); }
+});
+</script>
+</body>
+</html>

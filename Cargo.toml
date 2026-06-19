@@ -1,0 +1,42 @@
+[package]
+name = "safety-companion"
+version = "4.0.0-alpha.1"
+edition = "2021"
+authors = ["Bradlee <HeyBatlle1>", "Claude (Anthropic)"]
+description = "Safety Companion v4 — a learning safety organism for construction sites. Predict, don't react."
+license = "MIT"
+
+[[bin]]
+name = "scd"
+path = "src/main.rs"
+
+[[bin]]
+name = "sc-mcp"
+path = "src/bin/sc_mcp.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "io-std", "io-util", "time"] }
+axum = { version = "0.8", features = ["json"] }
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono", "json", "macros"] }
+pgvector = { version = "0.4", features = ["sqlx"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "2"
+anyhow = "1"
+async-trait = "0.1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+dotenvy = "0.15"
+argon2 = "0.5"
+hmac = "0.12"
+sha2 = "0.10"
+base64 = "0.22"
+rand = "0.8"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

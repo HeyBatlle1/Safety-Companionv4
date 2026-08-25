@@ -87,7 +87,7 @@ impl Pipeline {
             h.probability = cal.probability;
             h.residual_probability = Some(cal.residual_probability);
             h.factor_trail = cal.factor_trail;
-            h.risk_score = (cal.probability * calibration::severity_weight(h.severity)).clamp(1.0, 100.0);
+            h.risk_score = calibration::risk_score(cal.probability, h.severity);
         }
         if let Some(worst) = risk.hazards.iter().map(|h| h.risk_score).fold(None::<f64>, |acc, x| Some(acc.map_or(x, |a| a.max(x)))) {
             // overall = max hazard, softened by the mean of the rest

@@ -270,7 +270,8 @@ const TRADES = {
 const STD_FIELDS = ["Work description","Hazards identified","Hazard controls","Fall protection",
   "Emergency evacuation plan","Worker certifications","Equipment specifications","PPE requirements"];
 
-const JHA_DEMO = {
+const JHA_DEMOS = [
+  {
   trade:"roofing", temp:88, wind:28, cond:"gusty, scattered storms expected after lunch",
   fields:{
     "Work description":"Roofing tear-off and re-deck, 3-story commercial building, north face, 6 crew, 2 days",
@@ -281,8 +282,57 @@ const JHA_DEMO = {
     "Worker certifications":"All 6 crew OSHA 10; foreman and safety monitor OSHA 30; 2 crew aerial-lift certified through 2027",
     "Equipment specifications":"JLG 450AJ boom lift, ANSI inspection 5/28; Werner D6232-2 extension ladders checked daily; nailers with sequential triggers",
     "PPE requirements":"Hard hats, safety glasses, cut-resistant gloves, high-vis vests, work boots; hearing protection during tear-off",
-  }
-};
+  }},
+  {
+  trade:"excavation", temp:72, wind:12, cond:"clear, dry; rain two days ago",
+  fields:{
+    "Work description":"Utility trench, 9 ft deep x 60 ft, storm-drain tie-in, 4 crew, wet clay soil, 1 day",
+    "Hazards identified":"1) Trench cave-in / soil collapse, 2) caught-between during pipe placement, 3) struck-by excavator swing, 4) falls into open excavation, 5) buried utilities",
+    "Hazard controls":"Hydraulic shoring rated for Type C soil to full depth; spoil piled 3+ ft back from the edge; competent person inspects before entry and after any rain; ladder egress every 25 ft; excavator swing radius barricaded with a dedicated spotter; 811 locates confirmed and hand-dig within 24 in of marked lines",
+    "Fall protection":"Edge protection and barricade around the open trench; ladder access; no personnel under suspended pipe loads",
+    "Emergency evacuation plan":"Trench rescue is a specialized-team call to 911 — no crew self-rescue entry. Air-monitor and retrieve at the ladder. Nearest trauma center: 12 minutes",
+    "Worker certifications":"Competent person (excavation) on site all shift; all crew confined-space aware; excavator operator certified",
+    "Equipment specifications":"CAT 320 excavator, daily walkaround logged; hydraulic shoring shores inspected 6/12; 4-gas meter calibrated 6/1",
+    "PPE requirements":"Hard hats, hi-vis, steel toe, gloves; 4-gas monitor for any entry below 4 ft",
+  }},
+  {
+  trade:"electrical", temp:79, wind:8, cond:"clear, indoor mechanical room",
+  fields:{
+    "Work description":"480V switchgear maintenance and breaker replacement in a mechanical room, 2 electricians, energized adjacent sections, half day",
+    "Hazards identified":"1) Arc flash on energized 480V gear, 2) electric shock / electrocution, 3) failure to fully de-energize adjacent conductors, 4) struck-by cabinet doors, 5) confined working clearance",
+    "Hazard controls":"Full lockout/tagout on the target section with verified zero-energy; arc-flash boundary established and signed; only qualified electricians inside the boundary; live-dead-live test before contact; insulated tools; adjacent live sections barriered and labeled",
+    "Fall protection":"N/A — ground-level work",
+    "Emergency evacuation plan":"Non-contact rescue only for shock — de-energize first, never touch a live victim. AED in the corridor 40 ft away. Nearest ER: 9 minutes",
+    "Worker certifications":"Both electricians qualified per NFPA 70E; arc-flash and LOTO trained; annual re-cert current",
+    "Equipment specifications":"Arc-rated PPE kit (40 cal), inspected; insulated tools rated 1000V; calibrated meter for live-dead-live",
+    "PPE requirements":"Arc-rated 40 cal suit and hood inside the boundary, voltage-rated gloves with leather protectors, safety glasses, hearing protection",
+  }},
+  {
+  trade:"steel", temp:64, wind:22, cond:"overcast, breezy, dry",
+  fields:{
+    "Work description":"Structural steel erection, 2nd-4th floor columns and beams, tower crane picks, 5-person raising gang, 3 days",
+    "Hazards identified":"1) Falls from leading edge and connecting at height, 2) struck-by swinging crane loads, 3) falling objects (bolts, tools) to levels below, 4) unstable steel before final connection, 5) pinch points during connecting",
+    "Hazard controls":"100% tie-off at height with twin-leg lanyards and a certified perimeter cable; controlled decking zone; tag lines on all crane picks with a signalperson and radio; tool lanyards and bolt bags; no walking beams until final-bolted; taglines keep loads off the raising gang",
+    "Fall protection":"Twin-leg 100% tie-off to structural anchor points; perimeter safety cable at leading edges; controlled access zone below the pick",
+    "Emergency evacuation plan":"Suspended-worker rescue plan with a pre-rigged retrieval; crane lowers to grade for a down connector. Ground assembly point at the field trailer. Nearest hospital: 10 minutes",
+    "Worker certifications":"All ironworkers connector-qualified; signalperson and rigger certified; crane operator NCCCO certified",
+    "Equipment specifications":"Tower crane, annual cert current, load charts posted; rigging inspected each shift; twin-leg lanyards inspected 6/14",
+    "PPE requirements":"Hard hats with chin straps, hi-vis, gloves, boots; twin-leg harness; safety glasses",
+  }},
+  {
+  trade:"crane", temp:91, wind:31, cond:"hot, sustained high wind near the manufacturer limit",
+  fields:{
+    "Work description":"Mobile crane setting rooftop HVAC units, single critical pick at 82% of chart, 6-person crew, 1 day",
+    "Hazards identified":"1) Struck-by the suspended load / load swing in high wind, 2) crane tip-over near capacity, 3) falling load if rigging fails, 4) falls at the rooftop landing point, 5) contact with nearby power lines",
+    "Hazard controls":"Wind hold at 30 mph gusts per the load chart — pick paused until it drops; outriggers fully extended on engineered mats with a verified level; tag lines and a dedicated signalperson; rooftop landing crew tied off; minimum 20 ft power-line clearance confirmed with a dedicated observer; rigging inspected and load weight verified before the pick",
+    "Fall protection":"Rooftop landing crew 100% tied off to anchors; edge protection at the landing zone",
+    "Emergency evacuation plan":"Clear the swing radius on any load-control loss; crane sets the load down before any rescue. Assembly at the gate. Nearest trauma center: 11 minutes",
+    "Worker certifications":"NCCCO crane operator; qualified rigger and signalperson; lift director on site for the critical pick",
+    "Equipment specifications":"Grove RT crane, annual + shift inspection logged; load chart and wind limits posted in the cab; rigging tagged and inspected 6/15",
+    "PPE requirements":"Hard hats, hi-vis, gloves, boots; harnesses for the rooftop crew; hearing protection near the crane",
+  }},
+];
+const JHA_DEMO = JHA_DEMOS[0]; // legacy alias (first scenario) — retained for safety
 
 function renderAnalyze(){
   $$("#main").innerHTML = `
@@ -313,10 +363,16 @@ function renderAnalyze(){
   $$("#trade").onchange = e => $$("#naics").value = TRADES[e.target.value].naics;
   $$("#run").onclick = runAnalysis;
   $$("#demo").onclick = () => {
-    $$("#trade").value = JHA_DEMO.trade; $$("#naics").value = TRADES[JHA_DEMO.trade].naics;
-    $$("#temp").value = JHA_DEMO.temp; $$("#wind").value = JHA_DEMO.wind; $$("#cond").value = JHA_DEMO.cond;
+    // Random accurate fill: pick a scenario at random each click so testing
+    // exercises different trades, weather, and — importantly — different hazard
+    // VOCABULARY (which is what the keyword scorer keys off). A little weather
+    // jitter so even a repeat trade isn't identical.
+    const D = JHA_DEMOS[Math.floor(Math.random() * JHA_DEMOS.length)];
+    const jitter = (v, spread) => Math.max(0, Math.round(v + (Math.random()*2-1)*spread));
+    $$("#trade").value = D.trade; $$("#naics").value = TRADES[D.trade].naics;
+    $$("#temp").value = jitter(D.temp, 4); $$("#wind").value = jitter(D.wind, 5); $$("#cond").value = D.cond;
     qa.innerHTML = "";
-    Object.entries(JHA_DEMO.fields).forEach(([q,a]) => addQA(qa, q, a));
+    Object.entries(D.fields).forEach(([q,a]) => addQA(qa, q, a));
   };
 }
 function addQA(qa, label, val){

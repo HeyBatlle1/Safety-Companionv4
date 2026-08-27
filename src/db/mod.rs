@@ -1,6 +1,8 @@
 //! Database access. Postgres (Supabase) via sqlx, runtime queries only —
 //! no compile-time DB dependency, builds anywhere.
 
+pub mod migrate;
+
 use crate::domain::IndustryBaseline;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use sqlx::PgPool;

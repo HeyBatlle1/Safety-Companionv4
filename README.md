@@ -45,12 +45,17 @@ Read [SOUL.md](SOUL.md) and [MISSIONSTATEMENT.md](MISSIONSTATEMENT.md) first —
 ## Quick start
 
 ```bash
-cp .env.example .env       # OpenRouter key + Supabase URL — never commit .env
-cargo run --bin scd        # HTTP API on :8787
-cargo run --bin sc-mcp     # MCP stdio server (register in Argus)
+cp .env.example .env        # fill in DATABASE_URL + OPENROUTER_API_KEY — never commit .env
+cargo run --bin scd -- --migrate   # apply schema + seed BLS baselines (idempotent)
+cargo run --bin scd         # HTTP API on :8787
+cargo run --bin sc-mcp      # MCP stdio server (register in Argus)
 ```
 
-Apply `migrations/001_init.sql` to a **fresh** Supabase project.
+`--migrate` applies every pending file in `migrations/` in order, tracked in a
+`_sc_migrations` ledger, each inside a transaction — safe to re-run, and it
+never leaves a half-applied schema. Point it at a **fresh** Supabase project the
+first time. Running the server without a `DATABASE_URL` is allowed: it runs
+stateless (analyses work but aren't remembered) and says so loudly.
 
 ### Smoke test
 

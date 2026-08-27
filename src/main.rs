@@ -15,6 +15,18 @@ async fn main() -> anyhow::Result<()> {
         )
         .init();
 
+    // `scd --migrate` applies pending SQL migrations, then exits. This is the
+    // one path that REQUIRES a database (the server can run stateless; the
+    // migrator cannot), so a missing/bad DATABASE_URL is a hard error here.
+    if std::env::args().any(|a| a == "--migrate") {
+        let pool = safety_companion::db::connect_from_env()
+            .await
+            .map_err(|e| anyhow::anyhow!("--migrate needs a database: {e}"))?;
+        let n = safety_companion::db::migrate::run(&pool).await?;
+        tracing::info!("{n} migration(s) applied. Done.");
+        return Ok(());
+    }
+
     let provider = Arc::new(OpenRouter::from_env()?);
     let pipeline = Arc::new(Pipeline::new(provider));
 

@@ -144,15 +144,17 @@ pub fn calibrate(
     // (sc_incident_reports + Brier scoring) is what will replace this ordering
     // with weights learned from THIS customer's ground truth.
     if has_stem(&["fall", "height", "roof", "scaffold", "ladder", "elevat", "aerial",
-                   "edge", "guardrail", "platform", "lift", "leading edge", "unprotected"]) {
+                   "edge", "guardrail", "platform", "lift", "leading edge", "unprotected",
+                   "opening", "aloft", "suspended", "staging"]) {
         add(1.2, "elevated work / fall exposure (Fatal Four: falls ~36%)", &mut trail, &mut evidence);
     }
     if has_stem(&["struck", "swing", "crane", "hoist", "rigging", "load", "vehicle",
-                   "backing", "falling object", "overhead", "material handling"]) {
+                   "backing", "falling object", "overhead", "material handling",
+                   "moving equipment", "in the path"]) {
         add(0.9, "struck-by exposure (Fatal Four: struck-by ~15%)", &mut trail, &mut evidence);
     }
     if has_stem(&["energiz", "voltage", "electric", "arc", "loto", "lockout",
-                   "live wire", "power line", "conductor"]) {
+                   "live wire", "power line", "conductor", "cable"]) {
         add(0.8, "energized electrical exposure (Fatal Four: electrocution ~7%)", &mut trail, &mut evidence);
     }
     if has_stem(&["trench", "excavat", "engulf", "collaps", "cave-in", "cavein",

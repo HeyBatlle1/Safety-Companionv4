@@ -443,11 +443,14 @@ fn build_summary(
         s.push_str(&format!(" Top hazard: {} (risk {:.0}).", top.description, top.risk_score));
     }
     if let Some(sc) = p.scenarios.first() {
+        let band = if sc.likelihood >= 0.66 { "more likely" }
+                   else if sc.likelihood >= 0.33 { "possible" }
+                   else { "less likely" };
         s.push_str(&format!(
-            " Most credible incident: {} ({}, likelihood {:.0}%).",
+            " Most credible incident: {} ({}, {}).",
             sc.incident_type,
             format!("{:?}", sc.severity).to_uppercase(),
-            sc.likelihood * 100.0
+            band
         ));
     }
     if !alerts.is_empty() {

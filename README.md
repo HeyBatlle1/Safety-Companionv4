@@ -91,13 +91,27 @@ curl -s localhost:8787/v1/analyze -H 'content-type: application/json' -d '{
 
 ---
 
-## Status (v4.4)
+## Status — approaching beta
 
-**Working:** 4-agent pipeline with logit calibration; pgvector learning loop; EAP compiler (OSHA 1910.38); drawing viewer + Agent 5 vision; people layer (employee/admin/safety-director); MWF wellbeing check-ins; PIN auth (Argon2 + HMAC sessions); MCP bridge; field-legible UI.
+**Working:** five-stage agent pipeline (validate → assess → predict → synthesize →
+remember) with deterministic logit calibration and a two-track verdict (residual
+risk moves STOP/CAUTION/GO, inherent risk sets the floor); pgvector learning loop;
+EAP compiler (OSHA 1910.38); drawing viewer + vision analysis; people layer
+(employee/admin/safety-director); MWF wellbeing check-ins; PIN auth (Argon2 + HMAC
+sessions); MCP bridge; field-legible UI that leads with the 0–100 risk score.
 
-**Models:** nex-n2-pro + Gemma 4 via OpenRouter (per-role chains in env).
+**Models:** provider-agnostic via OpenRouter (per-role chains in env); no single
+vendor is load-bearing.
 
-**Before production:** Supabase RLS on all `sc_` tables; NER scrub on free-text exports; anonymized-derivative contract clause; calibration tuning with incident ground truth.
+**Honest about calibration:** the risk score is an auditable, BLS-anchored ranking
+today. Its absolute per-shift probability is exposed only in the audit trail and is
+*not* yet a validated probability — that comes as the incident ground-truth loop
+(Brier / log-loss) closes. The system says which is which; see MISSIONSTATEMENT.md.
+
+**Before production / during beta:** Supabase RLS on all `sc_` tables; NER scrub on
+free-text exports; anonymized-derivative contract clause; close the calibration loop
+with incident ground truth; hazard-specific priors (partition all-cause TRIR by
+cause) and structured-fact extraction ahead of the scorer.
 
 ---
 

@@ -1,6 +1,6 @@
 # MISSION
 
-**Predict the incident. Prevent the incident. Prove it with numbers.**
+**Predict the incident. Prevent the incident. Then prove it — as the ground-truth loop closes.**
 
 ---
 
@@ -22,8 +22,12 @@ Safety Companion reads it. All of it. Every time. And remembers.
 
 1. **Validates** every field submission against OSHA 1926 and trade-specific
    requirements before trusting it. Bad data is rejected, not analyzed.
-2. **Quantifies** the top hazards on every task, anchored to real BLS/OSHA
-   injury-rate baselines — probabilities and risk scores, not vibes.
+2. **Quantifies** the top hazards on every task as an auditable 0–100 risk
+   score, anchored to real BLS/OSHA injury-rate baselines and a transparent
+   factor trail — a consistent, defensible ranking, not vibes. (The underlying
+   per-shift probability is exposed in the audit trail; its absolute
+   calibration tightens as the incident feedback loop accumulates ground
+   truth — see operating principles.)
 3. **Predicts** the most credible incident scenarios for today's conditions,
    with the leading indicators a foreman can check in the next half hour.
 4. **Learns** from every analysis and every reported incident or near-miss.
@@ -48,7 +52,11 @@ adopted saves lives. That ordering is the strategy.
   ceilings, and pattern classification are code, not prompts. Auditable,
   reproducible, boring.
 - **The loop must close.** Predictions without incident ground-truth are
-  astrology. The incident/near-miss report path is a first-class citizen.
+  astrology. The incident/near-miss report path is a first-class citizen, and
+  scoring predicted risk against reported outcomes (Brier / log-loss) is the
+  next milestone that turns the weights from informed judgment into measured
+  calibration. Until it closes, the risk score is an honest ranking, not a
+  validated probability — and the system says so.
 - **Honest confidence.** Output confidence is structurally capped by input
   quality. The system is incapable of being surer than its data.
 - **Interoperate, don't silo.** REST for the field, webhooks for Procore,

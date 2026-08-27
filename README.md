@@ -34,7 +34,10 @@ Read [SOUL.md](SOUL.md) and [MISSIONSTATEMENT.md](MISSIONSTATEMENT.md) first —
 
 - Agent 4 is never an LLM — verdicts are arithmetic over agent outputs.
 - Prediction confidence is capped by validation quality score.
-- Probabilities ≤ 0.95; risk scores 1–100.
+- Probability is per-worker, per-shift, clamped to [1e-5, 0.05]; the
+  field-facing number is a 0–100 risk score, and the raw probability stays in
+  the audit trail. (Absolute calibration is a ranking today, validated as the
+  incident ground-truth loop closes — see MISSIONSTATEMENT.md.)
 - Failed `remember()` never destroys a report (logged as error).
 
 ---

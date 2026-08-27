@@ -483,4 +483,108 @@ mod tests {
         assert!(score < 50.0,
             "trivial hazard scored {} — the alarm cried wolf on a low risk", score);
     }
+
+    // --- Keyword-scorer sensitivity eval -------------------------------------
+    //
+    // Six independent model reviews (four cold GUI instances + Claude Code with
+    // repo access + Opus) converged on one question: how sensitive is the
+    // keyword/stem scorer to how a hazard is PHRASED? Because the deterministic
+    // engine fires evidence factors off the LLM's prose (not structured facts),
+    // a model that describes the same hazard differently can silently under-score
+    // it. This eval quantifies that fragility directly: for each Fatal-Four
+    // category, run many real-world phrasings of the SAME underlying hazard
+    // through the real calibrate() and check whether the expected factor fired.
+    // Phrasings that SHOULD fire but DON'T are coverage gaps — the concrete,
+    // actionable output. A high gap count = the structured-extraction layer
+    // (planned) is urgent; a low count = current stems are robust enough to run
+    // a mid-tier model on the RiskAssessor. This is Grok's "score facts not prose"
+    // critique, measured.
+
+    /// Did `desc` fire the factor whose trail line contains `marker`?
+    fn fires(desc: &str, marker: &str) -> bool {
+        let c = calibrate(
+            &hazard(desc, 0.1, 0),
+            &Weather::default(),
+            &validation(8, 0),
+            &None,
+        );
+        c.factor_trail.iter().any(|f| f.contains(marker))
+    }
+
+    /// Run a category's phrasings; return the ones that FAILED to fire (the gaps).
+    fn coverage_gaps<'a>(marker: &str, phrasings: &[&'a str]) -> Vec<&'a str> {
+        phrasings.iter().copied().filter(|p| !fires(p, marker)).collect()
+    }
+
+    #[test]
+    fn keyword_scorer_phrasing_sensitivity() {
+        // Each block: the SAME hazard, phrased the way different foremen / models
+        // realistically would. All SHOULD fire the category. Any that don't = gap.
+        let falls = [
+            "fall from roof edge",
+            "worker on scaffold near unprotected leading edge",
+            "elevated work on aerial lift platform",
+            "employee exposed at height without guardrail",
+            "working on a powered platform 30 feet up",
+            "risk of falling from the second-story deck",
+            "worker near an open floor opening",          // likely GAP: no stem
+            "personnel aloft on suspended staging",        // likely GAP: "aloft"/"staging"
+        ];
+        let struck = [
+            "struck by swinging crane load",
+            "overhead rigging during a hoist",
+            "material handling with vehicle backing",
+            "falling object from above",
+            "worker in the path of moving equipment",      // likely GAP: no stem
+            "caught in the fall zone of a suspended load",
+        ];
+        let electrical = [
+            "energized 480V panel",
+            "live wire near the work area",
+            "electric shock from exposed conductor",
+            "arc flash during lockout",
+            "contact with overhead power line",
+            "working near an unmarked buried cable",        // likely GAP: "cable"
+        ];
+        let excavation = [
+            "trench cave-in risk",
+            "excavation without shoring",
+            "confined space entry",
+            "caught-between pinch point on the press",
+            "soil collapse in an unprotected ditch",        // likely GAP: "ditch"/"soil"
+            "engulfment hazard in the grain bin",
+        ];
+
+        let gap_falls = coverage_gaps("fall exposure", &falls);
+        let gap_struck = coverage_gaps("struck-by", &struck);
+        let gap_elec = coverage_gaps("electrical", &electrical);
+        let gap_exc = coverage_gaps("engulfment", &excavation);
+
+        let total: usize =
+            gap_falls.len() + gap_struck.len() + gap_elec.len() + gap_exc.len();
+        let tested = falls.len() + struck.len() + electrical.len() + excavation.len();
+
+        // Report — visible with `cargo test -- --nocapture`. This is the artifact:
+        // the exact phrasings the current stems miss, per category.
+        println!("\n=== keyword-scorer phrasing sensitivity ===");
+        println!("tested {tested} phrasings; {total} coverage gaps ({:.0}% miss rate)",
+            100.0 * total as f64 / tested as f64);
+        for (cat, gaps) in [
+            ("falls", &gap_falls), ("struck-by", &gap_struck),
+            ("electrical", &gap_elec), ("excavation", &gap_exc),
+        ] {
+            if !gaps.is_empty() {
+                println!("  {cat} misses:");
+                for g in gaps { println!("    - \"{g}\""); }
+            }
+        }
+        println!("(gaps = phrasings that should fire but don't → add stems, or ship the extractor)\n");
+
+        // Not a hard failure: the eval's JOB is to measure, not to pass/fail. But we
+        // lock a ceiling so a REGRESSION (someone breaks the matcher and doubles the
+        // miss rate) trips CI. Tune this down as stems improve.
+        assert!(total <= tested / 2,
+            "over half of realistic phrasings missed their category ({total}/{tested}) — \
+             the scorer is too phrasing-fragile to trust without the structured extractor");
+    }
 }

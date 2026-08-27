@@ -346,6 +346,45 @@ Respond ONLY with this JSON shape:
 // Agent 4: Synthesizer — deterministic, auditable, boring on purpose.
 // ---------------------------------------------------------------------------
 
+/// Pure verdict decision — the most safety-critical rule in the system, so it
+/// is isolated, named, and directly testable. Inputs are the two risk tracks
+/// plus the hard validator gates; output is the STOP/CAUTION/GO verdict.
+///
+/// Design (two-track): INHERENT risk sets the ceiling of concern (a severe
+/// hazard can't be talked down to GO by *listing* controls, which may be
+/// claimed-not-verified); RESIDUAL risk moves the verdict down within that
+/// ceiling so that doing the safe thing is rewarded.
+fn decide_verdict(
+    worst_inherent: f64,
+    worst_residual: f64,
+    has_critical_concern: bool,
+    needs_clarification: bool,
+    quality_score: u8,
+    has_pattern_alerts: bool,
+) -> Verdict {
+    if has_critical_concern {
+        // Hard regulatory gate (e.g. no competent person on an excavation).
+        // No amount of listed controls overrides it.
+        Verdict::StopWork
+    } else if worst_inherent >= 85.0 {
+        // Severe inherent hazard. If controls did NOT meaningfully reduce it
+        // (residual still >=85), hold at StopWork. If real controls pulled the
+        // residual down, reward that with ProceedWithControls rather than a flat
+        // stop — but never all the way to GO on listed mitigations alone.
+        if worst_residual >= 85.0 {
+            Verdict::StopWork
+        } else {
+            Verdict::ProceedWithControls
+        }
+    } else if needs_clarification || quality_score < 5 {
+        Verdict::RequestClarification
+    } else if worst_residual >= 50.0 || has_pattern_alerts {
+        Verdict::ProceedWithControls
+    } else {
+        Verdict::Proceed
+    }
+}
+
 fn synthesize(
     req: &AnalysisRequest,
     validation: Validation,
@@ -355,12 +394,35 @@ fn synthesize(
     models_used: BTreeMap<String, String>,
     provenance: Provenance,
 ) -> SafetyReport {
-    let worst = risk
+    // Two-track decision (residual moves the verdict, inherent sets the floor).
+    //
+    // INHERENT worst = how bad this job could be before controls. It sets a
+    // hard floor on concern: a genuinely severe hazard cannot be fully talked
+    // down to GO just because controls were *listed* (they may be claimed, not
+    // verified — "unverified PFAS is not PFAS"). This preserves the property
+    // that you cannot type your way out of a serious hazard.
+    //
+    // RESIDUAL worst = where the job lands *after* the controls the crew listed.
+    // This is what moves the verdict down within the band the floor allows, so
+    // that doing the safe thing is actually rewarded by a softer verdict.
+    let worst_inherent = risk
         .hazards
         .iter()
         .map(|h| h.risk_score)
         .fold(0.0_f64, f64::max)
         .max(risk.overall_risk_score);
+
+    // Residual score per hazard: same scoring function, fed the residual
+    // (post-control) probability instead of the inherent one. Falls back to the
+    // inherent score if a hazard has no residual (no controls credited).
+    let worst_residual = risk
+        .hazards
+        .iter()
+        .map(|h| match h.residual_probability {
+            Some(rp) => calibration::risk_score(rp, h.severity),
+            None => h.risk_score,
+        })
+        .fold(0.0_f64, f64::max);
 
     let has_critical_concern = validation
         .concerns
@@ -368,15 +430,14 @@ fn synthesize(
         .map(|v| !v.is_empty())
         .unwrap_or(false);
 
-    let verdict = if has_critical_concern || worst >= 85.0 {
-        Verdict::StopWork
-    } else if validation.recommended_action == "REQUEST_CLARIFICATION" || validation.quality_score < 5 {
-        Verdict::RequestClarification
-    } else if worst >= 50.0 || !pattern_alerts.is_empty() {
-        Verdict::ProceedWithControls
-    } else {
-        Verdict::Proceed
-    };
+    let verdict = decide_verdict(
+        worst_inherent,
+        worst_residual,
+        has_critical_concern,
+        validation.recommended_action == "REQUEST_CLARIFICATION",
+        validation.quality_score,
+        !pattern_alerts.is_empty(),
+    );
 
     let summary = build_summary(&validation, &risk, &prediction, &pattern_alerts, verdict);
 
@@ -507,5 +568,72 @@ fn baseline_text(b: &Option<IndustryBaseline>) -> String {
             rate = b.injury_rate_per_100, year = b.year
         ),
         None => "OSHA INDUSTRY DATA: none on file — use conservative construction-wide baseline of 3.0 per 100 workers.".to_string(),
+    }
+}
+
+#[cfg(test)]
+mod verdict_tests {
+    use super::*;
+
+    // Baseline: a clean, low-risk job with good paperwork proceeds (GO).
+    #[test]
+    fn low_risk_clean_job_proceeds() {
+        let v = decide_verdict(30.0, 20.0, false, false, 8, false);
+        assert_eq!(v, Verdict::Proceed);
+    }
+
+    // A CRITICAL validator concern is a hard gate: STOP regardless of how low
+    // the residual risk is or how many controls were listed. You cannot type
+    // your way past a missing competent person.
+    #[test]
+    fn critical_concern_always_stops_even_with_low_residual() {
+        let v = decide_verdict(90.0, 5.0, true, false, 9, false);
+        assert_eq!(v, Verdict::StopWork);
+    }
+
+    // THE KEY NEW CONTRACT (Grok fix #3): controls must move the verdict.
+    // Same severe inherent hazard, two control states:
+    //   - no meaningful controls (residual stays high) -> StopWork
+    //   - real controls pull residual down             -> ProceedWithControls
+    // Listing effective controls is rewarded with a softer verdict.
+    #[test]
+    fn controls_soften_a_severe_hazard_but_do_not_erase_it() {
+        let uncontrolled = decide_verdict(90.0, 88.0, false, false, 8, false);
+        assert_eq!(uncontrolled, Verdict::StopWork,
+            "severe hazard with no residual reduction must STOP");
+
+        let controlled = decide_verdict(90.0, 60.0, false, false, 8, false);
+        assert_eq!(controlled, Verdict::ProceedWithControls,
+            "real controls on the same hazard must soften STOP -> PROCEED_WITH_CONTROLS");
+
+        // ...but never all the way to GO on listed mitigations alone: a severe
+        // inherent hazard never returns Proceed, even if residual is tiny,
+        // because listed controls may be claimed-not-verified.
+        let heavily_controlled = decide_verdict(90.0, 10.0, false, false, 8, false);
+        assert_ne!(heavily_controlled, Verdict::Proceed,
+            "a severe inherent hazard must never become a bare GO on listed controls");
+    }
+
+    // The residual track (not inherent) drives the CAUTION threshold: a job
+    // whose residual lands >=50 gets ProceedWithControls.
+    #[test]
+    fn moderate_residual_requires_controls_caution() {
+        let v = decide_verdict(70.0, 55.0, false, false, 8, false);
+        assert_eq!(v, Verdict::ProceedWithControls);
+    }
+
+    // Low residual but a recurring pattern alert still forces CAUTION — the
+    // site's history is evidence.
+    #[test]
+    fn pattern_alert_forces_caution_even_at_low_residual() {
+        let v = decide_verdict(40.0, 25.0, false, false, 8, true);
+        assert_eq!(v, Verdict::ProceedWithControls);
+    }
+
+    // Poor paperwork quality routes to clarification rather than a false GO.
+    #[test]
+    fn low_quality_requests_clarification() {
+        let v = decide_verdict(40.0, 30.0, false, false, 3, false);
+        assert_eq!(v, Verdict::RequestClarification);
     }
 }

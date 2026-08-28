@@ -261,7 +261,28 @@ pub fn calibrate(
         control_n, control_reduction.max(0.20) * 100.0, residual_probability
     ));
 
+    // Runtime proof-of-execution. This is the deterministic engine announcing, on
+    // EVERY hazard, that it actually ran — and showing the numbers it produced. If
+    // this line is absent from the log during an analysis, the engine was bypassed
+    // and the score came from somewhere else (a wrapper). If it's present, the
+    // factor_trail here is the ground truth behind the number the foreman sees.
+    // INFO level on purpose: this is the "is the elegant logic actually firing?"
+    // proof, and it must be unmissable — never gated behind a log-filter that might
+    // silently not match. Concise (one line/hazard) so it informs without spamming.
+    tracing::info!(
+        target: "sc::calibration",
+        "engine✓ p={:.6} residual={:.6} factors={} :: {}",
+        probability, residual_probability, trail.len(),
+        truncate(&hazard.description, 56)
+    );
+
     Calibrated { probability, residual_probability, factor_trail: trail }
+}
+
+/// Small helper so the trace line stays one-line readable.
+fn truncate(s: &str, n: usize) -> String {
+    if s.chars().count() <= n { s.to_string() }
+    else { format!("{}…", s.chars().take(n).collect::<String>()) }
 }
 
 /// Severity → risk-score weight. NOTE: this is called from the pipeline

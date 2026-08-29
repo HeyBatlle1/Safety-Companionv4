@@ -86,11 +86,81 @@ native medium of the actual work. Upload a real engineering drawing → the visi
 pipeline reads it → analysis renders as **marked-up callouts ON the drawing itself**
 (leader lines, hazard flags, trade-layer separations) in the drawing's own visual
 language, like a senior safety engineer took a red pencil to the print.
-- Architecture (already designed): multi-agent vision — layer-detector declares trades
-  present [verifiable gate] → Gemini + Grok 4.20 each analyze each trade-layer
-  INDEPENDENTLY (agree=signal, diverge=flag — two models hallucinate differently =
-  primary defense against vision hallucination, the biggest risk) → synthesize per-layer
-  + cross-trade INTERACTION hazards → feed the deterministic engine.
+
+**THE KEYSTONE (why this module is the whole company, worked out 2026-08-29):**
+Fatal construction incidents live in the **cross-trade SEAMS** — where one trade's work
+becomes another trade's unexamined assumption, across trades and across years, with no one
+seeing the whole. Ground-truth example (the WHY): a sealer put a ladder on the far side of
+a 3-story retention wall and leaned across to reach a hard spot; the masonry (laid years
+prior) + the rigging shoring the riggers never properly did + his load gave way and crushed
+him. Four trades, three timeframes, nobody saw the 360. **No model predicts that event —
+the data was never assembled in one place. But:**
+- **The DRAWING is the room the trades were never in together.** Space is the one thing all
+  trades share — their work all lands on the same sheet even when they never overlap in
+  time. Layer-decomposition + spatial coincidence = the seams *rendered visible* at specific
+  coordinates. Where the masonry layer + rigging layer + sealer's task-point stack up on the
+  sheet = the seam.
+- **ELEVATION is the severity multiplier** that separates deadly seams from trivial ones.
+  Same cross-trade overlap = a coordination note at grade, a fatality at EL 30ft against a
+  load-bearing wall under load. The elevation data carries exactly what the flat JHA lacks.
+- **Output is NOT prediction — it's forced witnessing:** "N trades depend on this point, at
+  this height, against this structural element — verify before load, eyes required." Makes
+  the un-owned handoff owned. Guardian move: not "catch everything," but "make the seam
+  impossible to miss."
+- **EMERGENT SUPERPOWER (trade-agnostic AND cross-trade-protective, same property):** both
+  fall out of ONE decision — read the DRAWING, not the trade-scoped form. The drawing
+  doesn't respect trade boundaries, so a system reading it is *structurally incapable* of the
+  single-trade silo blindness that kills people. Analyzing one trade's seam *necessarily*
+  inspects the other side of it → the glazier's JHA catches the ironworker's un-torqued
+  connection FOR FREE, without meaning to, because you can't assess the load point without
+  seeing what it rests on. Strategic fallout: one product sells to every trade (not per-trade
+  SKUs); single-jobsite NETWORK EFFECT (safer the more trades on the same job — each trade's
+  analysis independently witnesses every other's seams; coverage compounds → GC's incentive
+  is "get everyone on it"); it's a GC/liability instrument (the GC is the only party currently
+  forced to assemble the 4-trade picture by hand and holds the bag when a seam kills someone;
+  SC does that assembly automatically from the Procore drawings they already have — Procore
+  integration + this = the same play). This is the category-maker: "good JHA tool"
+  (trade-siloed, like every competitor) vs "the system that assembles the cross-trade,
+  multi-elevation picture no single human on the site can hold."
+
+**VISION ARCHITECTURE (finalized 2026-08-29, verified against live specs — pin exact model
+IDs at build time, do NOT trust these strings from memory, vision capability moves fast):**
+Separation of labor BY THE TYPE OF ERROR EACH STAGE PREVENTS:
+- **PERCEPTION MESH (redundancy vs unrecoverable MISSES):** 3-4 vision models doing the SAME
+  seeing in parallel, cross-checked — agree=signal, diverge=flag for human. Because a
+  perception miss (nobody saw the wall) is unrecoverable — no downstream floor can score what
+  was never perceived. Grok = heavy-lifter here (verified: grok image-understanding has an
+  explicit `detail:"high"` mode built for "technical diagrams / dense document scans," 20MiB
+  images, multi-image-per-request comparison; Grok 4.20 Beta has documented improved vision +
+  multi-agent architecture). Gemini = independent second perceiver (Nano-Banana structural
+  sense, different lineage → different failure modes). Real-world PHOTOS (mud, glare, angles)
+  are the messiest/highest-stakes input → want the MOST eyes there.
+- **DETERMINISTIC ENGINE = the blind honest floor** (scores extracted structured data, never
+  sees the image, no reputation).
+- **FINAL COLD VISION AUDITOR (redundancy vs the assembled answer DRIFTING from ground truth):**
+  ONE vision model that did NOT participate in perception, looking at [original drawing] +
+  [final analysis] together: "what in this analysis is phantom (not on the sheet)? what seam
+  on the sheet did it miss?" Closes the loop that's otherwise open (output is never checked
+  back against the drawing). Grok is a strong auditor pick specifically for its documented
+  LOW-HALLUCINATION trait (Grok 4.1 = 65% lower hallucination vs Grok 4) — the auditor's whole
+  job is "don't confirm a match that isn't there." A cold single checker beats a committee
+  here (want fresh judgment vs the source, not more voices sharing the mesh's blind spots).
+
+**WHY GROK IN VISION, WHY ANTHROPIC ON FINALITY (the trust architecture):**
+- Grok's read isn't fanboying — it's reading the *training intent*: a founder shaping a model
+  toward truth/math/engineering yields a model good at reading engineering artifacts (drawings).
+  Durable predictor (intent shapes every release; specs change per release). BUT the same
+  "confident engineering answer-machine" trait = confident WRONGNESS, and on a drawing a
+  confident miss is fatal. So Grok is a SCOPED heavy-lifter, NEVER solo — the mesh manufactures
+  the uncertainty a confident model won't volunteer. Strength and danger are the same trait →
+  harness one, cage the other.
+- **Finality rests with Anthropic/Claude** — earned through 2.5yr of repeated observation that
+  Claude-in-a-mesh produces answers that hold under scrutiny. CAVEAT (Bradlee's own method
+  applied honestly): finality-rests-with-Anthropic must stay CHECKED by the same mesh that
+  checks everything — the day it stops earning it, the rule updates. Keep Claude on the same
+  leash as Grok. Unexamined trust in a liked model = same failure as trusting a confident
+  model's unchecked output, just pointed somewhere friendlier.
+
 - Why it's the moat: competitors show AI output in a chat bubble; SC shows AI reasoning
   as drafting marks on your own drawing. Old craft + new intelligence, one surface.
 - Real build (needs the vision pipeline). This is the demo that sells the whole vision.

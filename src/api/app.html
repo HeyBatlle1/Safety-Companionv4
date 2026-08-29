@@ -146,6 +146,72 @@ svg.spark{width:100%;height:80px;display:block}
   .grid2,.grid3{grid-template-columns:1fr}
   .qa{grid-template-columns:1fr}
 }
+
+/* ============================================================
+   JHA SHEET — the artifact, rendered as a blueprint document
+   on the desk. ALL rules scoped under .jha-sheet so the calm
+   workspace (and the 38 other .hud uses) stay untouched.
+   Design language = the shipped EAP (eap.rs render_document).
+   ============================================================ */
+.jha-sheet{
+  --js-paper:#f6f2e7; --js-line-soft:#e9e1cd; --js-ink:#201d16; --js-ink-soft:#4a453a;
+  --js-line:#16324f; --js-line2:#4d6885; --js-muted:#79705c;
+  --js-display:"Bahnschrift","Arial Narrow",Haettenschweiler,"Helvetica Neue",Arial,sans-serif;
+  --js-serif:"Iowan Old Style","Palatino Linotype","Book Antiqua",Georgia,serif;
+  --js-mono:Consolas,"SF Mono",Menlo,"Courier New",monospace;
+  background:var(--js-paper);
+  background-image:repeating-linear-gradient(var(--js-line-soft) 0 1px,transparent 1px 26px),repeating-linear-gradient(90deg,var(--js-line-soft) 0 1px,transparent 1px 26px);
+  color:var(--js-ink);
+  border:2px solid var(--js-line);
+  border-radius:2px;
+  padding:26px 24px 22px;
+  margin:18px 0;
+  box-shadow:0 1px 0 2px var(--js-paper),0 2px 14px rgba(20,30,50,.28);
+  font-family:var(--js-serif);
+}
+/* title block — the drawing-sheet corner */
+.jha-sheet .jha-tb{border-bottom:2px solid var(--js-line);padding-bottom:12px;margin-bottom:16px}
+.jha-sheet .jha-tb-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.jha-sheet .jha-tb-title{font-family:var(--js-display);font-weight:700;font-size:clamp(20px,3.5vw,26px);text-transform:uppercase;letter-spacing:1px;color:var(--js-ink);line-height:1}
+.jha-sheet .jha-tb-sub{margin-top:5px;font:600 11px var(--js-mono);letter-spacing:1.5px;text-transform:uppercase;color:var(--js-muted)}
+.jha-sheet .jha-tb-cells{display:flex;border:1px solid var(--js-line2)}
+.jha-sheet .jha-tb-cell{padding:5px 12px;border-left:1px solid var(--js-line2);display:flex;flex-direction:column;gap:3px;min-width:64px}
+.jha-sheet .jha-tb-cell:first-child{border-left:none}
+.jha-sheet .jha-tb-l{font:700 9px var(--js-mono);letter-spacing:1px;text-transform:uppercase;color:var(--js-muted)}
+.jha-sheet .jha-tb-v{font:700 13px var(--js-display);letter-spacing:.3px;color:var(--js-ink)}
+/* section headers — drafting rule + numbered feel */
+.jha-sheet h2{font-family:var(--js-display);font-weight:700;text-transform:uppercase;letter-spacing:.6px;font-size:15px;color:var(--js-ink);border-bottom:1px solid var(--js-line);border-left:none;padding:0 0 6px;margin:24px 0 10px}
+/* verdict placard → ink-stamp signal band, functional color kept */
+.jha-sheet .placard{border:2px solid var(--js-line);border-radius:2px;background:transparent;margin:16px 0;overflow:hidden}
+.jha-sheet .placard .band{font-family:var(--js-mono);font-weight:800;letter-spacing:3px;font-size:17px;padding:11px 16px}
+.jha-sheet .placard .body{background:rgba(255,255,255,.35);color:var(--js-ink-soft);font-family:var(--js-serif);font-size:15.5px;line-height:1.6;padding:14px 16px}
+/* hazard cards → ruled record blocks */
+.jha-sheet .hazard{border:1px solid var(--js-line2);border-left:4px solid var(--js-line);background:rgba(255,255,255,.30);border-radius:2px;padding:14px 16px;margin:12px 0}
+.jha-sheet .hazard>div:first-child{font-family:var(--js-display);font-weight:700;font-size:16px;letter-spacing:.2px;color:var(--js-ink)}
+.jha-sheet .prob{margin:8px 0}
+.jha-sheet .res{font:800 15px var(--js-mono);letter-spacing:.5px;color:var(--js-line);border:1.5px solid var(--js-line);padding:2px 8px;border-radius:2px}
+.jha-sheet .hud{font:700 11px var(--js-mono)!important;letter-spacing:.6px;text-transform:uppercase;color:var(--js-muted)}
+.jha-sheet .hazard p,.jha-sheet .hazard div,.jha-sheet ul li{font-family:var(--js-serif)}
+.jha-sheet ul li{color:var(--js-ink-soft);font-size:15px;line-height:1.55}
+/* body prose stays readable serif */
+.jha-sheet .hazard>div:nth-child(2){font-family:var(--js-serif)}
+/* show-the-math tape → typed audit slip */
+.jha-sheet .tape summary{font:700 11px var(--js-mono);letter-spacing:1px;text-transform:uppercase;color:var(--js-line);cursor:pointer;margin-top:10px}
+.jha-sheet .tape pre{font:12px/1.5 var(--js-mono);background:rgba(22,50,79,.06);border:1px solid var(--js-line-soft);padding:10px 12px;margin-top:6px;white-space:pre-wrap;color:var(--js-ink-soft);border-radius:2px}
+/* alerts, panels, huddle → ruled callouts */
+.jha-sheet .alert{border:1px solid var(--js-line2);border-left:4px solid var(--js-muted);background:rgba(255,255,255,.30);padding:10px 14px;margin:10px 0;border-radius:2px}
+.jha-sheet .alert .k{font:700 10.5px var(--js-mono);letter-spacing:.8px;text-transform:uppercase;color:var(--js-muted)}
+.jha-sheet .panel{border:1px solid var(--js-line2);background:rgba(255,255,255,.30);padding:12px 14px;border-radius:2px}
+.jha-sheet .huddle{border:1px dashed var(--js-line2);background:rgba(22,50,79,.05);padding:12px 14px;margin-top:10px;border-radius:2px;font-family:var(--js-serif);font-size:15px;color:var(--js-ink-soft)}
+.jha-sheet .huddle .t{font:700 10.5px var(--js-mono);letter-spacing:1px;text-transform:uppercase;color:var(--js-line);margin-bottom:6px}
+/* provenance footer → title-block strip */
+.jha-sheet .prov{margin-top:22px;border-top:1px solid var(--js-line2);padding-top:10px;font:11px var(--js-mono);letter-spacing:.2px;color:var(--js-muted);word-break:break-all}
+.jha-sheet .prov+.hud,.jha-sheet .hud{color:var(--js-muted)}
+@media (max-width:600px){
+  .jha-sheet{padding:20px 14px 16px}
+  .jha-sheet .jha-tb-head{flex-direction:column;align-items:flex-start}
+  .jha-sheet .jha-tb-cells{flex-wrap:wrap}
+}
 </style>
 </head>
 <body>
@@ -452,13 +518,29 @@ function renderReport(r){
   const p = r.provenance || {};
   const ms = Object.entries(p.agent_latency_ms||{}).map(([k,t])=>`${k} ${(t/1000).toFixed(0)}s`).join(" · ");
 
-  return placard
+  const shortId = String(r.id||"").split("-")[0].toUpperCase();
+  const titleblock = `<div class="jha-tb">
+    <div class="jha-tb-head">
+      <div><div class="jha-tb-title">Job Hazard Analysis</div>
+      <div class="jha-tb-sub">${esc(r.work_type||"Field JHA")} — Risk Analysis Record</div></div>
+      <div class="jha-tb-cells">
+        <div class="jha-tb-cell"><span class="jha-tb-l">Record</span><span class="jha-tb-v">${esc(shortId||"—")}</span></div>
+        <div class="jha-tb-cell"><span class="jha-tb-l">Quality</span><span class="jha-tb-v">${r.validation?.quality_score??"—"}/10</span></div>
+        <div class="jha-tb-cell"><span class="jha-tb-l">Engine</span><span class="jha-tb-v">${esc(p.engine_version||"4.0")}</span></div>
+      </div>
+    </div>
+  </div>`;
+
+  return `<div class="jha-sheet">`
+    + titleblock
+    + placard
     + (alerts?`<h2>This site's history is talking</h2>${alerts}`:"")
     + (hazards?`<h2>What can hurt someone today</h2>${hazards}`:"")
     + (leading.length?`<h2>Check these in the next 30 minutes</h2><div class="panel"><ul style="margin-left:20px;font-size:15px">${leading.map(l=>`<li>${esc(l)}</li>`).join("")}</ul></div>`:"")
     + (scenarios?`<h2>The incident this prevents — written before it happens</h2>${scenarios}`:"")
     + `<div class="hud" style="margin-top:16px" data-tip="The system is never allowed to be more confident than the paperwork supports">Plan quality ${r.validation?.quality_score}/10 · prediction confidence ${((r.prediction?.confidence||0)*100).toFixed(0)}%</div>`
-    + `<div class="prov">record ${esc(r.id)} · engine ${esc(p.engine_version||"")} · schema ${esc(p.schema_version||"4.0")}${ms?` · ${esc(ms)}`:""}</div>`;
+    + `<div class="prov">record ${esc(r.id)} · engine ${esc(p.engine_version||"")} · schema ${esc(p.schema_version||"4.0")}${ms?` · ${esc(ms)}`:""}</div>`
+    + `</div>`;
 }
 
 async function renderStoredReport(id){

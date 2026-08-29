@@ -327,61 +327,164 @@ fn e(s: &str) -> String {
 
 fn render_document(d: &EapDocument) -> String {
     let i = &d.input;
-    let sections: String = d.sections.iter().map(|s| format!(
-        r#"<section><h2>{title}<span class="ref">{r}</span></h2><p>{body}</p></section>"#,
-        title = e(&s.title),
-        r = if s.osha_ref == "procedure" { String::new() } else { format!("29 CFR {}", e(&s.osha_ref)) },
-        body = e(&s.body),
-    )).collect();
+    let sections: String = d.sections.iter().enumerate().map(|(n, s)| {
+        let refbox = if s.osha_ref == "procedure" {
+            String::new()
+        } else {
+            let parts: Vec<&str> = s.osha_ref.splitn(2, '(').collect();
+            let (head, tail) = if parts.len() == 2 {
+                (format!("29 CFR"), format!("{}({}", parts[0], parts[1]))
+            } else {
+                ("29 CFR".to_string(), s.osha_ref.clone())
+            };
+            format!(r#"<span class="sec-ref">{}<br>1910.38{}</span>"#, e(&head), e(tail.trim_start_matches("1910.38")))
+        };
+        format!(
+            r#"<section><h2><span class="sec-no">{no:02}</span><span class="sec-title">{title}</span>{refbox}</h2><p>{body}</p></section>"#,
+            no = n + 1,
+            title = e(&s.title),
+            refbox = refbox,
+            body = e(&s.body),
+        )
+    }).collect();
 
     let review = if d.needs_review {
         r#"<div class="review">TEMPLATE PROCEDURES — site-specific tailoring was unavailable at generation time. A competent person must review before posting.</div>"#
     } else { "" };
 
+    let short_id = d.id.to_string().split('-').next().unwrap_or("").to_uppercase();
+
     format!(r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Emergency Action Plan — {proj}</title>
 <style>
-body{{font:16px/1.6 -apple-system,'Segoe UI',sans-serif;color:#111;background:#fff;max-width:820px;margin:0 auto;padding:32px 24px}}
-header{{border-bottom:4px solid #c9a84c;padding-bottom:14px;margin-bottom:8px}}
-h1{{font-size:26px;margin:0}}
-.meta{{color:#444;font-size:14px;margin-top:6px}}
-.badge{{display:inline-block;font:700 12px monospace;letter-spacing:1px;padding:4px 10px;border-radius:3px;margin-top:10px}}
-.ok{{background:#1f7a37;color:#fff}} .no{{background:#b3251e;color:#fff}}
-.review{{background:#fff3cd;border:2px solid #b8860b;color:#5c4400;font-weight:600;padding:12px 14px;border-radius:4px;margin:14px 0}}
-section{{margin:22px 0}}
-h2{{font-size:18px;border-left:5px solid #c9a84c;padding-left:10px;margin-bottom:6px}}
-h2 .ref{{float:right;font:400 12px monospace;color:#777}}
-p{{margin:0;white-space:pre-line}}
-.actions{{position:sticky;top:0;background:#fff;padding:10px 0;border-bottom:1px solid #ddd;margin-bottom:10px;display:flex;gap:10px}}
-.actions button{{font:600 14px -apple-system,sans-serif;padding:10px 16px;border-radius:4px;border:1px solid #999;background:#f5f5f5;cursor:pointer}}
-.actions .p{{background:#c9a84c;border-color:#c9a84c;color:#111}}
-footer{{margin-top:30px;border-top:1px solid #ddd;padding-top:10px;color:#666;font:12px monospace}}
-@media print{{.actions{{display:none}} body{{padding:0}}}}
+:root{{
+  --paper:#f6f2e7; --paper-line:#e9e1cd; --ink:#201d16; --ink-soft:#4a453a;
+  --line:#16324f; --line-soft:#4d6885; --caution:#b5790f; --danger:#9c2b22;
+  --ok:#2f6b3f; --muted:#79705c;
+  --display:"Bahnschrift","Arial Narrow",Haettenschweiler,"Helvetica Neue",Arial,sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype","Book Antiqua",Georgia,serif;
+  --mono:Consolas,"SF Mono",Menlo,"Courier New",monospace;
+}}
+*{{box-sizing:border-box;}}
+html{{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
+body{{margin:0;padding:26px 14px 48px;background:var(--paper);color:var(--ink);font-family:var(--serif);display:flex;justify-content:center;}}
+.sheet{{position:relative;width:100%;max-width:840px;background:var(--paper);
+  background-image:repeating-linear-gradient(var(--paper-line) 0 1px, transparent 1px 26px),repeating-linear-gradient(90deg, var(--paper-line) 0 1px, transparent 1px 26px);
+  border:2px solid var(--line);padding:34px 26px 22px 34px;}}
+.zone-row,.zone-col{{position:absolute;color:var(--muted);font:700 9px var(--mono);letter-spacing:1px;}}
+.zone-row{{top:6px;left:36px;right:14px;display:flex;justify-content:space-between;}}
+.zone-col{{left:8px;top:36px;bottom:14px;display:flex;flex-direction:column;justify-content:space-between;}}
+.actions{{display:flex;gap:10px;padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid var(--paper-line);}}
+.actions button{{font:700 11px var(--mono);letter-spacing:1px;text-transform:uppercase;padding:9px 16px;border:1.5px solid var(--line);background:var(--paper);color:var(--line);cursor:pointer;border-radius:2px;}}
+.actions button:hover{{background:#ece5d2;}}
+.actions button:focus-visible{{outline:2px solid var(--line);outline-offset:2px;}}
+.actions .p{{background:var(--line);color:var(--paper);}}
+.actions .p:hover{{background:#0f253d;}}
+header.titleblock{{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;border-bottom:2px solid var(--line);padding-bottom:14px;margin-bottom:14px;flex-wrap:wrap;}}
+h1{{margin:0;font-family:var(--display);font-weight:700;font-size:clamp(22px,4vw,30px);text-transform:uppercase;letter-spacing:1px;color:var(--ink);}}
+.tb-subtitle{{margin-top:5px;font:600 11px var(--mono);letter-spacing:2px;text-transform:uppercase;color:var(--muted);}}
+.tb-cells{{display:flex;border:1px solid var(--line-soft);}}
+.tb-cell{{padding:5px 12px;border-left:1px solid var(--line-soft);display:flex;flex-direction:column;gap:3px;min-width:76px;}}
+.tb-cell:first-child{{border-left:none;}}
+.tb-label{{font:700 9px var(--mono);letter-spacing:1px;text-transform:uppercase;color:var(--muted);}}
+.tb-value{{font:700 13px var(--display);letter-spacing:.3px;color:var(--ink);}}
+.site-panel{{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line-soft);margin-bottom:16px;}}
+.site-cell{{padding:8px 14px;border-top:1px solid var(--line-soft);border-left:1px solid var(--line-soft);display:flex;flex-direction:column;gap:2px;}}
+.site-cell:nth-child(-n+2){{border-top:none;}}
+.site-cell:nth-child(odd){{border-left:none;}}
+.site-cell.wide{{grid-column:1 / -1;border-left:none;}}
+.site-label{{font:700 9.5px var(--mono);letter-spacing:1px;text-transform:uppercase;color:var(--muted);}}
+.site-value{{font:600 14px var(--display);color:var(--ink);letter-spacing:.2px;}}
+.badge{{display:inline-block;font:800 12px/1.3 var(--mono);letter-spacing:1.5px;text-transform:uppercase;padding:7px 14px;border:3px double currentColor;border-radius:2px;background:transparent;transform:rotate(-1.3deg);mix-blend-mode:multiply;}}
+.badge.ok{{color:var(--ok);}}
+.badge.no{{color:var(--danger);}}
+.stamp-row{{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:22px;}}
+.stamp-note{{font:italic 12px var(--serif);color:var(--muted);}}
+.review{{border:1px solid var(--caution);border-left:6px solid var(--caution);background:rgba(181,121,15,.08);color:#5c4108;font:600 13px var(--serif);padding:10px 14px;margin:16px 0;}}
+main section{{margin:22px 0 26px;}}
+h2{{display:flex;align-items:baseline;gap:10px;margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line);font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:.6px;font-size:15px;color:var(--ink);flex-wrap:wrap;}}
+.sec-no{{font:700 19px var(--display);color:var(--line-soft);opacity:.65;width:2ch;flex:none;}}
+.sec-title{{flex:1;min-width:160px;}}
+.sec-ref{{flex:none;font:700 10.5px var(--mono);letter-spacing:.4px;color:var(--line);border:1px solid var(--line);padding:3px 7px;text-transform:none;line-height:1.25;text-align:center;}}
+p{{margin:0;white-space:pre-line;font-size:15.5px;line-height:1.68;color:var(--ink-soft);max-width:68ch;}}
+footer.titleblock{{display:flex;border:1px solid var(--line-soft);margin-top:26px;flex-wrap:wrap;}}
+footer .tb-cell{{border-top:none;flex:1;min-width:150px;}}
+footer .tb-cell.wide{{flex:2;}}
+footer .tb-value{{font:600 11px var(--mono);letter-spacing:.2px;word-break:break-all;}}
+@media (max-width:600px){{
+  .sheet{{padding:30px 16px 18px 24px;}}
+  .site-panel{{grid-template-columns:1fr;}}
+  .site-cell{{border-left:none !important;}}
+  .site-cell:nth-child(n+2){{border-top:1px solid var(--line-soft);}}
+  header.titleblock{{flex-direction:column;align-items:flex-start;}}
+  .tb-cells{{flex-wrap:wrap;}}
+  footer.titleblock{{flex-direction:column;}}
+  footer .tb-cell{{border-left:none !important;border-top:1px solid var(--line-soft);}}
+  footer .tb-cell:first-child{{border-top:none;}}
+}}
+@page{{size:letter;margin:14mm;}}
+@media print{{
+  body{{padding:0;background:#fff;}}
+  .sheet{{background:#fff;max-width:none;border-width:1.5px;}}
+  .actions{{display:none;}}
+  .badge{{mix-blend-mode:normal;}}
+}}
 </style></head><body>
-<div class="actions">
-  <button class="p" onclick="print()">Print / Save as PDF</button>
-  <button onclick="navigator.clipboard.writeText(location.href).then(()=>this.textContent='Link copied')">Copy share link</button>
-  <button onclick="location.href='mailto:?subject='+encodeURIComponent('Emergency Action Plan — {proj_js}')+'&body='+encodeURIComponent('EAP for {proj_js}: '+location.href)">Email this plan</button>
-</div>
-<header>
-  <h1>Emergency Action Plan</h1>
-  <div class="meta"><strong>{proj}</strong> · {addr}<br>
-  Site supervisor: {sup} · {phone} · Assembly point: {muster}<br>
-  Generated {date} · Permanent record {id}</div>
-  <span class="badge {okc}">{okt}</span>
-</header>
-{review}
+<div class="sheet">
+  <div class="zone-row"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span></div>
+  <div class="zone-col"><span>A</span><span>B</span><span>C</span><span>D</span></div>
+
+  <div class="actions">
+    <button class="p" onclick="print()">Print / Save as PDF</button>
+    <button onclick="navigator.clipboard.writeText(location.href).then(()=>this.textContent='Link copied')">Copy share link</button>
+    <button onclick="location.href='mailto:?subject='+encodeURIComponent('Emergency Action Plan — {proj_js}')+'&body='+encodeURIComponent('EAP for {proj_js}: '+location.href)">Email this plan</button>
+  </div>
+
+  <header class="titleblock">
+    <div>
+      <h1>Emergency Action Plan</h1>
+      <div class="tb-subtitle">Written Plan — 29 CFR 1910.38</div>
+    </div>
+    <div class="tb-cells">
+      <div class="tb-cell"><span class="tb-label">Date</span><span class="tb-value">{date}</span></div>
+      <div class="tb-cell"><span class="tb-label">Record</span><span class="tb-value">{short_id}</span></div>
+      <div class="tb-cell"><span class="tb-label">Rev</span><span class="tb-value">0</span></div>
+      <div class="tb-cell"><span class="tb-label">Sheet</span><span class="tb-value">1 OF 1</span></div>
+    </div>
+  </header>
+
+  <div class="site-panel">
+    <div class="site-cell wide"><span class="site-label">Project</span><span class="site-value">{proj}</span></div>
+    <div class="site-cell wide"><span class="site-label">Address</span><span class="site-value">{addr}</span></div>
+    <div class="site-cell"><span class="site-label">Site Supervisor</span><span class="site-value">{sup} — {phone}</span></div>
+    <div class="site-cell"><span class="site-label">Assembly Point</span><span class="site-value">{muster}</span></div>
+  </div>
+
+  <div class="stamp-row">
+    <span class="badge {okc}">{okt}</span>
+    <span class="stamp-note">Verified against the element checklist at generation — see record below.</span>
+  </div>
+  {review}
+  <main>
 {sections}
-<footer>Safety Companion v4.1 · OSHA 29 CFR 1910.38 element map verified in code · record {id}</footer>
+  </main>
+
+  <footer class="titleblock">
+    <div class="tb-cell"><span class="tb-label">Software</span><span class="tb-value">Safety Companion v4.1</span></div>
+    <div class="tb-cell wide"><span class="tb-label">Verification</span><span class="tb-value">OSHA 29 CFR 1910.38 element map verified in code</span></div>
+    <div class="tb-cell"><span class="tb-label">Record No.</span><span class="tb-value">{id}</span></div>
+  </footer>
+</div>
 </body></html>"#,
         proj = e(&i.project_name), proj_js = e(&i.project_name).replace('\'', ""),
         addr = e(&i.site_address), sup = e(&i.site_supervisor), phone = e(&i.supervisor_phone),
         muster = e(&i.assembly_point),
-        date = d.created_at.format("%B %e, %Y"),
+        date = d.created_at.format("%b %e %Y"),
+        short_id = short_id,
         id = d.id,
         okc = if d.osha_compliant { "ok" } else { "no" },
-        okt = if d.osha_compliant { "ALL 1910.38(c) ELEMENTS PRESENT" } else { "MISSING REQUIRED ELEMENTS — DO NOT POST" },
+        okt = if d.osha_compliant { "All 1910.38(c) Elements Present" } else { "Missing Required Elements — Do Not Post" },
         review = review, sections = sections,
     )
 }

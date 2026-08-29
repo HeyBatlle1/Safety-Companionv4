@@ -28,39 +28,27 @@ live Supabase DB. Both the JHA analysis and the EAP compiler work.
   Grok+Gemini, no Anthropic in the hot path. Grok 4.6 deliberately kept OUT (too pricey).
 
 ## MOST RECENT COMMITS (newest first)
+- `9f4fd7c` JHA readout blueprint restyle — sibling of the EAP (SHIPPED, live)
+- `827dcac` docs: drawing-module keystone + finalized vision architecture
 - `b5a1924` EAP blueprint title-block redesign (SHIPPED, live)
 - `70852f2` deterministic engine proof-of-execution logging (engine✓ per hazard)
 - `0cd67e9` phrasing-coverage gaps closed 15%→0%
 - `978bc22` JHA "Fill with example" → random accurate scenarios
-- `031a592` phrasing-sensitivity eval
-- `6458916` ANSI harvest into 003 seed
 
 ---
 
-## THE IMMEDIATE NEXT TASK (start here, fresh session, full focus)
+## THE IMMEDIATE NEXT TASK (start here, fresh session)
 
-**JHA readout blueprint restyle** — make the inline JHA result a sibling of the EAP.
+**The JHA restyle is DONE (9f4fd7c) — both artifacts are now blueprint siblings.**
+Next real work is the FABLE ROADMAP below (the serious calibration honesty work that
+gates getting in front of a buyer): start with the `probability`→honest-term rename,
+then the hash-cache, then the High-severity ceiling bug. That's the near-term board.
+The drawing/vision module (fully architected below) is the year-2 crown jewel — needs
+the engine solid first.
 
-- The JHA readout is `renderReport()` in `src/api/app.html` (~line 417). It's used in
-  TWO places: inline analysis (`renderAnalyze`, ~410) AND dashboard stored reports
-  (`renderStoredReport`, ~467). Both call `renderReport`, so restyling it once hits both.
-- **CRITICAL — scope it:** `.placard` (12 uses), `.hazard` (7), `.hud` (38 uses across
-  the whole app). DO NOT restyle those classes globally — it'll wreck the workspace.
-  **Wrap `renderReport()` output in a `.jha-sheet` container and scope ALL blueprint
-  CSS to `.jha-sheet .hazard {…}` etc.** Rest of app stays untouched/calm.
-- **The design language to apply** = the one that shipped in the EAP (`render_document`
-  in `src/api/eap.rs`, commit b5a1924): vellum `#f6f2e7`, blueprint-blue `#16324f`,
-  three-font system (Bahnschrift/Arial-Narrow display, Consolas/SF-Mono data,
-  Iowan-Old-Style/Georgia serif body), ruled title block, zone ticks, rotated
-  ink-stamp badge, functional-only color, numbered sections, boxed CFR refs.
-- **The framing decision (Bradlee's call, agreed):** render the JHA readout as a
-  **document-on-the-desk** — a self-contained blueprint "sheet" set apart from the
-  calm workspace it sits in. The stark contrast IS the appeal: plain drafting table
-  (workspace) → beautiful artifact (the readout) materializes on it = the "here's what
-  you made" moment. Give it a subtle sheet frame so it reads as a document PLACED in
-  the workspace, not the workspace itself being decorated.
-- Verify with Desktop Commander (edit_block on Mac, not str_replace), test both the
-  inline path (run an analysis) and the dashboard path (open a stored report).
+Optional polish (Bradlee's call, not required): the JHA verdict placard green band
+could be tuned to sit more like an inspector's stamp (bordered stamp vs bright fill) on
+the vellum — minor, it looks good as-is.
 
 ---
 

@@ -327,6 +327,7 @@ function sparkline(trend){
 /* ============ RUN JHA ============ */
 const TRADES = {
   general:{naics:"236220",label:"General / commercial building"},
+  glazing:{naics:"238150",label:"Glass & glazing / curtainwall"},
   roofing:{naics:"238160",label:"Roofing"},
   electrical:{naics:"238210",label:"Electrical"},
   crane:{naics:"236220",label:"Crane / heavy lift"},
@@ -338,40 +339,40 @@ const STD_FIELDS = ["Work description","Hazards identified","Hazard controls","F
 
 const JHA_DEMOS = [
   {
-  trade:"roofing", temp:88, wind:28, cond:"gusty, scattered storms expected after lunch",
+  trade:"glazing", temp:74, wind:16, cond:"breezy, winds building through the afternoon",
   fields:{
-    "Work description":"Roofing tear-off and re-deck, 3-story commercial building, north face, 6 crew, 2 days",
-    "Hazards identified":"1) Falls from roof edge during tear-off, 2) falling debris to ground below, 3) heat stress at 88F, 4) gusting wind moving sheet material, 5) nail gun injuries",
-    "Hazard controls":"Warning lines at 6 ft plus personal fall arrest for edge work; barricaded drop zone with debris netting and a ground spotter; water and shade breaks every 45 minutes; all sheet handling stops above 24 mph sustained wind; sequential-trigger nailers only",
-    "Fall protection":"Full-body harnesses with shock-absorbing lanyards tied to certified roof anchors (Guardian CB-12, inspected 6/10). Warning line at 6 ft from all edges. Safety monitor: J. Reyes",
-    "Emergency evacuation plan":"Evacuate via the northeast stairwell to the flagpole in the front lot. Foreman carries the crew roster for headcount. Nearest hospital: Witham Health, 8 minutes",
-    "Worker certifications":"All 6 crew OSHA 10; foreman and safety monitor OSHA 30; 2 crew aerial-lift certified through 2027",
-    "Equipment specifications":"JLG 450AJ boom lift, ANSI inspection 5/28; Werner D6232-2 extension ladders checked daily; nailers with sequential triggers",
-    "PPE requirements":"Hard hats, safety glasses, cut-resistant gloves, high-vis vests, work boots; hearing protection during tear-off",
+    "Work description":"Curtainwall unitized panel installation, 4th-8th floor east elevation, mobile crane hoisting 6ft x 10ft glass-and-aluminum units, 5-person glazing crew, 4 days",
+    "Hazards identified":"1) Load swing of large sail-area glass panels in wind during the hoist, 2) crane instability lifting wide lightweight units near reduced wind limit, 3) falls from the leading edge at the installation floor, 4) struck-by / caught-between the panel and the structure during landing, 5) glass breakage and falling fragments to levels below",
+    "Hazard controls":"Panel sail area de-rates the mobile crane limit — hoisting stops at 18 mph sustained (below the crane's ~22 mph chart limit because the glass acts as a sail); vacuum-cup lifting frame with backup mechanical restraint; two tag lines and a dedicated signalperson on every pick; installers 100% tied off to the floor perimeter anchors at the leading edge; landing zone below barricaded with a spotter; broken-glass exclusion zone and cleanup before re-entry",
+    "Fall protection":"100% tie-off with twin-leg lanyards to certified perimeter anchors at the open leading edge; guardrail where panels not yet set; controlled access zone below the pick",
+    "Emergency evacuation plan":"On any load-control loss, clear the landing floor and the ground swing radius; crane lands the panel before any rescue. Suspended-worker retrieval pre-rigged at the leading edge. Assembly at the field trailer. Nearest hospital: Witham Health, 9 minutes",
+    "Worker certifications":"All glaziers fall-protection trained; NCCCO crane operator; qualified rigger and signalperson; lift director for the panel picks",
+    "Equipment specifications":"Grove RT mobile crane, annual + shift inspection logged, load chart and wind limits posted in cab; Wood's Powr-Grip vacuum lifter, cups inspected and vacuum-tested each shift; twin-leg lanyards inspected 6/14",
+    "PPE requirements":"Hard hats, hi-vis, cut-resistant Level A gloves for glass handling, safety glasses, boots; twin-leg harness at the edge",
   }},
   {
-  trade:"excavation", temp:72, wind:12, cond:"clear, dry; rain two days ago",
+  trade:"glazing", temp:68, wind:14, cond:"clear morning, wind picking up midday",
   fields:{
-    "Work description":"Utility trench, 9 ft deep x 60 ft, storm-drain tie-in, 4 crew, wet clay soil, 1 day",
-    "Hazards identified":"1) Trench cave-in / soil collapse, 2) caught-between during pipe placement, 3) struck-by excavator swing, 4) falls into open excavation, 5) buried utilities",
-    "Hazard controls":"Hydraulic shoring rated for Type C soil to full depth; spoil piled 3+ ft back from the edge; competent person inspects before entry and after any rain; ladder egress every 25 ft; excavator swing radius barricaded with a dedicated spotter; 811 locates confirmed and hand-dig within 24 in of marked lines",
-    "Fall protection":"Edge protection and barricade around the open trench; ladder access; no personnel under suspended pipe loads",
-    "Emergency evacuation plan":"Trench rescue is a specialized-team call to 911 — no crew self-rescue entry. Air-monitor and retrieve at the ladder. Nearest trauma center: 12 minutes",
-    "Worker certifications":"Competent person (excavation) on site all shift; all crew confined-space aware; excavator operator certified",
-    "Equipment specifications":"CAT 320 excavator, daily walkaround logged; hydraulic shoring shores inspected 6/12; 4-gas meter calibrated 6/1",
-    "PPE requirements":"Hard hats, hi-vis, steel toe, gloves; 4-gas monitor for any entry below 4 ft",
+    "Work description":"Exterior glass replacement and reglazing, 12th-14th floor south face, two-point suspended swing stage (powered platform), 2 glaziers per stage, 3 days",
+    "Hazards identified":"1) Fall from the suspended platform, 2) platform failure / rigging or outrigger anchor failure, 3) wind pushing the platform and glass panel against the building, 4) dropped glass or tools to the sidewalk below, 5) contact with the building face during panel handling",
+    "Hazard controls":"Suspended-access work stops at 25 mph wind at platform height and reassesses at 20 mph; each glazier on an independent vertical lifeline with a rope grab, separate from the platform suspension; outrigger/parapet anchors engineered and inspected by a competent person before each shift; wire ropes and stirrups inspected daily; pedestrian sidewalk shed and drop-zone barricade below; tools tethered, panels handled with restraint straps",
+    "Fall protection":"Independent lifeline and rope grab for each worker (not tied to the platform); full-body harness; platform guardrails; secondary tie-back on the platform itself",
+    "Emergency evacuation plan":"Controlled descent of the swing stage to grade on any suspension or power fault; if a stage is disabled, glaziers descend the independent lifelines to a lower setback. Ground control keeps the drop zone clear. Nearest trauma center: 11 minutes",
+    "Worker certifications":"Both glaziers suspended-access / powered-platform trained and fall-protection certified; competent person inspects rigging; annual re-cert current",
+    "Equipment specifications":"Two-point powered swing stage, load-rated and annually certified; suspension wire ropes inspected daily; independent lifelines and rope grabs inspected 6/14; parapet clamps engineered for the anchorage",
+    "PPE requirements":"Hard hats with chin straps, hi-vis, cut-resistant gloves, safety glasses, boots; full-body harness on independent lifeline at all times on the stage",
   }},
   {
-  trade:"electrical", temp:79, wind:8, cond:"clear, indoor mechanical room",
+  trade:"glazing", temp:71, wind:9, cond:"clear, dry, ground-level work",
   fields:{
-    "Work description":"480V switchgear maintenance and breaker replacement in a mechanical room, 2 electricians, energized adjacent sections, half day",
-    "Hazards identified":"1) Arc flash on energized 480V gear, 2) electric shock / electrocution, 3) failure to fully de-energize adjacent conductors, 4) struck-by cabinet doors, 5) confined working clearance",
-    "Hazard controls":"Full lockout/tagout on the target section with verified zero-energy; arc-flash boundary established and signed; only qualified electricians inside the boundary; live-dead-live test before contact; insulated tools; adjacent live sections barriered and labeled",
-    "Fall protection":"N/A — ground-level work",
-    "Emergency evacuation plan":"Non-contact rescue only for shock — de-energize first, never touch a live victim. AED in the corridor 40 ft away. Nearest ER: 9 minutes",
-    "Worker certifications":"Both electricians qualified per NFPA 70E; arc-flash and LOTO trained; annual re-cert current",
-    "Equipment specifications":"Arc-rated PPE kit (40 cal), inspected; insulated tools rated 1000V; calibrated meter for live-dead-live",
-    "PPE requirements":"Arc-rated 40 cal suit and hood inside the boundary, voltage-rated gloves with leather protectors, safety glasses, hearing protection",
+    "Work description":"Ground-floor storefront and interior glazing — aluminum framing, insulated glass units, and entrance doors at a retail buildout, 3-person crew, 2 days",
+    "Hazards identified":"1) Lacerations from handling and cutting glass, 2) manual-handling / back strain lifting heavy insulated glass units, 3) struck-by during panel setting with two-person carry, 4) trips over framing stock and tools in the work area, 5) silicone/solvent fume exposure in an enclosed space",
+    "Hazard controls":"Glass handled with suction cups and two-person team-lift for units over 50 lb; cut-resistant sleeves and gloves for all glass handling; housekeeping keeps travel paths clear and stock racked; enclosed-area ventilation running during structural silicone and solvent use; setting blocks and shims staged to avoid pinch during placement",
+    "Fall protection":"N/A — ground-level and interior work; low step stools and podium ladders only, no work over 6 ft",
+    "Emergency evacuation plan":"Standard site evacuation to the front lot muster point on alarm; first-aid kit and eyewash on site for glass cuts and solvent splash. Nearest ER: 8 minutes",
+    "Worker certifications":"All crew glazing-experienced; two crew first-aid/CPR current; hazard-communication trained for silicone and solvents",
+    "Equipment specifications":"Manual suction cups tested each use; podium ladders inspected daily; SDS binder on site for all sealants and solvents; utility knives with retractable blades",
+    "PPE requirements":"Safety glasses, cut-resistant Level A gloves and sleeves for glass, steel-toe boots, hi-vis; nitrile gloves and ventilation for silicone/solvent work",
   }},
   {
   trade:"steel", temp:64, wind:22, cond:"overcast, breezy, dry",
@@ -384,18 +385,6 @@ const JHA_DEMOS = [
     "Worker certifications":"All ironworkers connector-qualified; signalperson and rigger certified; crane operator NCCCO certified",
     "Equipment specifications":"Tower crane, annual cert current, load charts posted; rigging inspected each shift; twin-leg lanyards inspected 6/14",
     "PPE requirements":"Hard hats with chin straps, hi-vis, gloves, boots; twin-leg harness; safety glasses",
-  }},
-  {
-  trade:"crane", temp:91, wind:31, cond:"hot, sustained high wind near the manufacturer limit",
-  fields:{
-    "Work description":"Mobile crane setting rooftop HVAC units, single critical pick at 82% of chart, 6-person crew, 1 day",
-    "Hazards identified":"1) Struck-by the suspended load / load swing in high wind, 2) crane tip-over near capacity, 3) falling load if rigging fails, 4) falls at the rooftop landing point, 5) contact with nearby power lines",
-    "Hazard controls":"Wind hold at 30 mph gusts per the load chart — pick paused until it drops; outriggers fully extended on engineered mats with a verified level; tag lines and a dedicated signalperson; rooftop landing crew tied off; minimum 20 ft power-line clearance confirmed with a dedicated observer; rigging inspected and load weight verified before the pick",
-    "Fall protection":"Rooftop landing crew 100% tied off to anchors; edge protection at the landing zone",
-    "Emergency evacuation plan":"Clear the swing radius on any load-control loss; crane sets the load down before any rescue. Assembly at the gate. Nearest trauma center: 11 minutes",
-    "Worker certifications":"NCCCO crane operator; qualified rigger and signalperson; lift director on site for the critical pick",
-    "Equipment specifications":"Grove RT crane, annual + shift inspection logged; load chart and wind limits posted in the cab; rigging tagged and inspected 6/15",
-    "PPE requirements":"Hard hats, hi-vis, gloves, boots; harnesses for the rooftop crew; hearing protection near the crane",
   }},
 ];
 const JHA_DEMO = JHA_DEMOS[0]; // legacy alias (first scenario) — retained for safety
@@ -436,7 +425,7 @@ function renderAnalyze(){
     const D = JHA_DEMOS[Math.floor(Math.random() * JHA_DEMOS.length)];
     const jitter = (v, spread) => Math.max(0, Math.round(v + (Math.random()*2-1)*spread));
     $$("#trade").value = D.trade; $$("#naics").value = TRADES[D.trade].naics;
-    $$("#temp").value = jitter(D.temp, 4); $$("#wind").value = jitter(D.wind, 5); $$("#cond").value = D.cond;
+    $$("#temp").value = jitter(D.temp, 4); $$("#wind").value = jitter(D.wind, 2); $$("#cond").value = D.cond;
     qa.innerHTML = "";
     Object.entries(D.fields).forEach(([q,a]) => addQA(qa, q, a));
   };
@@ -552,12 +541,12 @@ async function renderStoredReport(id){
 
 /* ============ EMERGENCY PLAN ============ */
 const EAP_DEMO = {
-  project_name:"Maple Street Medical Office Building", site_address:"1420 Maple St, Lebanon, IN 46052",
-  assembly_point:"Flagpole at the northeast corner of the front parking lot",
-  site_supervisor:"M. Carter", supervisor_phone:"(317) 555-0148",
-  nearest_hospital:"Witham Health Services", hospital_address:"2605 N Lebanon St, Lebanon, IN",
-  alarm_method:"Three long air-horn blasts, repeated",
-  utility_shutoffs:"Electrical: main panel, NE mechanical room. Gas: meter on the west wall. Water: curb stop at the SE entrance",
+  project_name:"Gateway Tower Curtainwall Package", site_address:"400 W Washington St, Indianapolis, IN 46204",
+  assembly_point:"Northwest corner of the site lay-down yard, at the material gate",
+  site_supervisor:"D. Alvarez", supervisor_phone:"(317) 555-0182",
+  nearest_hospital:"IU Health Methodist Hospital", hospital_address:"1701 N Senate Ave, Indianapolis, IN",
+  alarm_method:"Three long air-horn blasts, repeated, plus radio call on channel 2",
+  utility_shutoffs:"Electrical: temp-power panel at the ground-floor NE core. Hoist/crane power: disconnect at the base. Water: curb stop at the SW entrance",
   hazards:["crane","fall_rescue"]
 };
 const HAZ_OPTS = [

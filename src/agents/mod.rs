@@ -359,12 +359,22 @@ Respond ONLY with this JSON shape:
 /// ceiling so that doing the safe thing is rewarded.
 fn decide_verdict(
     worst_inherent: f64,
+    worst_inherent_p: f64,
     worst_residual: f64,
     has_critical_concern: bool,
     needs_clarification: bool,
     quality_score: u8,
     has_pattern_alerts: bool,
 ) -> Verdict {
+    // Per-shift risk index above which injury is likely enough over a year that the
+    // job cannot read GO on the inherent track, REGARDLESS of the severity label the
+    // model assigned. 0.01/shift ≈ 92% annualized chance of at least one recordable
+    // event — a hazard that will more-likely-than-not injure someone this year. This
+    // gate exists because the severity-weighted score caps a "High" hazard at ~75,
+    // below the 85 stop line, so without it a near-certain High hazard reads GO. The
+    // EVIDENCE governs the stop, not the model's label. (Fable P0.)
+    const INHERENT_P_STOP: f64 = 0.01;
+
     if has_critical_concern {
         // Hard regulatory gate (e.g. no competent person on an excavation).
         // No amount of listed controls overrides it.
@@ -375,6 +385,17 @@ fn decide_verdict(
         // residual down, reward that with ProceedWithControls rather than a flat
         // stop — but never all the way to GO on listed mitigations alone.
         if worst_residual >= 85.0 {
+            Verdict::StopWork
+        } else {
+            Verdict::ProceedWithControls
+        }
+    } else if worst_inherent_p >= INHERENT_P_STOP {
+        // Evidence-track gate: the raw per-shift index says injury is likely, but
+        // the severity-weighted score didn't reach the 85 ceiling (the model labeled
+        // it High, capping the score at ~75). The label must NOT talk a dangerous
+        // hazard down to GO. Force CAUTION-or-worse: hold StopWork if controls didn't
+        // meaningfully help, else ProceedWithControls — never Proceed on the label alone.
+        if worst_residual >= 50.0 {
             Verdict::StopWork
         } else {
             Verdict::ProceedWithControls
@@ -415,6 +436,20 @@ fn synthesize(
         .fold(0.0_f64, f64::max)
         .max(risk.overall_risk_score);
 
+    // Worst-case INHERENT per-shift risk index across hazards, INDEPENDENT of the
+    // severity label. This is the raw evidence — the calibrated per-shift number
+    // itself, before it gets multiplied by a severity weight (which caps a "High"
+    // score at ~75, below the 85 stop line, so a near-certain High hazard could
+    // otherwise read GO — the model's *label* silently governing the stop decision).
+    // Gating on this raw index means the EVIDENCE can force a stop even when the
+    // model called a dangerous hazard High instead of Critical. The label can't
+    // talk the evidence down.
+    let worst_inherent_p = risk
+        .hazards
+        .iter()
+        .map(|h| h.probability)
+        .fold(0.0_f64, f64::max);
+
     // Residual score per hazard: same scoring function, fed the residual
     // (post-control) probability instead of the inherent one. Falls back to the
     // inherent score if a hazard has no residual (no controls credited).
@@ -435,6 +470,7 @@ fn synthesize(
 
     let verdict = decide_verdict(
         worst_inherent,
+        worst_inherent_p,
         worst_residual,
         has_critical_concern,
         validation.recommended_action == "REQUEST_CLARIFICATION",
@@ -578,10 +614,14 @@ fn baseline_text(b: &Option<IndustryBaseline>) -> String {
 mod verdict_tests {
     use super::*;
 
+    // A per-shift index below the evidence gate — used by tests that are exercising
+    // OTHER paths and don't want the evidence-track gate to fire.
+    const LOW_P: f64 = 0.001;
+
     // Baseline: a clean, low-risk job with good paperwork proceeds (GO).
     #[test]
     fn low_risk_clean_job_proceeds() {
-        let v = decide_verdict(30.0, 20.0, false, false, 8, false);
+        let v = decide_verdict(30.0, LOW_P, 20.0, false, false, 8, false);
         assert_eq!(v, Verdict::Proceed);
     }
 
@@ -590,7 +630,7 @@ mod verdict_tests {
     // your way past a missing competent person.
     #[test]
     fn critical_concern_always_stops_even_with_low_residual() {
-        let v = decide_verdict(90.0, 5.0, true, false, 9, false);
+        let v = decide_verdict(90.0, LOW_P, 5.0, true, false, 9, false);
         assert_eq!(v, Verdict::StopWork);
     }
 
@@ -601,27 +641,57 @@ mod verdict_tests {
     // Listing effective controls is rewarded with a softer verdict.
     #[test]
     fn controls_soften_a_severe_hazard_but_do_not_erase_it() {
-        let uncontrolled = decide_verdict(90.0, 88.0, false, false, 8, false);
+        let uncontrolled = decide_verdict(90.0, LOW_P, 88.0, false, false, 8, false);
         assert_eq!(uncontrolled, Verdict::StopWork,
             "severe hazard with no residual reduction must STOP");
 
-        let controlled = decide_verdict(90.0, 60.0, false, false, 8, false);
+        let controlled = decide_verdict(90.0, LOW_P, 60.0, false, false, 8, false);
         assert_eq!(controlled, Verdict::ProceedWithControls,
             "real controls on the same hazard must soften STOP -> PROCEED_WITH_CONTROLS");
 
         // ...but never all the way to GO on listed mitigations alone: a severe
         // inherent hazard never returns Proceed, even if residual is tiny,
         // because listed controls may be claimed-not-verified.
-        let heavily_controlled = decide_verdict(90.0, 10.0, false, false, 8, false);
+        let heavily_controlled = decide_verdict(90.0, LOW_P, 10.0, false, false, 8, false);
         assert_ne!(heavily_controlled, Verdict::Proceed,
             "a severe inherent hazard must never become a bare GO on listed controls");
+    }
+
+    // THE FABLE P0 FIX: a High-severity hazard that is near-certain to injure must
+    // NOT read GO just because the severity-weighted score caps at ~75 (below the 85
+    // inherent stop line). The raw per-shift evidence governs the stop, not the label.
+    #[test]
+    fn high_severity_but_near_certain_injury_cannot_read_go() {
+        // A "High" hazard maxes out at risk_score ~74.99 (0.05/shift * 75 weight),
+        // so worst_inherent never reaches 85. Before the fix, this fell through to
+        // the residual/pattern checks and could return Proceed (GO). The scenario:
+        // worst_inherent=75 (a High hazard at the ceiling), high raw p, and even a
+        // LOW residual score (few/weak controls) — which pre-fix would read GO.
+        let p_high = 0.02; // ~99% annualized chance of a recordable event — dangerous
+
+        // No meaningful controls (residual low as a *score* only because High caps it,
+        // but the hazard is real): must be CAUTION-or-worse, never GO.
+        let bare = decide_verdict(75.0, p_high, 40.0, false, false, 8, false);
+        assert_ne!(bare, Verdict::Proceed,
+            "a near-certain High-severity hazard must never read GO — the evidence gate must fire");
+
+        // With the residual still meaningfully elevated, the evidence gate holds STOP.
+        let uncontrolled = decide_verdict(75.0, p_high, 55.0, false, false, 8, false);
+        assert_eq!(uncontrolled, Verdict::StopWork,
+            "near-certain High hazard with elevated residual must STOP on the evidence track");
+
+        // And a hazard whose raw index is genuinely low is unaffected — the gate
+        // only fires on real evidence of danger, not on the label.
+        let genuinely_low = decide_verdict(40.0, 0.0001, 20.0, false, false, 8, false);
+        assert_eq!(genuinely_low, Verdict::Proceed,
+            "the evidence gate must NOT fire on a genuinely low-probability hazard");
     }
 
     // The residual track (not inherent) drives the CAUTION threshold: a job
     // whose residual lands >=50 gets ProceedWithControls.
     #[test]
     fn moderate_residual_requires_controls_caution() {
-        let v = decide_verdict(70.0, 55.0, false, false, 8, false);
+        let v = decide_verdict(70.0, LOW_P, 55.0, false, false, 8, false);
         assert_eq!(v, Verdict::ProceedWithControls);
     }
 
@@ -629,14 +699,14 @@ mod verdict_tests {
     // site's history is evidence.
     #[test]
     fn pattern_alert_forces_caution_even_at_low_residual() {
-        let v = decide_verdict(40.0, 25.0, false, false, 8, true);
+        let v = decide_verdict(40.0, LOW_P, 25.0, false, false, 8, true);
         assert_eq!(v, Verdict::ProceedWithControls);
     }
 
     // Poor paperwork quality routes to clarification rather than a false GO.
     #[test]
     fn low_quality_requests_clarification() {
-        let v = decide_verdict(40.0, 30.0, false, false, 3, false);
+        let v = decide_verdict(40.0, LOW_P, 30.0, false, false, 3, false);
         assert_eq!(v, Verdict::RequestClarification);
     }
 }

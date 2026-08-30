@@ -208,11 +208,14 @@ METHODOLOGY:
 1. Identify the TOP 3 SPECIFIC hazards. Specific means "fall from 30ft swing stage in 35mph winds",
    never "fall hazard". Hazards must be grounded in actual checklist content.
 2. For each hazard:
-   probability: base = industry injury rate / 100 = {base_p:.4}, then apply hazard-type and
-   condition multipliers (working at height x3-5, energized electrical x4, adverse weather x1.5-3,
-   missing critical control x2-4). Cap at 0.95.
+   probability: a ROUGH first-pass estimate only. Start from base = industry injury rate / 100 =
+   {base_p:.4}, then reason up for aggravating conditions (working at height, energized electrical,
+   adverse weather, a missing critical control) and down for strong controls. Cap at 0.95. This is
+   a STARTING SIGNAL, not the final number — a deterministic calibration engine downstream sets the
+   authoritative risk index from site evidence; your estimate only nudges it. Do not agonize over
+   precision here; get the ordering and the direction right.
    severity: LOW | MEDIUM | HIGH | CRITICAL by worst credible outcome.
-   risk_score: probability x severity weight (LOW=25, MEDIUM=50, HIGH=75, CRITICAL=100), 1-100.
+   risk_score: leave as a rough estimate (the engine recomputes it); order-of-magnitude is enough.
    osha_citations: relevant 29 CFR 1926 sections.
    controls: hierarchy of controls, most effective first.
 3. overall_risk_score: weighted toward the worst hazard, 1-100.

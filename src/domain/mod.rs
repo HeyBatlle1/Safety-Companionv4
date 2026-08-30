@@ -95,15 +95,21 @@ pub struct FieldIssue {
 pub struct Hazard {
     /// Specific description: "Fall from 30ft swing stage during 35mph winds"
     pub description: String,
-    pub probability: f64, // 0.0..=1.0
+    /// Engineered risk INDEX for this hazard (per-worker-per-shift scale internally).
+    /// Serialized as `risk_index`, NOT `probability`: this is a hand-parameterized
+    /// expert prior / ranking heuristic, deliberately labeled so it is never mistaken
+    /// for a validated, incident-calibrated probability. The record says what it is.
+    #[serde(rename = "risk_index", alias = "probability")]
+    pub probability: f64, // 0.0..=1.0 internally; exposed as risk_index
     pub severity: Severity,
     pub risk_score: f64, // 1..=100
     #[serde(default)]
     pub osha_citations: Vec<String>,
     #[serde(default)]
     pub controls: Vec<String>,
-    /// Probability after credited controls (deterministic, from calibration).
-    #[serde(default)]
+    /// Residual risk index after credited controls (deterministic, from calibration).
+    /// Serialized as `residual_risk_index` for the same honesty reason as `risk_index`.
+    #[serde(default, rename = "residual_risk_index", alias = "residual_probability")]
     pub residual_probability: Option<f64>,
     /// What a competent person should physically verify before work starts.
     #[serde(default)]

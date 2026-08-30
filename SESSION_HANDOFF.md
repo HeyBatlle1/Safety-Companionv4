@@ -209,7 +209,22 @@ Ordered next steps:
   watching for known-bad) — worth filing into Manger/NATSAURIE security notes (offered,
   not done). Generalizes to the zero-click sentinel, apoptosis, Manger guardian.
 - Randomize the EAP `#edemo` demo like the JHA one (now a glazier curtainwall site, still static).
-- `.mcp.json` untracked — decide whether to gitignore.
+- **SECURITY — repo secret sweep (done 2026-08-30, RESOLVED):** a hostile-recon sweep of git
+  history found three secrets committed while the repo was PUBLIC (all in LEGACY V3 files /
+  old AI-written summary docs like SESSION_SUMMARY.md, NOT in current V4 Rust code): an
+  OpenRouter key (`sk-or-v1-e59a96…`), a Neon Postgres credential
+  (`neondb_owner:npg_qGUi6S1NEZar@ep-steep-sun-a5q75vzf…neon.tech`), and a Supabase
+  service_role JWT. **ALL WERE ROTATED on the day of the chat-exposure incident (when secrets
+  were given to Claude Code) — they are DEAD. Not a live threat.** Repo is now private. Notes:
+  (1) the dead strings still LIVE in git history — harmless (rotated), but a diligence scanner
+  would flag them if the repo is ever handed to a buyer → scrub with BFG/git-filter-repo
+  BEFORE any sale (cosmetic, not security). (2) Optional hygiene: if the V1 Neon DB is a dead
+  corpse (fully on Supabase now), DELETE the Neon project so there's no lock to pick at all.
+  (3) The leak VECTOR was AI-generated summary docs + script defaults capturing live creds in
+  plaintext, then committed. Current V4 Rust is clean (.env gitignored, secrets from
+  std::env only). STANDING RULE: secrets live in .env (gitignored) and NOWHERE else — never in
+  a doc, summary, script default, or any file that gets committed, including AI-written ones.
+- `.mcp.json` — now gitignored (done 2026-08-30).
 - RLS on sensitive tables (sc_people/sc_drug_screens/sc_wellbeing_scans) — HIGHER priority
   now that real data is live in them. The fortress-DB hardening.
 - OG-feature rebuilds (v-next): weather-radar/GPS datapoint into JHA; Procore integration

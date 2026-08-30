@@ -181,10 +181,34 @@ Ordered next steps:
    ladder + concern corroboration) — the real next big work, but NOT as a repro fix.
 
 ## OTHER OPEN THREADS (carry forward)
+- **EAP logic audit (done 2026-08-30, verified against the real 1910.38 text):** GOOD NEWS —
+  the compiler (`eap.rs`) is genuinely compliant, NOT spectacle. It generates all SIX (c)
+  elements + the surrounding mandates and requires them in the compliance check:
+  (c)(1) reporting, (c)(2) evacuation, (c)(3) critical-ops shutdown, (c)(4) accounting for
+  personnel, (c)(5) rescue/medical duties, (c)(6) contact person, plus (d) alarm system and
+  (e)/(f) training + plan review. The check is stricter than "present" — it requires
+  `body.len() > 80` so a section can't be an empty stub. Nine questions map to the real (c)
+  logic. The MISSION-LEVEL UPGRADE (the "kill the spectacle, put the logic back" thesis):
+  move from element-*present* validation to element-*substantive* validation — the len>80
+  proxy catches empty stubs but not generic boilerplate. Real next-level checks: (c)(4) must
+  name an actual accountability METHOD; (c)(5) must state whether site personnel DO or DON'T
+  perform rescue (the confined-space "no entry rescue" distinction is life-or-death); the
+  alarm section must specify a DISTINCTIVE signal per emergency type (per 1910.165); and
+  certain elements — esp (c)(5) rescue and alarm-distinctiveness — should ALWAYS force a
+  competent-person review regardless of model tailoring (currently `needs_review` only fires
+  when the model didn't tailor). Same move as the calibration engine: don't check that a
+  thing EXISTS, check that it's honestly/substantively DERIVED. This is the EAP's north star:
+  automate it AND put real logic back in = a safety culture that DOES something, not spectacle.
+- **Weather sharpening (known work, not an unknown):** pull real conditions from GPS/location,
+  feed the engine as structured ground-truth (not a typed guess) — the code logic of how
+  weather is generated + fed matters MORE than the dashboard widget. Dashboard: make current
+  weather + an 8-hour outlook paragraph a small, low-tech, very-functional centerpiece (more
+  prominent than the list of EAPs/JHAs, because weather is the one LIVE input that changes the
+  answer during the workday). The OG weather-radar/GPS feature, rebuilt.
 - "silence-as-alarm" primitive (absence of expected-good signal = stronger detection than
   watching for known-bad) — worth filing into Manger/NATSAURIE security notes (offered,
   not done). Generalizes to the zero-click sentinel, apoptosis, Manger guardian.
-- Randomize the EAP `#edemo` demo like the JHA one (still static).
+- Randomize the EAP `#edemo` demo like the JHA one (now a glazier curtainwall site, still static).
 - `.mcp.json` untracked — decide whether to gitignore.
 - RLS on sensitive tables (sc_people/sc_drug_screens/sc_wellbeing_scans) — HIGHER priority
   now that real data is live in them. The fortress-DB hardening.

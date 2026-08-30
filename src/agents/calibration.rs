@@ -167,6 +167,14 @@ pub fn calibrate(
         } else if wind > 25.0 {
             add(0.8, &format!("wind {wind:.0} mph > 25"), &mut trail, &mut evidence);
         }
+    } else {
+        // No wind data. Record the ABSENCE explicitly (no delta) so the trail is
+        // unambiguous: "no wind factor" must not silently read as "calm/measured".
+        // In a post-incident review the difference between "we measured low wind"
+        // and "we had no wind data" is exactly the ambiguity a record must not
+        // leave open. Honest floor: note it; we do NOT invent a penalty (that would
+        // over-fire on every indoor job). (Fable P1.)
+        trail.push("wind: no data (not scored — unknown, not calm)".to_string());
     }
     if let Some(t) = weather.temperature_f {
         // Graduated, not flat: a 96F day and a 110F day are not equal risk, and
@@ -181,6 +189,10 @@ pub fn calibrate(
             let kind = if over > 0.0 { "heat" } else { "cold" };
             add(delta, &format!("{kind} extreme {t:.0}F ({excursion:.0}F beyond band)"), &mut trail, &mut evidence);
         }
+    } else {
+        // No temperature data — record the absence for the same forensic reason as
+        // wind above: "no heat/cold factor" must not silently read as "comfortable".
+        trail.push("temperature: no data (not scored — unknown, not comfortable)".to_string());
     }
     let critical_n = validation.concerns.get("CRITICAL").map(|v| v.len()).unwrap_or(0);
     if critical_n > 0 {

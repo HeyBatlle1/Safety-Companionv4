@@ -54,6 +54,31 @@ the vellum — minor, it looks good as-is.
 
 ## DESIGN PRINCIPLE (settled, load-bearing)
 
+**Plan for failure — escalate uncertainty to a human; don't chase a perfect system.**
+(Named by Bradlee 2026-08-30; it's the unifying principle behind the whole verdict/eval
+architecture, and it corrects the trap of hunting a perfect classifier.)
+- The system CANNOT be perfect (a keyword matcher will over/under-fire, a model will
+  mislabel, perception will miss). Trying to make any single component perfect is the wrong
+  goal and a brittle one. The RIGHT goal: make the SYSTEM handle imperfection honestly.
+- **An uncorroborated or contested signal — in EITHER direction — escalates to human review
+  rather than being silently enacted OR silently suppressed.** A false alarm isn't a bug to
+  eliminate; it's a signal to route to a human ("this fired on phrasing but the evidence is
+  thin — confirm"). A missed-but-suspected hazard likewise surfaces rather than vanishing.
+- This is the constitutional-republic frame: no component (model, stem-matcher, floor) gets
+  to UNILATERALLY decide a contested call. Disagreement between signals → escalate to the
+  sovereign (the human). "It democratizes the situation." (Bradlee's word.)
+- Already shipped as this principle, three times 2026-08-30: the evidence-track stop gate
+  (label can't override evidence), the CRITICAL-concern corroboration gate (one flaky flag
+  → RequestClarification, not auto-stop), and the missing-weather trail note (absence
+  recorded, not silent). The remaining move: make the phrasing FALSE ALARMS (measured by the
+  new mirror eval, ~47%) ESCALATE — flag "fired on phrasing, evidence thin — human confirm"
+  instead of silently inflating the score OR being hand-tuned toward an impossible zero.
+- **It's a stronger PITCH than "perfect," and dissolves the demo-worry:** a safety director
+  trusts a system that SURFACES its own uncertainty and asks a human to adjudicate far more
+  than one claiming to never be wrong (which is lying or blind). A phantom-ish hazard shown
+  *flagged for human confirmation* demonstrates the safety culture instead of undermining it.
+  So we do NOT have to hand-tune stems toward zero before AGM — we build the escalation.
+
 **Decorate the ARTIFACT, not the WORKSPACE.**
 - Artifacts (JHA readout, EAP, drawing analysis) = deliverables that leave the app →
   FULL blueprint treatment. They're siblings; same design language.

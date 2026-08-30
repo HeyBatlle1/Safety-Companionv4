@@ -5,3 +5,4 @@
 *.log
 *.bak
 .DS_Store
+.mcp.json

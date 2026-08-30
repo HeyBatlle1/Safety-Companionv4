@@ -6,3 +6,4 @@ pub mod domain;
 pub mod learning;
 pub mod mcp;
 pub mod providers;
+pub mod repro;

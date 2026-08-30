@@ -7,7 +7,7 @@ pub mod people;
 
 use crate::agents::Pipeline;
 use crate::domain::*;
-use crate::{db, learning};
+use crate::{db, learning, repro};
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::routing::{get, post};
@@ -159,6 +159,47 @@ async fn analyze(
         }
     }
 
+    // Reproducibility fingerprint of the EXACT scored input: the request (JHA +
+    // weather + baseline), the model IDs, and the engine version. Same fingerprint
+    // -> same stored output, so re-running the same paperwork yields the same
+    // verdict — the forensic promise ("reproducible reasoning") made literally true.
+    //
+    // NOTE: pattern alerts (memory recall) are deliberately EXCLUDED from the
+    // fingerprint. Fable suggested folding them in for a maximally-exact "same input
+    // AND same context" hash, but the live determinism test showed that's
+    // self-defeating: run 1 writes a new analysis that run 2's recall then finds, so
+    // the context changes between two identical submissions and the cache never hits
+    // — defeating the whole guarantee. The forensic promise is about the input the
+    // foreman controls; alerts still fully inform the fresh analysis, they just don't
+    // fracture the content address.
+    let model_ids = state
+        .pipeline
+        .provider()
+        .model_map()
+        .iter()
+        .map(|(k, v)| format!("{k}={v}"))
+        .collect::<Vec<_>>()
+        .join(";");
+    let engine_version = "4.0"; // pins with the scoring contract; bump on engine change
+    let fingerprint = repro::input_fingerprint(&req, &model_ids, engine_version);
+
+    // Cache lookup: have we scored this exact input+context before? If so, return
+    // the stored report — identical input, identical output, by construction.
+    if let Some(pool) = &state.pool {
+        match repro::lookup(pool, &fingerprint).await {
+            Ok(Some(hit)) => {
+                tracing::info!(
+                    fingerprint = %&fingerprint[..16],
+                    original = %hit.original_created_at,
+                    "repro cache HIT — returning the identical prior result (reproducibility)"
+                );
+                return Ok(Json(hit.report));
+            }
+            Ok(None) => {}
+            Err(e) => tracing::warn!(error = %e, "repro lookup failed; running fresh"),
+        }
+    }
+
     let report = state
         .pipeline
         .run(&req, alerts)
@@ -170,6 +211,11 @@ async fn analyze(
     if let Some(pool) = &state.pool {
         if let Err(e) = learning::remember(pool, &req, &report).await {
             tracing::error!(error = %e, report_id = %report.id, "FAILED to persist analysis — learning loop lost this data point");
+        }
+        // Record in the tamper-evident reproducibility ledger. Also best-effort:
+        // a ledger failure logs but never destroys the field's answer.
+        if let Err(e) = repro::record(pool, &fingerprint, &report, &model_ids, engine_version).await {
+            tracing::error!(error = %e, report_id = %report.id, "FAILED to record repro ledger entry");
         }
     }
 

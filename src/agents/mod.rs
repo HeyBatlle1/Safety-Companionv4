@@ -362,6 +362,7 @@ fn decide_verdict(
     worst_inherent_p: f64,
     worst_residual: f64,
     has_critical_concern: bool,
+    uncorroborated_critical: bool,
     needs_clarification: bool,
     quality_score: u8,
     has_pattern_alerts: bool,
@@ -376,8 +377,9 @@ fn decide_verdict(
     const INHERENT_P_STOP: f64 = 0.01;
 
     if has_critical_concern {
-        // Hard regulatory gate (e.g. no competent person on an excavation).
-        // No amount of listed controls overrides it.
+        // Hard regulatory gate (e.g. no competent person on an excavation),
+        // CORROBORATED by the evidence (see call site). A corroborated CRITICAL
+        // concern is a hard stop no listed controls override.
         Verdict::StopWork
     } else if worst_inherent >= 85.0 {
         // Severe inherent hazard. If controls did NOT meaningfully reduce it
@@ -400,6 +402,13 @@ fn decide_verdict(
         } else {
             Verdict::ProceedWithControls
         }
+    } else if uncorroborated_critical {
+        // The validator raised a CRITICAL concern the rest of the evidence does not
+        // corroborate. Do NOT auto-slam a hard StopWork on one flaky flag (cries wolf,
+        // erodes trust), but do NOT ignore it either (safety). Surface it for HUMAN
+        // review — the constitutional move: an uncorroborated outlier escalates to a
+        // person rather than being decided unilaterally by one model. (Fable P0.)
+        Verdict::RequestClarification
     } else if needs_clarification || quality_score < 5 {
         Verdict::RequestClarification
     } else if worst_residual >= 50.0 || has_pattern_alerts {
@@ -462,17 +471,44 @@ fn synthesize(
         })
         .fold(0.0_f64, f64::max);
 
-    let has_critical_concern = validation
+    // A CRITICAL validator concern forcing an instant hard StopWork must be
+    // CORROBORATED — same principle as `corroborated_reject` above: "a flag alone
+    // is not evidence." A temp-0.3 model will stamp a CRITICAL concern while scoring
+    // the same plan 8/10 with zero missing fields; letting that single unbacked flag
+    // auto-slam a hard StopWork means the model's word unilaterally governs the
+    // verdict (and cries wolf, eroding foreman trust). We corroborate against the
+    // rest of the evidence: a low quality score, real missing critical fields, or a
+    // genuinely elevated risk index. (Fable P0.)
+    let raw_critical_concern = validation
         .concerns
         .get("CRITICAL")
         .map(|v| !v.is_empty())
         .unwrap_or(false);
+    let critical_missing = validation.missing_critical.len();
+    let critical_concern_corroborated = raw_critical_concern
+        && (validation.quality_score < 5
+            || critical_missing >= 1
+            || worst_inherent_p >= 0.01);
+    // An uncorroborated CRITICAL concern is NOT ignored (safety) — it is surfaced
+    // for human review rather than auto-slamming a hard stop on one flaky flag.
+    let uncorroborated_critical = raw_critical_concern && !critical_concern_corroborated;
+    if uncorroborated_critical {
+        tracing::warn!(
+            quality = validation.quality_score,
+            missing = critical_missing,
+            "validator raised a CRITICAL concern the rest of the evidence does not \
+             corroborate; routing to RequestClarification for human review rather than \
+             an automatic hard StopWork"
+        );
+    }
+    let has_critical_concern = critical_concern_corroborated;
 
     let verdict = decide_verdict(
         worst_inherent,
         worst_inherent_p,
         worst_residual,
         has_critical_concern,
+        uncorroborated_critical,
         validation.recommended_action == "REQUEST_CLARIFICATION",
         validation.quality_score,
         !pattern_alerts.is_empty(),
@@ -621,68 +657,75 @@ mod verdict_tests {
     // Baseline: a clean, low-risk job with good paperwork proceeds (GO).
     #[test]
     fn low_risk_clean_job_proceeds() {
-        let v = decide_verdict(30.0, LOW_P, 20.0, false, false, 8, false);
+        let v = decide_verdict(30.0, LOW_P, 20.0, false, false, false, 8, false);
         assert_eq!(v, Verdict::Proceed);
     }
 
-    // A CRITICAL validator concern is a hard gate: STOP regardless of how low
+    // A CORROBORATED CRITICAL concern is a hard gate: STOP regardless of how low
     // the residual risk is or how many controls were listed. You cannot type
     // your way past a missing competent person.
     #[test]
     fn critical_concern_always_stops_even_with_low_residual() {
-        let v = decide_verdict(90.0, LOW_P, 5.0, true, false, 9, false);
+        let v = decide_verdict(90.0, LOW_P, 5.0, true, false, false, 9, false);
         assert_eq!(v, Verdict::StopWork);
     }
 
-    // THE KEY NEW CONTRACT (Grok fix #3): controls must move the verdict.
+    // THE FABLE P0 FIX (critical-concern corroboration): an UNCORROBORATED CRITICAL
+    // concern must NOT auto-slam a hard StopWork on one flaky model flag — it routes
+    // to RequestClarification (surface for human review). And it must not be ignored:
+    // it can't read GO. The constitutional move — outlier escalates to a human.
+    #[test]
+    fn uncorroborated_critical_concern_routes_to_clarification_not_hard_stop() {
+        // has_critical_concern=false (didn't corroborate), uncorroborated=true,
+        // everything else benign: must be RequestClarification, never StopWork or GO.
+        let v = decide_verdict(40.0, LOW_P, 20.0, false, true, false, 8, false);
+        assert_eq!(v, Verdict::RequestClarification,
+            "an uncorroborated CRITICAL concern must surface for human review, not auto-stop");
+        assert_ne!(v, Verdict::StopWork,
+            "one flaky CRITICAL flag must not slam a hard stop");
+        assert_ne!(v, Verdict::Proceed,
+            "an uncorroborated CRITICAL concern must never read GO");
+    }
+
+    // THE KEY CONTRACT (Grok fix #3): controls must move the verdict.
     // Same severe inherent hazard, two control states:
     //   - no meaningful controls (residual stays high) -> StopWork
     //   - real controls pull residual down             -> ProceedWithControls
     // Listing effective controls is rewarded with a softer verdict.
     #[test]
     fn controls_soften_a_severe_hazard_but_do_not_erase_it() {
-        let uncontrolled = decide_verdict(90.0, LOW_P, 88.0, false, false, 8, false);
+        let uncontrolled = decide_verdict(90.0, LOW_P, 88.0, false, false, false, 8, false);
         assert_eq!(uncontrolled, Verdict::StopWork,
             "severe hazard with no residual reduction must STOP");
 
-        let controlled = decide_verdict(90.0, LOW_P, 60.0, false, false, 8, false);
+        let controlled = decide_verdict(90.0, LOW_P, 60.0, false, false, false, 8, false);
         assert_eq!(controlled, Verdict::ProceedWithControls,
             "real controls on the same hazard must soften STOP -> PROCEED_WITH_CONTROLS");
 
         // ...but never all the way to GO on listed mitigations alone: a severe
         // inherent hazard never returns Proceed, even if residual is tiny,
         // because listed controls may be claimed-not-verified.
-        let heavily_controlled = decide_verdict(90.0, LOW_P, 10.0, false, false, 8, false);
+        let heavily_controlled = decide_verdict(90.0, LOW_P, 10.0, false, false, false, 8, false);
         assert_ne!(heavily_controlled, Verdict::Proceed,
             "a severe inherent hazard must never become a bare GO on listed controls");
     }
 
-    // THE FABLE P0 FIX: a High-severity hazard that is near-certain to injure must
-    // NOT read GO just because the severity-weighted score caps at ~75 (below the 85
-    // inherent stop line). The raw per-shift evidence governs the stop, not the label.
+    // THE FABLE P0 FIX (evidence gate): a High-severity hazard that is near-certain to
+    // injure must NOT read GO just because the severity-weighted score caps at ~75
+    // (below the 85 stop line). The raw per-shift evidence governs, not the label.
     #[test]
     fn high_severity_but_near_certain_injury_cannot_read_go() {
-        // A "High" hazard maxes out at risk_score ~74.99 (0.05/shift * 75 weight),
-        // so worst_inherent never reaches 85. Before the fix, this fell through to
-        // the residual/pattern checks and could return Proceed (GO). The scenario:
-        // worst_inherent=75 (a High hazard at the ceiling), high raw p, and even a
-        // LOW residual score (few/weak controls) — which pre-fix would read GO.
         let p_high = 0.02; // ~99% annualized chance of a recordable event — dangerous
 
-        // No meaningful controls (residual low as a *score* only because High caps it,
-        // but the hazard is real): must be CAUTION-or-worse, never GO.
-        let bare = decide_verdict(75.0, p_high, 40.0, false, false, 8, false);
+        let bare = decide_verdict(75.0, p_high, 40.0, false, false, false, 8, false);
         assert_ne!(bare, Verdict::Proceed,
             "a near-certain High-severity hazard must never read GO — the evidence gate must fire");
 
-        // With the residual still meaningfully elevated, the evidence gate holds STOP.
-        let uncontrolled = decide_verdict(75.0, p_high, 55.0, false, false, 8, false);
+        let uncontrolled = decide_verdict(75.0, p_high, 55.0, false, false, false, 8, false);
         assert_eq!(uncontrolled, Verdict::StopWork,
             "near-certain High hazard with elevated residual must STOP on the evidence track");
 
-        // And a hazard whose raw index is genuinely low is unaffected — the gate
-        // only fires on real evidence of danger, not on the label.
-        let genuinely_low = decide_verdict(40.0, 0.0001, 20.0, false, false, 8, false);
+        let genuinely_low = decide_verdict(40.0, 0.0001, 20.0, false, false, false, 8, false);
         assert_eq!(genuinely_low, Verdict::Proceed,
             "the evidence gate must NOT fire on a genuinely low-probability hazard");
     }
@@ -691,7 +734,7 @@ mod verdict_tests {
     // whose residual lands >=50 gets ProceedWithControls.
     #[test]
     fn moderate_residual_requires_controls_caution() {
-        let v = decide_verdict(70.0, LOW_P, 55.0, false, false, 8, false);
+        let v = decide_verdict(70.0, LOW_P, 55.0, false, false, false, 8, false);
         assert_eq!(v, Verdict::ProceedWithControls);
     }
 
@@ -699,14 +742,14 @@ mod verdict_tests {
     // site's history is evidence.
     #[test]
     fn pattern_alert_forces_caution_even_at_low_residual() {
-        let v = decide_verdict(40.0, LOW_P, 25.0, false, false, 8, true);
+        let v = decide_verdict(40.0, LOW_P, 25.0, false, false, false, 8, true);
         assert_eq!(v, Verdict::ProceedWithControls);
     }
 
     // Poor paperwork quality routes to clarification rather than a false GO.
     #[test]
     fn low_quality_requests_clarification() {
-        let v = decide_verdict(40.0, LOW_P, 30.0, false, false, 3, false);
+        let v = decide_verdict(40.0, LOW_P, 30.0, false, false, false, 3, false);
         assert_eq!(v, Verdict::RequestClarification);
     }
 }

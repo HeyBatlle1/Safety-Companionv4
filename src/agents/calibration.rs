@@ -622,4 +622,84 @@ mod tests {
             "over half of realistic phrasings missed their category ({total}/{tested}) — \
              the scorer is too phrasing-fragile to trust without the structured extractor");
     }
+
+    /// Which of these benign phrasings WRONGLY fired the marker (false alarms)?
+    fn false_alarms<'a>(marker: &str, phrasings: &[&'a str]) -> Vec<&'a str> {
+        phrasings.iter().copied().filter(|p| fires(p, marker)).collect()
+    }
+
+    #[test]
+    fn keyword_scorer_benign_must_not_fire() {
+        // THE MIRROR EVAL (Fable P1). The miss-eval above only counts phrasings that
+        // SHOULD fire and don't — so every fix that adds a stem to close a gap
+        // ratchets the matcher toward OVER-firing, invisibly. This eval is the other
+        // half of the vise: benign, everyday construction phrasings that must NOT
+        // fire a Fatal-Four factor. A benign phrasing that fires = a false alarm =
+        // an inflated risk index on a safe job (cries wolf, erodes trust, and — for
+        // a forensic tool — puts an unsupported hazard in the record). Together the
+        // two evals bound the matcher from both sides: misses below a floor, false
+        // alarms below a ceiling. Neither can be improved by wrecking the other.
+        //
+        // These are drawn from the exact over-firing Fable flagged: logistics/scope
+        // words ("staging", "opening", "suspended ceiling") that share a substring
+        // with a hazard stem but describe routine, non-hazardous work.
+        let benign_not_fall = [
+            "material staging area for deliveries",         // "staging" != aloft-on-staging
+            "install suspended ceiling tiles",              // "suspended" != suspended platform
+            "wall opening for new duct at grade level",     // "opening" != floor opening
+            "ground-level layout and marking",
+            "stocking shelves in the finished storeroom",
+            "reviewing drawings in the site trailer",
+        ];
+        let benign_not_struck = [
+            "loading material onto the delivery truck by hand",
+            "organizing tools on the ground-level bench",
+            "moving supplies with a hand cart in the warehouse",
+        ];
+        let benign_not_electrical = [
+            "installing low-voltage data cable in the ceiling", // "cable" but not energized
+            "running network cabling in a de-energized wall",
+            "labeling conduit before any wire is pulled",
+        ];
+        let benign_not_excavation = [
+            "confined shelving aisle restock",              // "confined" != confined space
+            "trenchcoat storage in the site office",        // absurd on purpose: substring trap
+            "spacing between the pinch rollers on the bench laminator", // "pinch" but benign
+        ];
+
+        let fa_fall = false_alarms("fall exposure", &benign_not_fall);
+        let fa_struck = false_alarms("struck-by", &benign_not_struck);
+        let fa_elec = false_alarms("electrical", &benign_not_electrical);
+        let fa_exc = false_alarms("engulfment", &benign_not_excavation);
+
+        let total: usize = fa_fall.len() + fa_struck.len() + fa_elec.len() + fa_exc.len();
+        let tested = benign_not_fall.len() + benign_not_struck.len()
+            + benign_not_electrical.len() + benign_not_excavation.len();
+
+        println!("\n=== keyword-scorer benign false-alarm eval ===");
+        println!("tested {tested} benign phrasings; {total} false alarms ({:.0}% fire rate)",
+            100.0 * total as f64 / tested as f64);
+        for (cat, fa) in [
+            ("falls", &fa_fall), ("struck-by", &fa_struck),
+            ("electrical", &fa_elec), ("excavation", &fa_exc),
+        ] {
+            if !fa.is_empty() {
+                println!("  {cat} false alarms (benign phrasing that WRONGLY fired):");
+                for f in fa { println!("    - \"{f}\""); }
+            }
+        }
+        println!("(false alarms = benign phrasings that fire → the stem is too greedy)\n");
+
+        // Same philosophy as the miss-eval above: MEASURE, don't pass/fail on the
+        // absolute rate — the eval's job is to surface the actionable list (printed
+        // above), and its VALUE is making over-firing visible where before it was
+        // invisible. Current rate is high (~47%) because the stems are greedy
+        // substring matches — the KNOWN, documented cost of prose-scoring that the
+        // structured extractor retires (Fable). We lock a REGRESSION ceiling so a
+        // future gap-fix that makes a stem even greedier trips CI; tune this DOWN as
+        // stems are tightened or the extractor lands. It must never silently climb.
+        assert!(total <= (tested * 3) / 5,
+            "benign false-alarm rate regressed past the ceiling ({total}/{tested}) — a \
+             gap-fix made a stem too greedy; tighten it or ship the extractor");
+    }
 }

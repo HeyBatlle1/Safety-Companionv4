@@ -35,6 +35,22 @@ async fn main() -> anyhow::Result<()> {
     let pool = match safety_companion::db::connect_from_env().await {
         Ok(p) => {
             tracing::info!("database connected — learning loop ACTIVE");
+            // Loud pending-migration check. We do NOT auto-apply (schema changes
+            // stay explicit via `--migrate`, the safe production posture) — but a
+            // fresh deploy that forgot to migrate must not run silently against a
+            // stale schema. If migrations are pending, scream about it.
+            match safety_companion::db::migrate::pending(&p).await {
+                Ok(pending) if !pending.is_empty() => {
+                    tracing::error!(
+                        pending = ?pending,
+                        "⚠️  SCHEMA IS BEHIND THE CODE: {} migration(s) pending and NOT applied. \
+                         Features depending on new tables WILL fail. Run `scd --migrate` to apply.",
+                        pending.len()
+                    );
+                }
+                Ok(_) => tracing::info!("schema up to date — all migrations applied"),
+                Err(e) => tracing::warn!(error = %e, "could not check pending migrations"),
+            }
             Some(p)
         }
         Err(e) => {

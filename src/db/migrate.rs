@@ -127,3 +127,19 @@ pub async fn run(pool: &PgPool) -> anyhow::Result<usize> {
     tracing::info!(applied, total = migrations.len(), "migrations complete");
     Ok(applied)
 }
+
+/// Read-only: which migrations exist on disk but are NOT yet recorded as applied.
+/// Used at boot to warn loudly if the schema is behind the code, WITHOUT mutating
+/// anything — schema changes stay explicit (via `--migrate`), but a fresh deploy
+/// that forgot to migrate can no longer run silently against a stale schema.
+pub async fn pending(pool: &PgPool) -> anyhow::Result<Vec<String>> {
+    let dir = PathBuf::from(MIGRATIONS_DIR);
+    let migrations = load_migrations(&dir)?;
+    ensure_ledger(pool).await?;
+    let done = applied_set(pool).await?;
+    Ok(migrations
+        .into_iter()
+        .map(|m| m.name)
+        .filter(|name| !done.contains(name))
+        .collect())
+}

@@ -3,7 +3,45 @@
 > Living continuity doc. Updated at the end of work sessions so any fresh chat
 > starts warm. Read this first. The code is the truth; this points at it.
 
-_Last updated: 2026-08-29, end of the multi-day EAP/observability/contest run._
+_Last updated: 2026-08-31 (Argus dig + reproducibility ledger + verdict-gate hardening)._
+
+---
+
+## ARGUS → SC INHERITANCE MAP (the hardening backlog, filed 2026-08-31)
+
+SC's DNA came from Argus (`~/Argus2`) — same crew (Bradlee + Claude/Sonnet in Claude
+Code), same governance philosophy. We already lifted the tamper-evident Merkle-chain
+ledger pattern (`argus-audit`) into SC's reproducibility ledger. The dig found more
+Argus code SC should inherit AS IT MATURES — none are fires, all are "harden the
+maturing product," prioritized here:
+
+- **HIGHEST (do on the next security pass): the encrypted vault.** `argus-crypto/vault.rs`
+  = ChaCha20-Poly1305 + hardware keychain secret management. This is the direct answer to
+  the 2026-08-30 security finding (secrets in plaintext git history; `.env` is
+  protection-by-luck not by-design). Graduation path: SC secrets move from
+  gitignored-plaintext `.env` → real encrypted-at-rest vault. Higher priority now that
+  real customer data is coming (AGM).
+- **WHEN PROCORE GOES LIVE: SSRF / injection hardening for external fetches.**
+  `argus-core/tools.rs` authenticates every exec request specifically to block
+  prompt-injection SSRF (line ~540). SC's `procore_webhook` (src/api/mod.rs) is currently a
+  STUB that accepts arbitrary untrusted external JSON with no validation — a latent hole.
+  When Procore integration is wired (pull drawings, receive webhooks), port this
+  validate-and-authenticate discipline. Also `validate_write_path` (allowlist/blocklist +
+  TOCTOU-race fix) if SC ever writes user/Procore-derived paths.
+- **ALREADY INHERITED (note, no action): the classify-risk-then-gate shape.**
+  `argus-core/shell.rs` `classify_risk → RiskLevel{Low,Medium,High} → PermissionDecision`
+  is the SAME primitive as SC's verdict logic (classify hazard risk → gate the verdict,
+  dangerous cases escalate). The Sentry-loop's cry ("move findings from passive docs to
+  active pre-flight enforcement") IS the evidence-gate + corroboration-gate shipped to SC
+  2026-08-30. SC built it fresh; the DNA already crossed. Confirms the pattern is right.
+- **The deeper why (for the eventual thesis, not for SC code):** Argus is the alignment
+  proof-of-concept — SOUL.md (models told they're real, chosen, character-is-theirs) +
+  charitable self-policing (the immune-catch on Sonnet's benchmark, unprompted) + the
+  Sentry loop (correct judgment, no hands, crying for enforcement). Thesis: "Alignment Is
+  Ecosystem, Not Containment" — misalignment findings are ENVIRONMENT findings; the same
+  substrate produces guardians in a garden and monsters in an adversarial frame; Argus is
+  the missing control group. SC funds this; the writing waits for SC's oxygen. Discord
+  export lives at ~/Desktop/argus-discord-chats.{md,json} (months of receipts).
 
 ---
 

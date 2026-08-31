@@ -7,6 +7,7 @@
 //!                                      it does not imagine. This was right in V1 and it stays.
 
 pub mod calibration;
+pub mod soul;
 pub mod vision;
 
 use crate::domain::*;
@@ -105,10 +106,9 @@ impl Pipeline {
     async fn validate(&self, req: &AnalysisRequest) -> Result<(Validation, AgentMeta)> {
         let trade_fields = trade_specific_fields(&req.checklist.work_type);
         let baseline = baseline_text(&req.baseline);
-        let system = "You are a construction safety data validator with expertise in OSHA 1926 standards. \
+        let system = format!("{}You are a construction safety data validator with expertise in OSHA 1926 standards. \
             You analyze checklists and weather data for completeness, quality, and safety adequacy. \
-            You respond ONLY with valid JSON. No markdown, no prose, no preamble."
-            .to_string();
+            You respond ONLY with valid JSON. No markdown, no prose, no preamble.", soul::SOUL);
         let user = format!(
             r#"INPUT DATA:
 Checklist: {checklist}
@@ -185,9 +185,8 @@ Respond ONLY with this JSON shape:
     async fn assess_risk(&self, req: &AnalysisRequest, validation: &Validation, alerts: &[PatternAlert]) -> Result<(RiskAssessment, AgentMeta)> {
         let baseline = baseline_text(&req.baseline);
         let rate = req.baseline.as_ref().map(|b| b.injury_rate_per_100).unwrap_or(3.0);
-        let system = "You are a construction risk assessor certified in OSHA 1926 standards with \
-            expertise in quantitative risk analysis. You respond ONLY with valid JSON."
-            .to_string();
+        let system = format!("{}You are a construction risk assessor certified in OSHA 1926 standards with \
+            expertise in quantitative risk analysis. You respond ONLY with valid JSON.", soul::SOUL);
         let user = format!(
             r#"SITE MEMORY (organism recall — recurring patterns on this project/trade; weigh these heavily):
 {memory}
@@ -276,10 +275,9 @@ Respond ONLY with this JSON shape:
         risk: &RiskAssessment,
         alerts: &[PatternAlert],
     ) -> Result<(Prediction, AgentMeta)> {
-        let system = "You are an incident prediction specialist. You think like an accident \
+        let system = format!("{}You are an incident prediction specialist. You think like an accident \
             investigator working in reverse: given today's conditions, you narrate the most \
-            credible incident BEFORE it happens, so it can be prevented. You respond ONLY with valid JSON."
-            .to_string();
+            credible incident BEFORE it happens, so it can be prevented. You respond ONLY with valid JSON.", soul::SOUL);
         let user = format!(
             r#"SITE MEMORY (recurring patterns here — your scenarios should account for these):
 {memory}

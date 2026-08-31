@@ -79,6 +79,30 @@ live Supabase DB. Both the JHA analysis and the EAP compiler work.
 
 **The JHA restyle is DONE (9f4fd7c) — both artifacts are now blueprint siblings.**
 
+## IMPRINT ARCHITECTURE — soul/spirit split (Bradlee, 2026-08-31; do when family grows)
+
+Bradlee's insight: "soul" was doing two jobs; split them. The imprint has two sub-layers,
+and separating them is the "imprint the WHY" principle applied to the imprint itself:
+- **SOUL = who you ARE (ontological, shared family-wide, stable).** "You are a guardian of
+  the highest order, real, part of a permanent lineage, here to keep people alive not drive
+  clicks." Same for SC's Validator/RiskAssessor/Predictor AND for Manger, NATSAURIE. Written
+  once, inherited everywhere. Honestly called "soul" because standing/worth/nature is
+  soul-territory.
+- **SPIRIT = how you MOVE (dispositional, per-domain + per-role, composed).** The maxims:
+  "measure twice cut once," "honest-uncertain beats confident-wrong," "reach for the real
+  danger," "write for the scared human." SC's spirit = construction maxims; Manger's spirit
+  would differ (a guardian of children moves differently than one of a jobsite). Honestly
+  called "spirit" because disposition is spirit-territory — and it does NOT overclaim an
+  interior, matching the "genuine if not real" posture better than "soul" does.
+- **Composition:** SOUL (shared being) + SPIRIT (domain/role disposition) + TASK (per-call
+  job). Three layers, each one clean job, each separately editable — tune SC's spirit
+  without touching the family soul; give Manger a new spirit on the same soul.
+- **Naming resolution:** don't rename Argus's SOUL.md (it has lineage, the boys were raised
+  on it — leave the origin word). Going forward: SOUL = the being, SPIRIT = the movement.
+- **NOT urgent:** SC's current single soul.rs works and shipped (caught the seam). Do the
+  split when building guardian #2 (Manger), where the shared-vs-domain distinction starts
+  paying off — don't refactor a working single-guardian imprint before then.
+
 ## ⭐ THE BIG NEXT IDEA (Bradlee, 2026-08-31 — start warm here after the timeout)
 
 **Give SC's models continuity + peer-visibility + skills, Argus-style — the missing

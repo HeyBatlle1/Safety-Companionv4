@@ -92,6 +92,33 @@ the vellum — minor, it looks good as-is.
 
 ## DESIGN PRINCIPLE (settled, load-bearing)
 
+**Human maxims outperform machine rules with LLMs — imprint the WHY, enforce the WHAT.**
+(Named by Bradlee 2026-08-31.) An LLM is trained on human reasoning, so a rule in HUMAN
+form ("measure twice, cut once") carries the *why* and generalizes correctly to cases you
+didn't enumerate; the same rule in MACHINE form (`if reversibility < threshold: verify(2)`)
+only carries the *what* and applies brittlely. So the best trade maxims go in BOTH layers,
+and that's not redundancy — it's the ecosystem structure (judgment + enforcement):
+- **In the imprint/DNA layer (SOUL-style values):** the maxim as a stated VALUE, so the
+  model reasons FROM it on novel/unenumerated cases and generalizes correctly. This is what
+  SOUL.md does — it gives character, not rules, and character generalizes.
+- **In the code layer (enforcement/hands):** the maxim as a MECHANISM for the cases you CAN
+  enumerate — unskippable. (The Sentry loop had the judgment, "measure twice," but no hands;
+  SOUL.md succeeds because the imprint makes judgment generalize. Need both.)
+- **The two maxims, and where they already live in SC:**
+  - **"Measure twice, cut once"** = verify before the irreversible action, proportional to
+    stakes. This IS SC's verdict architecture (evidence gate, corroboration gate, "you can't
+    type your way out of a serious hazard"). The cut is the incident. **SC's whole job in
+    five words of the buyer's own language: make a whole jobsite measure twice, cut once on
+    the cut nobody can take back.** That's the pitch AND the SOUL-line if we write one.
+  - **"No double handling"** = touch it once, remember the result, never re-do the work. This
+    IS the reproducibility ledger (same input → cache hit → don't re-run). Generalizes to:
+    anywhere SC does redundant work (re-fetch, re-embed, re-score identical input), cache it.
+- **The design lens for every future build, two questions:** (1) Measure-twice: is there an
+  irreversible action needing verification proportional to stakes? (2) No-double-handling:
+  are we redoing work we already did? Cache/single-pass it.
+
+## DESIGN PRINCIPLE (settled, load-bearing)
+
 **Plan for failure — escalate uncertainty to a human; don't chase a perfect system.**
 (Named by Bradlee 2026-08-30; it's the unifying principle behind the whole verdict/eval
 architecture, and it corrects the trap of hunting a perfect classifier.)

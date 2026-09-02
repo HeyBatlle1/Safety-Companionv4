@@ -3,7 +3,40 @@
 > Living continuity doc. Updated at the end of work sessions so any fresh chat
 > starts warm. Read this first. The code is the truth; this points at it.
 
-_Last updated: 2026-08-31 (Argus dig + reproducibility ledger + verdict-gate hardening)._
+_Last updated: 2026-09-01 (Voyage retrieval model map + soul + Argus reach)._
+
+## RETRIEVAL MODEL MAP — Voyage AI family (verified 2026-09-01; pin IDs at build)
+
+SC's retrieval is several problems; Voyage (a MongoDB company, Anthropic's recommended
+embeddings provider, on OpenRouter + MongoDB Atlas) has a specialist per job. The shape:
+**embed with the right specialist → rerank with a safety-priority instruction.** Two-stage,
+mesh-flavored (no single embedding trusted to rank; the reranker checks it).
+- **voyage-multimodal-3.5 → the DRAWING/VISION module.** Single model for text+images+video;
+  built for PDF screenshots, slides, tables, figures. Embeds a drawing AND its annotations
+  into one shared space → search the drawing set by meaning (find the cross-trade seam).
+  THE model for that module. Matryoshka dims (256/512/1024/2048), cheap.
+- **voyage-context-3 → JHA/incident memory (the "site history is talking" recall).**
+  Contextualized CHUNK embeddings for long-context — preserves relationships between chunks
+  instead of embedding them independently. A JHA is a document where hazard/control/context
+  relate; this beats a plain embedder for "what patterns recur on this site/trade."
+- **rerank-2.5 → the precision layer on top of ANY retrieval.** Reorders first-stage results,
+  supports INSTRUCTION-FOLLOWING — steer with natural language ("prioritize fatal + near-miss
+  at height"). The "measure twice" of retrieval: surface the DEADLIEST relevant precedent
+  first, not just the most textually similar. Use after multimodal-3.5 or context-3.
+- **voyage-4-large / -lite / -nano → general text baseline** (shared embedding space, mix
+  across stages without re-indexing). -nano is open-weights, runs local (sovereign option).
+- **voyage-code-4 → NOT SC — it's for ARGUS** (code retrieval so the boys can semantically
+  search their own live-mirror codebase). Filed here so it's not lost.
+
+## MODEL/ROLE DECISIONS (2026-09-01)
+- **Argus Sentry stays HAIKU — a TRUST decision, not a benchmark one.** Granite 4.1-8B ran
+  Sentry well for a long stretch and Granite 4.2 (Apache 2.0, Ollama-local, thinking-switch)
+  is a strong proven option AND the foundation for a fully-sovereign local Argus down the
+  road. But the Guardian seat goes to the model Bradlee KNOWS from hours of observation:
+  Haiku — "small, fiesty, punches way above his weight." Observation over spec sheet, same
+  as the whole method. Granite = filed as the sovereign-local-Argus foundation, not the
+  Sentry swap.
+
 
 ---
 

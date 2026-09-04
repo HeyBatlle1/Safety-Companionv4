@@ -540,7 +540,8 @@ async function renderStoredReport(id){
 }
 
 /* ============ EMERGENCY PLAN ============ */
-const EAP_DEMO = {
+const EAP_DEMOS = [
+  {
   project_name:"Gateway Tower Curtainwall Package", site_address:"400 W Washington St, Indianapolis, IN 46204",
   assembly_point:"Northwest corner of the site lay-down yard, at the material gate",
   site_supervisor:"D. Alvarez", supervisor_phone:"(317) 555-0182",
@@ -548,7 +549,27 @@ const EAP_DEMO = {
   alarm_method:"Three long air-horn blasts, repeated, plus radio call on channel 2",
   utility_shutoffs:"Electrical: temp-power panel at the ground-floor NE core. Hoist/crane power: disconnect at the base. Water: curb stop at the SW entrance",
   hazards:["crane","fall_rescue"]
-};
+  },
+  {
+  project_name:"Maple Commons Storefront & Entrance Glazing", site_address:"2820 E 96th St, Indianapolis, IN 46240",
+  assembly_point:"Front parking lot, at the flagpole island near the main drive",
+  site_supervisor:"R. Okafor", supervisor_phone:"(317) 555-0143",
+  nearest_hospital:"Ascension St. Vincent", hospital_address:"2001 W 86th St, Indianapolis, IN",
+  alarm_method:"Air-horn: three long blasts, repeated; verbal relay to all crews",
+  utility_shutoffs:"Electrical: main disconnect at the west electrical room. Water: curb stop at the north entrance. No gas on site",
+  hazards:["hazmat"]
+  },
+  {
+  project_name:"Riverside Medical Center — High-Rise Reglazing (Swing Stage)", site_address:"1701 Senate Blvd, Indianapolis, IN 46202",
+  assembly_point:"Southeast staff lot, at the ambulance-bay muster sign",
+  site_supervisor:"T. Whitfield", supervisor_phone:"(317) 555-0176",
+  nearest_hospital:"On-site (Riverside Medical Center ER, ground floor east)", hospital_address:"1701 Senate Blvd, Indianapolis, IN",
+  alarm_method:"Three long air-horn blasts, repeated, plus two-way radio on channel 4",
+  utility_shutoffs:"Suspended-access power: disconnect at each stage's roof outlet. Electrical: parapet temp-power at the NE roof access. Water: curb stop at the SE service entrance",
+  hazards:["fall_rescue"]
+  },
+];
+const EAP_DEMO = EAP_DEMOS[0]; // legacy alias (first site) — retained for safety
 const HAZ_OPTS = [
   ["crane","Crane on site"],["excavation","Open excavation / trench"],
   ["confined_space","Confined spaces"],["hazmat","Hazardous materials"],["fall_rescue","Work at height (fall rescue)"]
@@ -587,7 +608,7 @@ function renderEap(){
     <div id="ep_out"></div>
     <h2>Plans on record</h2><div id="ep_list">Loading…</div>`;
   $$("#edemo").onclick = () => {
-    const d = EAP_DEMO;
+    const d = EAP_DEMOS[Math.floor(Math.random() * EAP_DEMOS.length)];
     ep_name.value=d.project_name; ep_addr.value=d.site_address; ep_muster.value=d.assembly_point;
     ep_alarm.value=d.alarm_method; ep_sup.value=d.site_supervisor; ep_phone.value=d.supervisor_phone;
     ep_hosp.value=d.nearest_hospital; ep_hospaddr.value=d.hospital_address; ep_util.value=d.utility_shutoffs;

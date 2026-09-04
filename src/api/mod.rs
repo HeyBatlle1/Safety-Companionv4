@@ -180,7 +180,7 @@ async fn analyze(
         .map(|(k, v)| format!("{k}={v}"))
         .collect::<Vec<_>>()
         .join(";");
-    let engine_version = "4.0"; // pins with the scoring contract; bump on engine change
+    let engine_version = repro::SCORING_CONTRACT_VERSION; // single source of truth; bumps only on scoring-logic change
     let fingerprint = repro::input_fingerprint(&req, &model_ids, engine_version);
 
     // Cache lookup: have we scored this exact input+context before? If so, return

@@ -21,6 +21,20 @@ use sqlx::{PgPool, Row};
 
 use crate::domain::{AnalysisRequest, SafetyReport};
 
+/// The SCORING-CONTRACT version — the single source of truth for the reproducibility
+/// fingerprint. Deliberately DISTINCT from CARGO_PKG_VERSION (the software build
+/// version, which bumps on every patch/alpha): this bumps ONLY when the scoring logic
+/// itself changes (calibration math, verdict gates, the evidence/severity contract).
+///
+/// Why decoupled: if the fingerprint keyed on the software version, every alpha bump
+/// would silently invalidate the entire content-addressed cache even though identical
+/// inputs still score identically — breaking reproducibility for no reason. Keying on
+/// the scoring contract means the cache stays valid across builds that don't touch the
+/// math, and correctly invalidates when the math changes (a new-logic result should not
+/// be masked by a stale cached one). BUMP THIS when calibration.rs or the verdict logic
+/// changes in a way that could change a score.
+pub const SCORING_CONTRACT_VERSION: &str = "4.0";
+
 /// SHA-256 of a string, lowercase hex. (Mirrors argus-audit::sha256_hex.)
 pub fn sha256_hex(input: &str) -> String {
     let digest = Sha256::digest(input.as_bytes());

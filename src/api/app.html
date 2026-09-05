@@ -190,6 +190,8 @@ svg.spark{width:100%;height:80px;display:block}
 .jha-sheet .hazard>div:first-child{font-family:var(--js-display);font-weight:700;font-size:16px;letter-spacing:.2px;color:var(--js-ink)}
 .jha-sheet .prob{margin:8px 0}
 .jha-sheet .res{font:800 15px var(--js-mono);letter-spacing:.5px;color:var(--js-line);border:1.5px solid var(--js-line);padding:2px 8px;border-radius:2px}
+.jha-sheet .verify-flag{margin-top:8px;font:700 12.5px var(--js-mono);letter-spacing:.3px;color:#8a6d10;background:rgba(242,208,78,.16);border:1px solid #c9a227;border-left:4px solid #c9a227;border-radius:2px;padding:7px 11px}
+.verify-flag{margin-top:8px;font:700 12.5px monospace;color:#8a6d10;background:rgba(242,208,78,.16);border-left:4px solid #c9a227;border-radius:4px;padding:7px 11px}
 .jha-sheet .hud{font:700 11px var(--js-mono)!important;letter-spacing:.6px;text-transform:uppercase;color:var(--js-muted)}
 .jha-sheet .hazard p,.jha-sheet .hazard div,.jha-sheet ul li{font-family:var(--js-serif)}
 .jha-sheet ul li{color:var(--js-ink-soft);font-size:15px;line-height:1.55}
@@ -481,6 +483,7 @@ function renderReport(r){
       <div class="prob" data-tip="Risk index 0-100 for this hazard. Higher = more dangerous. This is an engineered ranking from named evidence — not a validated probability. The raw per-shift index is in 'Show the math' below.">
         <span class="res">score ${h.risk_score.toFixed(0)}/100</span>
         <span class="hud"> · ${esc(h.severity)}${h.controls?.length?` · ${h.controls.length} control${h.controls.length>1?"s":""} listed`:""}${h.osha_citations?.length?` · OSHA ${esc(h.osha_citations.join(", "))}`:""}</span></div>
+      ${(h.factor_trail||[]).some(f=>f.includes("[VERIFY]"))?`<div class="verify-flag" data-tip="A hazard keyword fired, but the surrounding evidence is thin. SC surfaces its own uncertainty instead of silently scoring it as confirmed — a competent person should confirm this one applies.">⚠ VERIFY — flagged on phrasing; a competent person should confirm this hazard applies</div>`:""}
       ${h.controls?.length?`<div class="hud" style="margin-top:8px;font-weight:700">CONTROLS THAT COUNT</div><ul style="margin:4px 0 0 20px;font-size:15px">${h.controls.map(c=>`<li>${esc(c)}</li>`).join("")}</ul>`:""}
       ${h.inspection_checkpoints?.length?`<div class="hud" style="margin-top:8px;font-weight:700">WALK OUT AND CHECK THESE FIRST</div><ul style="margin:4px 0 0 20px;font-size:15px">${h.inspection_checkpoints.map(c=>`<li>${esc(c)}</li>`).join("")}</ul>`:""}
       ${h.factor_trail?.length?`<details class="tape"><summary data-tip="Every number traced to a named factor — nothing hidden">Show the math</summary><pre>${h.factor_trail.map(esc).join("\n")}${typeof h.risk_index==="number"?`\n\nper-shift risk index (pre-controls):  ${h.risk_index.toExponential(2)}${typeof h.residual_risk_index==="number"?`\nper-shift risk index (with controls): ${h.residual_risk_index.toExponential(2)}`:""}\n(engineered per-worker/per-shift index — an auditable ranking, NOT a validated probability)`:""}</pre></details>`:""}

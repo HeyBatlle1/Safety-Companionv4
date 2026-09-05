@@ -143,23 +143,53 @@ pub fn calibrate(
     // engulfment. These are the deterministic PRIOR; the incident-feedback loop
     // (sc_incident_reports + Brier scoring) is what will replace this ordering
     // with weights learned from THIS customer's ground truth.
+    // Track which Fatal-Four stems fired, so we can check CORROBORATION below. A stem
+    // fires on a WORD; whether the hazard is real or a phantom depends on CONTEXT the
+    // keyword can't see ("material staging area" fires the fall stem but is benign).
+    // The mirror eval measured ~47% benign-phrasing over-fire. Rather than chase a
+    // perfect stem (impossible — Fable's warning), we surface the uncertainty: a stem
+    // that fires WITHOUT corroboration gets flagged for human confirmation, not
+    // silently scored as a confirmed hazard. Humility as a designed trait.
+    let mut fatal_four_fired = false;
     if has_stem(&["fall", "height", "roof", "scaffold", "ladder", "elevat", "aerial",
                    "edge", "guardrail", "platform", "lift", "leading edge", "unprotected",
                    "opening", "aloft", "suspended", "staging"]) {
         add(1.2, "elevated work / fall exposure (Fatal Four: falls ~36%)", &mut trail, &mut evidence);
+        fatal_four_fired = true;
     }
     if has_stem(&["struck", "swing", "crane", "hoist", "rigging", "load", "vehicle",
                    "backing", "falling object", "overhead", "material handling",
                    "moving equipment", "in the path"]) {
         add(0.9, "struck-by exposure (Fatal Four: struck-by ~15%)", &mut trail, &mut evidence);
+        fatal_four_fired = true;
     }
     if has_stem(&["energiz", "voltage", "electric", "arc", "loto", "lockout",
                    "live wire", "power line", "conductor", "cable"]) {
         add(0.8, "energized electrical exposure (Fatal Four: electrocution ~7%)", &mut trail, &mut evidence);
+        fatal_four_fired = true;
     }
     if has_stem(&["trench", "excavat", "engulf", "collaps", "cave-in", "cavein",
                    "shoring", "confined space", "caught-between", "pinch point"]) {
         add(0.6, "excavation / caught-between / engulfment (Fatal Four: ~5%)", &mut trail, &mut evidence);
+        fatal_four_fired = true;
+    }
+
+    // CORROBORATION CHECK (false-alarm escalation — "plan for failure, escalate to
+    // human"). A real Fatal-Four hazard is almost always assessed High or Critical by
+    // the upstream models. When a Fatal-Four STEM fired but the hazard's severity is
+    // only Low/Medium, the keyword likely matched benign phrasing ("staging area",
+    // "wall opening", "material handling") rather than a genuine exposure. We do NOT
+    // suppress it (safety — never hide a possible hazard) and do NOT silently inflate
+    // it (honesty). We FLAG it for a human to confirm. The foreman/safety-director sees
+    // SC surfacing its own uncertainty — which builds more trust than false confidence.
+    let low_severity = matches!(hazard.severity, Severity::Low | Severity::Medium);
+    if fatal_four_fired && low_severity {
+        trail.push(
+            "[VERIFY] a Fatal-Four keyword fired on a low/medium-severity hazard — this \
+             may be benign phrasing (e.g. \"staging\", \"opening\") rather than a real \
+             exposure. A competent person should confirm this hazard applies before relying on it."
+                .to_string()
+        );
     }
     if let Some(wind) = weather.wind_speed_mph {
         if wind > 35.0 {
@@ -701,5 +731,42 @@ mod tests {
         assert!(total <= (tested * 3) / 5,
             "benign false-alarm rate regressed past the ceiling ({total}/{tested}) — a \
              gap-fix made a stem too greedy; tighten it or ship the extractor");
+    }
+
+    // THE FALSE-ALARM ESCALATION: when a Fatal-Four stem fires on a LOW/MEDIUM-severity
+    // hazard, the trail must carry a [VERIFY] flag (surface the uncertainty). When it
+    // fires on a HIGH/CRITICAL hazard, it must NOT — that's a corroborated real hazard.
+    // Humility as a designed trait: flag the phantom, don't cry wolf on the real one.
+    #[test]
+    fn verify_flag_fires_on_benign_low_severity_not_on_real_hazard() {
+        let mk = |desc: &str, sev: Severity| Hazard {
+            description: desc.to_string(),
+            probability: 0.0,
+            severity: sev,
+            risk_score: 0.0,
+            osha_citations: vec![],
+            controls: vec![],
+            residual_probability: None,
+            inspection_checkpoints: vec![],
+            factor_trail: vec![],
+        };
+        let w = Weather::default();
+        let v = validation(8, 0);
+        let has_verify = |c: &Calibrated| c.factor_trail.iter().any(|f| f.contains("[VERIFY]"));
+
+        // benign phrasing that fires the fall stem ("staging"), LOW severity -> FLAG
+        let benign = calibrate(&mk("material staging area for deliveries", Severity::Low), &w, &v, &None);
+        assert!(has_verify(&benign),
+            "a Fatal-Four keyword on a low-severity hazard must be flagged [VERIFY]");
+
+        // a real fall hazard, CRITICAL severity -> NO flag (corroborated, don't cry wolf)
+        let real = calibrate(&mk("fall from unprotected leading edge at 40 feet", Severity::Critical), &w, &v, &None);
+        assert!(!has_verify(&real),
+            "a corroborated high-severity Fatal-Four hazard must NOT be flagged [VERIFY]");
+
+        // a genuinely non-Fatal-Four hazard, low severity -> NO flag (no stem fired)
+        let unrelated = calibrate(&mk("minor paperwork filing error in the trailer", Severity::Low), &w, &v, &None);
+        assert!(!has_verify(&unrelated),
+            "the flag must only fire when a Fatal-Four STEM fired — not on every low-severity hazard");
     }
 }

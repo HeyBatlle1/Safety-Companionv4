@@ -20,6 +20,12 @@ pub struct VisionFinding {
     pub recommendation: Option<String>,
     #[serde(default)]
     pub location_hint: Option<String>, // where in the image/sheet
+    /// Normalized bounding box [x, y, w, h], each 0.0-1.0, of where this hazard sits
+    /// on the sheet — so the finding can be DRAWN as a callout ON the drawing, not
+    /// just listed beside it. Optional: if the model can't localize it, the finding
+    /// still stands on its text. This is what makes "vellum meets neural network" real.
+    #[serde(default)]
+    pub bbox: Option<[f64; 4]>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,9 +89,19 @@ pub async fn analyze(
          \"summary\": \"2-4 sentences, specific\",\n  \
          \"findings\": [{{\"category\": \"fall_protection|egress|ppe|equipment|housekeeping|electrical|documentation|other\", \
          \"severity\": \"CRITICAL|HIGH|MEDIUM|LOW|INFO\", \"description\": \"...\", \
-         \"recommendation\": \"...\", \"location_hint\": \"where in the image\"}}],\n  \
+         \"recommendation\": \"...\", \"location_hint\": \"where in the image\", \
+         \"bbox\": [x, y, w, h]}}],\n  \
          \"confidence\": 0.0\n}}\n\
-         If the image is too low-resolution or ambiguous to judge an item, say so in summary and lower confidence — never invent findings.",
+         For \"bbox\": give the NORMALIZED bounding box of exactly where this hazard sits on \
+         the image, as four decimals 0.0-1.0 — x and y are the TOP-LEFT corner (x=0 is the \
+         left edge, y=0 is the top edge), w and h are width and height as a fraction of the \
+         image. Example: a hazard in the dead center covering a quarter of the sheet is \
+         [0.375, 0.375, 0.25, 0.25]. Localize each finding as tightly as you honestly can so \
+         it can be drawn ON the sheet. If a finding is about the whole sheet (e.g. missing \
+         title block) or you genuinely cannot localize it, OMIT bbox for that finding — do \
+         not guess a box you are not confident in.\n\
+         If the image is too low-resolution or ambiguous to judge an item, say so in summary \
+         and lower confidence — never invent findings.",
         lens(kind),
         context.unwrap_or_else(|| "none provided".into()),
     );

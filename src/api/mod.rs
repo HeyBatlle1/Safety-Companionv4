@@ -4,6 +4,7 @@
 pub mod drawings;
 pub mod eap;
 pub mod people;
+pub mod projects;
 
 use crate::agents::Pipeline;
 use crate::domain::*;
@@ -32,6 +33,7 @@ pub fn router(state: AppState) -> Router {
         .merge(drawings::router())
         .merge(eap::router())
         .merge(people::router())
+        .merge(projects::router())
         .route("/v1/analyze", post(analyze))
         .route("/v1/webhooks/procore", post(procore_webhook))
         .route("/v1/incidents", post(report_incident))

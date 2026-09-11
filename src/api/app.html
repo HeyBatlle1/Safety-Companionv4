@@ -221,6 +221,7 @@ svg.spark{width:100%;height:80px;display:block}
   <nav>
     <div class="brand"><b>SAFETY COMPANION</b><small>It watches so they go home.</small></div>
     <a class="st" href="#/watch" data-st="watch" data-tip="Everything the system has seen and learned"><span class="ic">⌂</span>Dashboard</a>
+    <a class="st" href="#/scope" data-st="scope" data-tip="Set a job's CSI MasterFormat scope once, at setup"><span class="ic">▤</span>Scope</a>
     <a class="st" href="#/analyze" data-st="analyze" data-tip="Run a pre-task plan through the safety check"><span class="ic">▶</span>Run JHA</a>
     <a class="st" href="#/eap" data-st="eap" data-tip="Build a complete Emergency Action Plan from a few site facts"><span class="ic">✚</span>Emergency Plan</a>
     <a class="st" href="/viewer" data-tip="View and analyze blueprints and shop drawings"><span class="ic">▦</span>Drawings</a>
@@ -264,7 +265,7 @@ const vinfo = v => V[v] || {cls:"warning",word:"NOTICE",label:String(v),color:"v
 const sevColor = s => ({CRITICAL:"var(--danger)",HIGH:"var(--warning)",MEDIUM:"var(--caution)",LOW:"var(--safe)",INFO:"var(--muted)"}[String(s).toUpperCase()]||"var(--muted)");
 
 /* router */
-const routes = { watch: renderWatch, analyze: renderAnalyze, eap: renderEap, truth: renderTruth, report: renderStoredReport, profile: renderProfile, admin: renderAdmin };
+const routes = { watch: renderWatch, scope: renderScope, analyze: renderAnalyze, eap: renderEap, truth: renderTruth, report: renderStoredReport, profile: renderProfile, admin: renderAdmin };
 function route(){
   const hash = location.hash.replace(/^#\//,"") || "watch";
   const [name, arg] = hash.split("/");
@@ -324,6 +325,104 @@ function sparkline(trend){
     ${xs.map((x,i)=>`<circle cx="${x.toFixed(1)}" cy="${ys[i].toFixed(1)}" r="3.5" fill="var(--amber)"/>`).join("")}
     <text x="${W-P}" y="14" text-anchor="end" font-size="12" font-weight="600" fill="var(--muted)">latest ${last.risk.toFixed(0)}/100</text>
   </svg>`;
+}
+
+/* ============ SCOPE (CSI MasterFormat, once per job) ============ */
+// Cached for the session — 16 rows today, cheap to refetch, but no reason to
+// hit the DB every time the tab opens.
+let CSI_CACHE = null;
+async function csiCodes(){ return CSI_CACHE || (CSI_CACHE = await api("/v1/csi-codes")); }
+
+function csiChecklist(codes, selected){
+  const sel = new Set(selected || []);
+  const byDiv = {};
+  codes.forEach(c => (byDiv[c.division] ||= []).push(c));
+  return Object.keys(byDiv).sort().map(div => `
+    <div class="hud" style="font-weight:700;margin:12px 0 4px">DIVISION ${esc(div)}</div>
+    <div class="checks">${byDiv[div].map(c => `
+      <label data-tip="${esc(c.description)}"><input type="checkbox" value="${esc(c.code)}" ${sel.has(c.code)?"checked":""}>
+        <span><b class="mono">${esc(c.code)}</b> — ${esc(c.description)}</span></label>`).join("")}</div>`).join("");
+}
+function readCsiChecklist(container){
+  return [...container.querySelectorAll("input:checked")].map(i => i.value);
+}
+
+async function renderScope(id){
+  const m = $$("#main");
+  m.innerHTML = `<h1>Scope</h1>
+    <div class="sub">The CSI MasterFormat scope for a job, entered once at setup — not per JHA. It's what makes every report on this job cross-referenceable to procurement, estimating, and the PM by CSI code, not just legible to the safety guy.</div>
+    <div id="sc_body">Loading…</div>`;
+  if (id) return renderScopeDetail(id);
+  try {
+    const [projects, codes] = await Promise.all([api("/v1/projects"), csiCodes()]);
+    const rows = projects.length ? projects.map(p => `
+      <tr class="row" onclick="location.hash='#/scope/${p.id}'" data-tip="Open this job's scope">
+        <td style="font-weight:600">${esc(p.name)}</td><td class="hud">${esc(p.address||"—")}</td>
+        <td class="mono">${p.csi_codes.length} code${p.csi_codes.length===1?"":"s"}</td>
+        <td class="hud">${new Date(p.created_at).toLocaleDateString()}</td></tr>`).join("") : "";
+    $$("#sc_body").innerHTML = `
+      <h2>Jobs</h2>
+      ${rows ? `<div class="panel" style="padding:0;overflow-x:auto"><table><thead><tr>
+          <th>Job</th><th>Address</th><th>Scope</th><th>Created</th></tr></thead>
+          <tbody>${rows}</tbody></table></div>` : `<div class="empty">No jobs set up yet. Add the first one below.</div>`}
+      <h2>New job</h2>
+      <div class="grid2">
+        <div><label>Job name</label><input id="np_name" placeholder="Gateway Tower Curtainwall Package"></div>
+        <div><label>Address <span class="hud">(optional)</span></label><input id="np_addr"></div>
+      </div>
+      <label>CSI scope for this job</label>
+      <div class="help" style="margin-bottom:4px">Check every division of work on the job. Extensible — this list grows past glazing as SC covers more trades.</div>
+      <div id="np_csi">${csiChecklist(codes, [])}</div>
+      <div><button class="go" id="np_go">Create job</button></div>
+      <div id="np_msg"></div>`;
+    $$("#np_go").onclick = async () => {
+      const msg = $$("#np_msg");
+      const name = $$("#np_name").value.trim();
+      if (!name) { msg.innerHTML = `<div class="err">Job name is required.</div>`; return; }
+      try {
+        const p = await api("/v1/projects", { method:"POST", headers:{"content-type":"application/json"},
+          body: JSON.stringify({ name, address: $$("#np_addr").value.trim() || null,
+            csi_codes: readCsiChecklist($$("#np_csi")) }) });
+        location.hash = "#/scope/" + p.id;
+      } catch(e){ msg.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+    };
+  } catch(e){ $$("#sc_body").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+
+async function renderScopeDetail(id){
+  const body = $$("#sc_body");
+  try {
+    const [p, codes] = await Promise.all([api("/v1/projects/"+id), csiCodes()]);
+    const rows = p.recent_analyses.length ? p.recent_analyses.map(a => {
+      const v = vinfo(a.verdict);
+      return `<tr class="row" onclick="location.hash='#/report/${a.id}'" data-tip="Open the full report">
+        <td class="hud">${new Date(a.created_at).toLocaleString()}</td>
+        <td style="text-transform:capitalize">${esc(a.work_type)}</td>
+        <td><span class="chip" style="background:${v.color}">${v.label}</span></td>
+        <td class="mono">${a.risk.toFixed(0)}/100</td></tr>`;
+    }).join("") : "";
+    body.innerHTML = `
+      <div class="sub" style="margin-top:-8px"><a href="#/scope">← All jobs</a></div>
+      <h2>${esc(p.name)}</h2>
+      <div class="hud">${esc(p.address||"no address on file")} · set up ${new Date(p.created_at).toLocaleDateString()}</div>
+      <label style="margin-top:20px">CSI scope</label>
+      <div class="help" style="margin-bottom:4px">Edit and save if the scope changes — this doesn't touch JHAs already run against this job.</div>
+      <div id="sd_csi">${csiChecklist(codes, p.csi_codes)}</div>
+      <div><button class="go" id="sd_save">Save scope</button></div>
+      <div id="sd_msg"></div>
+      <h2>JHAs run against this job</h2>
+      ${rows ? `<div class="panel" style="padding:0;overflow-x:auto"><table><thead><tr>
+          <th>When</th><th>Trade</th><th>Call</th><th>Risk</th></tr></thead><tbody>${rows}</tbody></table></div>`
+        : `<div class="empty">None yet. Pick this job on "Run JHA" and it'll show up here.</div>`}`;
+    $$("#sd_save").onclick = async () => {
+      const msg = $$("#sd_msg");
+      try {
+        await api("/v1/projects/"+id+"/scope", { method:"PUT", headers:{"content-type":"application/json"},
+          body: JSON.stringify({ csi_codes: readCsiChecklist($$("#sd_csi")) }) });
+        msg.innerHTML = `<span class="okmsg">Saved.</span>`;
+      } catch(e){ msg.innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+    };
+  } catch(e){ body.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
 }
 
 /* ============ RUN JHA ============ */
@@ -391,11 +490,16 @@ const JHA_DEMOS = [
 ];
 const JHA_DEMO = JHA_DEMOS[0]; // legacy alias (first scenario) — retained for safety
 
-function renderAnalyze(){
+async function renderAnalyze(){
   $$("#main").innerHTML = `
     <h1>Run a JHA</h1>
     <div class="sub">Put the pre-task plan in. Three checks run on it — is the paperwork solid, what can hurt someone, and what does today's incident look like — then you get one clear call, with the math shown.</div>
     <div class="btnrow"><button class="ghost" id="demo" data-tip="Loads a realistic example so you can see how it works without typing">Fill with example</button></div>
+    <div class="grid2">
+      <div><label>Job <span class="hud">(optional)</span></label><select id="project"><option value="">— not tagged to a job —</option></select>
+        <div class="help">Tags this JHA to a job's CSI scope so it shows up on that job's Scope page.</div></div>
+      <div></div>
+    </div>
     <div class="grid2">
       <div><label>Trade</label><select id="trade">${Object.entries(TRADES).map(([k,t])=>`<option value="${k}">${t.label}</option>`).join("")}</select>
         <div class="help">Picks the right industry injury rates and trade-specific checks.</div></div>
@@ -419,6 +523,14 @@ function renderAnalyze(){
   $$("#addq").onclick = () => addQA(qa, "", "");
   $$("#trade").onchange = e => $$("#naics").value = TRADES[e.target.value].naics;
   $$("#run").onclick = runAnalysis;
+  // Project picker is optional dressing on top of the JHA form — if it fails
+  // (no DB, or none created yet) the form still works untagged, so this is
+  // deliberately isolated from the rest of renderAnalyze's wiring.
+  try {
+    const projects = await api("/v1/projects");
+    $$("#project").innerHTML += projects.map(p =>
+      `<option value="${p.id}">${esc(p.name)}</option>`).join("");
+  } catch (e) { /* no DB connected, or none yet — leave the untagged default */ }
   $$("#demo").onclick = () => {
     // Random accurate fill: pick a scenario at random each click so testing
     // exercises different trades, weather, and — importantly — different hazard
@@ -450,6 +562,7 @@ async function runAnalysis(){
   const payload = {
     checklist: { id: crypto.randomUUID(), responses,
       work_type: $$("#trade").value, naics_code: $$("#naics").value.trim() || "236220",
+      project_id: $$("#project").value || null,
       submitted_at: new Date().toISOString() },
     weather: { temperature_f: parseFloat($$("#temp").value) || null,
       wind_speed_mph: parseFloat($$("#wind").value) || null,

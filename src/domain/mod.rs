@@ -180,6 +180,20 @@ pub struct Provenance {
     /// role -> wall-clock latency in ms
     pub agent_latency_ms: BTreeMap<String, u64>,
     pub engine_version: String,
+    /// True when the validator raised an uncorroborated CRITICAL concern during
+    /// synthesis, REGARDLESS of which verdict branch ultimately fired. A severity
+    /// gate (inherent risk_score >= 85, or the per-shift evidence gate) can
+    /// independently produce StopWork/ProceedWithControls and, in doing so,
+    /// silently absorb an uncorroborated critical flag before decide_verdict ever
+    /// reaches its own uncorroborated-critical branch — the verdict is correct,
+    /// but without this field the flag is invisible outside a tracing::warn! log.
+    /// The Fable P0 corroboration-gate design intent was "a flaky-but-not-
+    /// ignorable signal always gets a human's eyes"; this field is what makes
+    /// that true in the persisted, queryable record, decoupled from whether the
+    /// flag was the deciding factor in the verdict. (Added 2026-09-11, found via
+    /// property-based testing of decide_verdict; verdict logic itself untouched.)
+    #[serde(default)]
+    pub uncorroborated_critical_concern: bool,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]

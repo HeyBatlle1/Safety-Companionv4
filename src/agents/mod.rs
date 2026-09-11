@@ -423,7 +423,7 @@ fn synthesize(
     prediction: Prediction,
     pattern_alerts: Vec<PatternAlert>,
     models_used: BTreeMap<String, String>,
-    provenance: Provenance,
+    mut provenance: Provenance,
 ) -> SafetyReport {
     // Two-track decision (residual moves the verdict, inherent sets the floor).
     //
@@ -512,7 +512,16 @@ fn synthesize(
         !pattern_alerts.is_empty(),
     );
 
-    let summary = build_summary(&validation, &risk, &prediction, &pattern_alerts, verdict);
+    let summary = build_summary(&validation, &risk, &prediction, &pattern_alerts, verdict, uncorroborated_critical);
+
+    // Complete the Fable P0 corroboration-gate intent: an uncorroborated CRITICAL
+    // concern always reaches the persisted, queryable audit trail, REGARDLESS of
+    // whether decide_verdict's own uncorroborated-critical branch was the one that
+    // fired (a severity gate elsewhere can independently decide the verdict and
+    // silently absorb this flag first — see verdict_properties::PROPERTY 5's doc
+    // comment in this module). The verdict itself is untouched; this only makes
+    // the record complete so a human reviewing later can still see the concern.
+    provenance.uncorroborated_critical_concern = uncorroborated_critical;
 
     SafetyReport {
         id: Uuid::new_v4(),
@@ -567,6 +576,7 @@ fn build_summary(
     p: &Prediction,
     alerts: &[PatternAlert],
     verdict: Verdict,
+    uncorroborated_critical: bool,
 ) -> String {
     let mut s = String::new();
     s.push_str(&format!(
@@ -594,6 +604,19 @@ fn build_summary(
         ));
     }
     s.push_str(&format!(" Prediction confidence: {:.0}%.", p.confidence * 100.0));
+    // Always surface an uncorroborated CRITICAL concern in the human-readable
+    // summary, even when a severity gate elsewhere already decided the verdict
+    // and the flag never reached decide_verdict's own uncorroborated-critical
+    // branch. Deliberately unconditional on `verdict` — the verdict can be
+    // correct while the concern still deserves a human's eyes (see Provenance
+    // .uncorroborated_critical_concern for the same signal, structured).
+    if uncorroborated_critical {
+        s.push_str(
+            " NOTE: validator raised an uncorroborated CRITICAL concern (not backed \
+             by quality score, missing fields, or the risk evidence) — flagged for \
+             human review regardless of verdict."
+        );
+    }
     s
 }
 
@@ -995,5 +1018,94 @@ mod verdict_properties {
                 "residual {lo} -> {v_lo:?} but higher residual {hi} -> {v_hi:?} (verdict got safer as residual increased)"
             );
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Regression test for the audit-trail completeness fix (2026-09-11), following
+// directly from PROPERTY 5's flag above: an uncorroborated CRITICAL concern
+// must always reach the persisted record, even when an independently severe
+// hazard makes decide_verdict take the worst_inherent>=85 branch before it
+// would otherwise reach its own uncorroborated-critical branch. The verdict
+// itself is correct and untouched — this only closes the visibility gap.
+#[cfg(test)]
+mod audit_trail_tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn synthesize_carries_uncorroborated_critical_into_audit_trail_even_when_severity_gate_wins() {
+        let checklist = Checklist {
+            id: Uuid::new_v4(),
+            responses: BTreeMap::new(),
+            work_type: "roofing".into(),
+            naics_code: "238160".into(),
+            project_id: None,
+            company_id: None,
+            submitted_by: None,
+            submitted_at: Utc::now(),
+            external_ref: None,
+        };
+        let req = AnalysisRequest { checklist, weather: Weather::default(), baseline: None };
+
+        // raw_critical_concern = true, but NOT corroborated: quality is high, no
+        // missing_critical fields, and the hazard's own inherent probability sits
+        // well below INHERENT_P_STOP — so uncorroborated_critical ends up true.
+        let mut concerns = BTreeMap::new();
+        concerns.insert("CRITICAL".to_string(), vec!["flaky flag, no other evidence".to_string()]);
+        let validation = Validation {
+            quality_score: 9,
+            data_quality: "HIGH".into(),
+            missing_critical: vec![],
+            insufficient_responses: vec![],
+            weather_risks: vec![],
+            concerns,
+            trade_specific_gaps: vec![],
+            recommended_action: "PROCEED".into(),
+        };
+
+        // An independently severe hazard: risk_score 90 (>=85, the inherent
+        // floor) with a low inherent probability (well under INHERENT_P_STOP)
+        // and a residual pulled down by controls — this is exactly what makes
+        // decide_verdict take the worst_inherent>=85 branch (-> ProceedWithControls,
+        // since residual lands well below 85) BEFORE it would otherwise reach the
+        // uncorroborated-critical branch.
+        let hazard = Hazard {
+            description: "fall from unprotected roof leading edge".into(),
+            probability: 0.0005,
+            severity: Severity::High,
+            risk_score: 90.0,
+            osha_citations: vec![],
+            controls: vec!["guardrail installed".into()],
+            residual_probability: Some(0.0001),
+            inspection_checkpoints: vec![],
+            factor_trail: vec![],
+        };
+        let risk = RiskAssessment {
+            hazards: vec![hazard],
+            overall_risk_score: 90.0,
+            industry_percentile: None,
+            notes: vec![],
+        };
+        let prediction = Prediction { scenarios: vec![], leading_indicators: vec![], confidence: 0.5 };
+
+        let report = synthesize(
+            &req, validation, risk, prediction, vec![],
+            BTreeMap::new(), Provenance::default(),
+        );
+
+        // Sanity check: this test must exercise the severity-gate-wins case, not
+        // some other branch — if this assertion ever fails, the fixture above no
+        // longer reproduces the interaction and needs to be re-tuned, not deleted.
+        assert_eq!(report.verdict, Verdict::ProceedWithControls,
+            "fixture must exercise the severity-gate-wins case (verdict correct, untouched by this fix)");
+
+        // THE FIX: the uncorroborated concern is now visible in the persisted
+        // record, decoupled from which branch decided the verdict.
+        let provenance = report.provenance.expect("provenance must be set");
+        assert!(provenance.uncorroborated_critical_concern,
+            "provenance must record the uncorroborated CRITICAL concern even when a severity gate decided the verdict");
+        assert!(report.summary.contains("uncorroborated CRITICAL concern"),
+            "the human-readable summary must also surface the concern; got: {}", report.summary);
     }
 }

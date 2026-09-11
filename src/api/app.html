@@ -332,6 +332,8 @@ function sparkline(trend){
 // hit the DB every time the tab opens.
 let CSI_CACHE = null;
 async function csiCodes(){ return CSI_CACHE || (CSI_CACHE = await api("/v1/csi-codes")); }
+let GC_PROFILES_CACHE = null;
+async function gcProfiles(){ return GC_PROFILES_CACHE || (GC_PROFILES_CACHE = await api("/v1/gc-profiles")); }
 
 function csiChecklist(codes, selected){
   const sel = new Set(selected || []);
@@ -577,7 +579,9 @@ async function runAnalysis(){
     const r = await fetch("/v1/analyze", { method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify(payload) });
     clearInterval(timer);
     if (!r.ok) { out.innerHTML = `<div class="err">The analysis didn't finish: ${r.status}\n${esc((await r.text()).slice(0,400))}\nTry again — if it keeps failing the models may be busy.</div>`; return; }
-    out.innerHTML = renderReport(await r.json());
+    const report = await r.json();
+    out.innerHTML = renderReport(report);
+    wireGcButtons(report.id);
     out.scrollIntoView({behavior:"smooth"});
   } catch(e){ clearInterval(timer); out.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
   finally { btn.disabled = false; }
@@ -639,6 +643,7 @@ function renderReport(r){
   return `<div class="jha-sheet">`
     + titleblock
     + placard
+    + `<div class="btnrow" id="gcbtns" style="margin:8px 0 18px"></div>`
     + (alerts?`<h2>This site's history is talking</h2>${alerts}`:"")
     + (hazards?`<h2>What can hurt someone today</h2>${hazards}`:"")
     + (leading.length?`<h2>Check these in the next 30 minutes</h2><div class="panel"><ul style="margin-left:20px;font-size:15px">${leading.map(l=>`<li>${esc(l)}</li>`).join("")}</ul></div>`:"")
@@ -648,10 +653,27 @@ function renderReport(r){
     + `</div>`;
 }
 
+// Same report, GC's own document — the enterprise-profiles board's "same
+// intel, their letterhead" unlock. Separate from renderReport's own async-
+// ness: renderReport stays sync (it's also called before a report has ever
+// round-tripped through the DOM), so the button row is wired in after the
+// fact and quietly does nothing if no GC profiles are configured yet — no
+// clutter for a customer who hasn't set any up.
+async function wireGcButtons(reportId){
+  const el = document.getElementById("gcbtns");
+  if (!el) return;
+  try {
+    const profiles = await gcProfiles();
+    if (!profiles.length) return;
+    el.innerHTML = `<span class="hud" style="margin-right:8px">Print for:</span>` + profiles.map(p =>
+      `<button class="ghost" onclick="window.open('/gc/${p.id}/${reportId}','_blank')">${esc(p.gc_name)}</button>`).join("");
+  } catch(e){ /* no DB, or profiles route unreachable — leave the row empty */ }
+}
+
 async function renderStoredReport(id){
   const m = $$("#main");
   m.innerHTML = `<h1>Report</h1><div class="sub"><a href="#/watch">← Back to dashboard</a></div><div id="rep">Loading…</div>`;
-  try { $$("#rep").innerHTML = renderReport(await api("/v1/analyses/"+id)); }
+  try { const r = await api("/v1/analyses/"+id); $$("#rep").innerHTML = renderReport(r); wireGcButtons(id); }
   catch(e){ $$("#rep").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
 }
 
@@ -911,6 +933,17 @@ async function renderAdmin(){
       <div><label>Phone</label><input id="ap_phone"></div>
     </div>
     <div class="btnrow"><button class="go" id="ap_go">Add person</button><span id="ap_msg"></span></div>
+    <h2>GC Profiles <span class="hud" style="text-transform:none">— same intelligence, printed in each GC's own format</span></h2>
+    <div class="grid3">
+      <div><label>GC name</label><input id="gp_name" placeholder="e.g. Shiel Sexton"></div>
+      <div><label>Document layout</label><select id="gp_layout">
+        <option value="three_col">3-column — Task / Hazard / Mitigation</option>
+        <option value="numbered_row">Numbered rows — Work Activity / Hazards / Measures</option>
+      </select></div>
+      <div><label>Standard PPE line <span class="hud">(optional)</span></label><input id="gp_ppe" placeholder="Hard hat, glasses, hi-vis, gloves…"></div>
+    </div>
+    <div class="btnrow"><button class="ghost" id="gp_go">Add GC profile</button><span id="gp_msg"></span></div>
+    <div id="gp_list"></div>
     <h2>Look up a person</h2>
     <select id="ad_pick"><option value="">— choose —</option></select>
     <div id="ad_detail"></div>
@@ -944,6 +977,15 @@ async function renderAdmin(){
       body:JSON.stringify({name: ap_name.value.trim(), role: ap_role.value, phone: ap_phone.value||null})});
       $$("#ap_msg").innerHTML='<span class="okmsg">Added.</span>'; renderAdmin();
     } catch(e){ $$("#ap_msg").innerHTML=`<span class="err">${esc(e.message)}</span>`; }
+  };
+  await renderGpList();
+  $$("#gp_go").onclick = async () => {
+    try { await api("/v1/gc-profiles",{method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify({gc_name: gp_name.value.trim(), layout: gp_layout.value, default_ppe: gp_ppe.value||null})});
+      GC_PROFILES_CACHE = null; // this profile just changed — the report-view cache is stale
+      $$("#gp_msg").innerHTML='<span class="okmsg">Added.</span>'; gp_name.value=""; gp_ppe.value="";
+      await renderGpList();
+    } catch(e){ $$("#gp_msg").innerHTML=`<span class="err">${esc(e.message)}</span>`; }
   };
   $$("#ad_pick").onchange = async e => {
     if (!e.target.value) return;
@@ -1006,6 +1048,36 @@ async function renderAdmin(){
       } catch(e){ $$("#rq_msg").innerHTML=`<span class="err">${esc(e.message)}</span>`; }
     };
   }
+}
+// GC profile list + logo upload. Logo is customer-supplied only — this is a
+// raw-bytes PUT of whatever header asset the GC hands you, mirroring how
+// drawings.rs already stores blueprints; SC never generates or sources one.
+async function renderGpList(){
+  const el = $$("#gp_list");
+  if (!el) return;
+  let profiles;
+  try { profiles = await api("/v1/gc-profiles"); GC_PROFILES_CACHE = profiles; }
+  catch(e){ el.innerHTML = `<div class="err">${esc(e.message)}</div>`; return; }
+  if (!profiles.length){ el.innerHTML = `<div class="empty">No GC profiles yet — add one above.</div>`; return; }
+  const layoutLabel = l => l === "numbered_row" ? "Numbered rows" : "3-column";
+  el.innerHTML = profiles.map(p => `
+    <div class="hazard" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap">
+      <div><b>${esc(p.gc_name)}</b> <span class="hud">· ${layoutLabel(p.layout)}${p.default_ppe?` · PPE: ${esc(p.default_ppe)}`:""}</span>
+        <div class="hud">${p.has_logo?"Logo on file":"No logo uploaded"}</div></div>
+      <label class="ghost" style="cursor:pointer;padding:9px 14px;border-radius:4px" data-tip="Customer-supplied header asset only — PNG, JPG, SVG, or WEBP">
+        Upload logo<input type="file" accept=".png,.jpg,.jpeg,.svg,.webp" style="display:none" data-id="${p.id}"></label>
+    </div>`).join("");
+  el.querySelectorAll('input[type=file]').forEach(inp => {
+    inp.onchange = async () => {
+      const f = inp.files[0]; if (!f) return;
+      const ext = f.name.split(".").pop().toLowerCase();
+      try {
+        await fetch(`/v1/gc-profiles/${inp.dataset.id}/logo/${ext}`, { method: "PUT", body: await f.arrayBuffer() });
+        GC_PROFILES_CACHE = null;
+        await renderGpList();
+      } catch(e){ alert("Logo upload failed: " + e.message); }
+    };
+  });
 }
 async function loadRequests(){
   try { const list = await api("/v1/drugtest-requests");

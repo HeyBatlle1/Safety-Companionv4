@@ -3,6 +3,7 @@
 
 pub mod drawings;
 pub mod eap;
+pub mod gc_profiles;
 pub mod people;
 pub mod projects;
 
@@ -32,6 +33,7 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/incidents", get(list_incidents))
         .merge(drawings::router())
         .merge(eap::router())
+        .merge(gc_profiles::router())
         .merge(people::router())
         .merge(projects::router())
         .route("/v1/analyze", post(analyze))

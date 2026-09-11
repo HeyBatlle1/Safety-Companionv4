@@ -37,6 +37,11 @@ sha2 = "0.10"
 base64 = "0.22"
 rand = "0.8"
 
+[dev-dependencies]
+# Exhaustive property sweep for decide_verdict (agents/mod.rs) — the
+# safety-critical STOP/CAUTION/GO decision. See verdict_properties module.
+proptest = "1"
+
 [profile.release]
 lto = "thin"
 codegen-units = 1

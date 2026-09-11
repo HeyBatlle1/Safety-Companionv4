@@ -751,3 +751,249 @@ mod verdict_tests {
         assert_eq!(v, Verdict::RequestClarification);
     }
 }
+
+// ---------------------------------------------------------------------------
+// Property-based sweep — Tier 1 punch-list item: exhaustive coverage of
+// decide_verdict, the most safety-critical function in the system.
+//
+// The 8 hand-picked cases in `verdict_tests` above document the intent at
+// named points. This module sweeps the actual PARAMETER SPACE (worst_inherent
+// x worst_residual x worst_inherent_p x quality_score x the four booleans)
+// with proptest, so boundary values (exactly 85.0, exactly 0.01, exactly 50.0,
+// and values on either side chosen by proptest's shrinker) are exercised, not
+// just the numbers a human happened to pick.
+//
+// APPROACH: each property below encodes ONE stated safety invariant — not a
+// restatement of decide_verdict's branch order. Every property is scoped with
+// an explicit precondition (a range on the generated inputs) so it asserts a
+// real invariant rather than accidentally re-deriving the implementation.
+// Where two gates could both be "live" for the same input (see the FLAG in
+// PROPERTY 5's doc comment), the precondition excludes the overlap rather than
+// silently asserting whichever branch happens to win — that overlap is a
+// separate, reported finding, not something to paper over in a passing test.
+//
+// SCOPE: this module characterizes EXISTING behavior. It does not change
+// decide_verdict, calibration.rs, or any production logic.
+#[cfg(test)]
+mod verdict_properties {
+    use super::*;
+    use proptest::prelude::*;
+
+    // Mirrors the private constant inside decide_verdict (agents/mod.rs). Kept
+    // in sync manually; if that constant ever moves, this must move with it —
+    // there is no way to reach a private const from outside its function body.
+    const INHERENT_P_STOP: f64 = 0.01;
+
+    proptest! {
+        // PROPERTY 1 — corroborated CRITICAL concern is an absolute, unconditional
+        // hard stop. Nothing in the rest of the input space can override it — this
+        // is the strongest guarantee in the system and the sweep proves it holds
+        // no matter how low every other risk signal is.
+        #[test]
+        fn corroborated_critical_is_always_stopwork(
+            worst_inherent in 0.0f64..=100.0,
+            worst_inherent_p in 0.0f64..=0.06,
+            worst_residual in 0.0f64..=100.0,
+            uncorroborated_critical in any::<bool>(),
+            needs_clarification in any::<bool>(),
+            quality_score in 0u8..=10,
+            has_pattern_alerts in any::<bool>(),
+        ) {
+            let v = decide_verdict(
+                worst_inherent, worst_inherent_p, worst_residual,
+                true, uncorroborated_critical, needs_clarification,
+                quality_score, has_pattern_alerts,
+            );
+            prop_assert_eq!(v, Verdict::StopWork);
+        }
+
+        // PROPERTY 2 — the INHERENT-risk floor: a hazard scored >=85 (severe) can
+        // never fully clear, regardless of residual, quality, pattern alerts, or
+        // an uncorroborated critical concern layered on top. Never Proceed, never
+        // RequestClarification. This is "you cannot type your way out of a severe
+        // hazard" as an exhaustive sweep rather than the two hand-picked points
+        // the unit tests checked.
+        #[test]
+        fn severe_inherent_hazard_never_fully_clears(
+            worst_inherent in 85.0f64..=100.0,
+            worst_inherent_p in 0.0f64..=0.06,
+            worst_residual in 0.0f64..=100.0,
+            uncorroborated_critical in any::<bool>(),
+            needs_clarification in any::<bool>(),
+            quality_score in 0u8..=10,
+            has_pattern_alerts in any::<bool>(),
+        ) {
+            let v = decide_verdict(
+                worst_inherent, worst_inherent_p, worst_residual,
+                false, uncorroborated_critical, needs_clarification,
+                quality_score, has_pattern_alerts,
+            );
+            prop_assert!(
+                matches!(v, Verdict::StopWork | Verdict::ProceedWithControls),
+                "severe inherent hazard ({worst_inherent}) produced {v:?} — the floor was undercut"
+            );
+        }
+
+        // PROPERTY 2b — the exact residual boundary that decides StopWork vs
+        // ProceedWithControls within the severe-hazard floor (the "controls
+        // soften but do not erase" contract, swept across the boundary instead
+        // of checked at three hand-picked points).
+        #[test]
+        fn severe_hazard_residual_boundary(
+            worst_inherent in 85.0f64..=100.0,
+            worst_residual in 0.0f64..=100.0,
+        ) {
+            let v = decide_verdict(worst_inherent, 0.0, worst_residual, false, false, false, 8, false);
+            if worst_residual >= 85.0 {
+                prop_assert_eq!(v, Verdict::StopWork);
+            } else {
+                prop_assert_eq!(v, Verdict::ProceedWithControls);
+            }
+        }
+
+        // PROPERTY 3 — the EVIDENCE-track floor: a near-certain per-shift injury
+        // probability (>= INHERENT_P_STOP) can never fully clear even when the
+        // severity-weighted score (worst_inherent) sits below the 85 line — the
+        // raw evidence overrides a model's severity label. Never Proceed, never
+        // RequestClarification.
+        #[test]
+        fn evidence_gate_never_clears_below_severity_floor(
+            worst_inherent in 0.0f64..85.0,
+            worst_inherent_p in INHERENT_P_STOP..=0.06,
+            worst_residual in 0.0f64..=100.0,
+            uncorroborated_critical in any::<bool>(),
+            needs_clarification in any::<bool>(),
+            quality_score in 0u8..=10,
+            has_pattern_alerts in any::<bool>(),
+        ) {
+            let v = decide_verdict(
+                worst_inherent, worst_inherent_p, worst_residual,
+                false, uncorroborated_critical, needs_clarification,
+                quality_score, has_pattern_alerts,
+            );
+            prop_assert!(
+                matches!(v, Verdict::StopWork | Verdict::ProceedWithControls),
+                "near-certain per-shift injury (p={worst_inherent_p}) produced {v:?}"
+            );
+        }
+
+        // PROPERTY 3b — the exact residual boundary (50.0) inside the evidence gate.
+        #[test]
+        fn evidence_gate_residual_boundary(
+            worst_inherent in 0.0f64..85.0,
+            worst_inherent_p in INHERENT_P_STOP..=0.06,
+            worst_residual in 0.0f64..=100.0,
+        ) {
+            let v = decide_verdict(worst_inherent, worst_inherent_p, worst_residual, false, false, false, 8, false);
+            if worst_residual >= 50.0 {
+                prop_assert_eq!(v, Verdict::StopWork);
+            } else {
+                prop_assert_eq!(v, Verdict::ProceedWithControls);
+            }
+        }
+
+        // PROPERTY 4 — quality_score < 5 forces RequestClarification once neither
+        // severity gate (inherent or evidence) is independently live.
+        #[test]
+        fn low_quality_forces_clarification_absent_severity(
+            worst_inherent in 0.0f64..85.0,
+            worst_inherent_p in 0.0f64..INHERENT_P_STOP,
+            worst_residual in 0.0f64..=100.0,
+            quality_score in 0u8..5,
+            has_pattern_alerts in any::<bool>(),
+        ) {
+            let v = decide_verdict(
+                worst_inherent, worst_inherent_p, worst_residual,
+                false, false, false, quality_score, has_pattern_alerts,
+            );
+            prop_assert_eq!(v, Verdict::RequestClarification);
+        }
+
+        // PROPERTY 5 — uncorroborated CRITICAL concern routes to human review,
+        // ONLY ONCE NEITHER SEVERITY GATE IS INDEPENDENTLY LIVE.
+        //
+        // *** FLAG, not fixed (see write-up) ***: this property does NOT hold
+        // unconditionally. decide_verdict checks worst_inherent>=85 and
+        // worst_inherent_p>=INHERENT_P_STOP *before* it checks
+        // uncorroborated_critical. So if a hazard is independently severe by
+        // either measure AND the validator separately raised an uncorroborated
+        // CRITICAL concern, the severity gate wins and the verdict can be
+        // StopWork or ProceedWithControls — the uncorroborated concern is never
+        // routed to a human, it's silently absorbed into a verdict that happens
+        // to already be conservative. The precondition below (worst_inherent<85
+        // AND worst_inherent_p<INHERENT_P_STOP) excludes exactly that overlap so
+        // this property states only what's actually true. See the write-up for
+        // whether the overlap itself is intended.
+        #[test]
+        fn uncorroborated_critical_routes_to_clarification_when_not_independently_severe(
+            worst_inherent in 0.0f64..85.0,
+            worst_inherent_p in 0.0f64..INHERENT_P_STOP,
+            worst_residual in 0.0f64..=100.0,
+            needs_clarification in any::<bool>(),
+            quality_score in 0u8..=10,
+            has_pattern_alerts in any::<bool>(),
+        ) {
+            let v = decide_verdict(
+                worst_inherent, worst_inherent_p, worst_residual,
+                false, true, needs_clarification, quality_score, has_pattern_alerts,
+            );
+            prop_assert_eq!(
+                v, Verdict::RequestClarification,
+                "uncorroborated critical concern (hazard not independently severe) must route to human review, got {:?}", v
+            );
+        }
+
+        // PROPERTY 6 — the "clean regime" (no critical concern of either kind, no
+        // explicit clarification request, decent quality, hazard not independently
+        // severe by either measure): residual crossing 50 or a pattern alert is
+        // exactly what separates Proceed from ProceedWithControls, and nothing
+        // else does.
+        #[test]
+        fn clean_regime_residual_and_pattern_alert_gate(
+            worst_inherent in 0.0f64..85.0,
+            worst_inherent_p in 0.0f64..INHERENT_P_STOP,
+            worst_residual in 0.0f64..=100.0,
+            quality_score in 5u8..=10,
+            has_pattern_alerts in any::<bool>(),
+        ) {
+            let v = decide_verdict(
+                worst_inherent, worst_inherent_p, worst_residual,
+                false, false, false, quality_score, has_pattern_alerts,
+            );
+            if worst_residual >= 50.0 || has_pattern_alerts {
+                prop_assert_eq!(v, Verdict::ProceedWithControls);
+            } else {
+                prop_assert_eq!(v, Verdict::Proceed);
+            }
+        }
+
+        // PROPERTY 7 — monotonicity: in the clean regime, raising worst_residual
+        // never makes the verdict SAFER. A property test's classic catch — an
+        // implementation bug that inverted a comparison, or a clamp that folds
+        // high values back down, would show up here even though no hand-picked
+        // example would stumble onto it.
+        #[test]
+        fn residual_monotonic_in_clean_regime(
+            worst_inherent in 0.0f64..85.0,
+            worst_inherent_p in 0.0f64..INHERENT_P_STOP,
+            a in 0.0f64..=100.0,
+            b in 0.0f64..=100.0,
+            quality_score in 5u8..=10,
+        ) {
+            let (lo, hi) = if a <= b { (a, b) } else { (b, a) };
+            let v_lo = decide_verdict(worst_inherent, worst_inherent_p, lo, false, false, false, quality_score, false);
+            let v_hi = decide_verdict(worst_inherent, worst_inherent_p, hi, false, false, false, quality_score, false);
+            let rank = |v: Verdict| -> u8 {
+                match v {
+                    Verdict::Proceed => 0,
+                    Verdict::ProceedWithControls => 1,
+                    other => panic!("unexpected verdict {other:?} in clean regime"),
+                }
+            };
+            prop_assert!(
+                rank(v_lo) <= rank(v_hi),
+                "residual {lo} -> {v_lo:?} but higher residual {hi} -> {v_hi:?} (verdict got safer as residual increased)"
+            );
+        }
+    }
+}

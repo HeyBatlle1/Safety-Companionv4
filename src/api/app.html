@@ -726,7 +726,9 @@ const HAZ_OPTS = [
 // top-level "Emergency Plan" destination and is now one section a real SSSP
 // packet assembles. Reparented, not banished: the document this section
 // generates is still titled, and still legally is, "Emergency Action Plan
-// (EAP)" per 29 CFR 1910.38 — only the container around it changed name.
+// (EAP)" per 29 CFR 1926.35 (Construction) — only the container around it
+// changed name. (1926.35, not 1910.38 — corrected 2026-09-12 alongside eap.rs;
+// see that file's module comment for why the citation was wrong to begin with.)
 // The /v1/eap, /v1/eap/{id}, and /eap/{id} routes in eap.rs are completely
 // untouched by this build, so every permanent EAP share link and every
 // bookmark to a specific plan a foreman printed or emailed keeps working
@@ -747,7 +749,7 @@ async function renderSssp(){
     <div class="sub">The job-level front door — CSI scope, the JHAs run against a job, and the site's Emergency Action Plan, in one place instead of three.</div>
     <h2>Jobs</h2>
     <div id="sssp_jobs">Loading…</div>
-    <h2>Emergency Action Plan <span class="hud" style="text-transform:none">— 29 CFR 1910.38, one section of the packet</span></h2>
+    <h2>Emergency Action Plan <span class="hud" style="text-transform:none">— 29 CFR 1926.35, one section of the packet</span></h2>
     <div class="help" style="margin-bottom:8px">Not yet linked to a specific job below — every plan on record shows here until EAPs carry a job tag of their own.</div>
     <div id="eap-section"></div>`;
   try {
@@ -832,7 +834,7 @@ async function buildEap(){
     out.innerHTML = `
       <div class="placard ${d.osha_compliant?'safe':'warning'}">
         <div class="band">${d.osha_compliant?'PLAN COMPLETE':'REVIEW REQUIRED'}</div>
-        <div class="body">${d.sections.length} sections · all OSHA 1910.38 elements ${d.osha_compliant?'present':'NOT met'} ·
+        <div class="body">${d.sections.length} sections · all OSHA 1926.35 elements ${d.osha_compliant?'present':'NOT met'} ·
           ${d.needs_review?'template procedures — have a competent person review before posting':'tailored to this site'}
           <div class="btnrow" style="margin-top:14px">
             <button class="go" style="margin:0" onclick="window.open('${url}','_blank')">Open the plan</button>

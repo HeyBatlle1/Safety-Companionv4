@@ -369,24 +369,40 @@ Ordered next steps:
    ladder + concern corroboration) — the real next big work, but NOT as a repro fix.
 
 ## OTHER OPEN THREADS (carry forward)
-- **EAP logic audit (done 2026-08-30, verified against the real 1910.38 text):** GOOD NEWS —
-  the compiler (`eap.rs`) is genuinely compliant, NOT spectacle. It generates all SIX (c)
-  elements + the surrounding mandates and requires them in the compliance check:
-  (c)(1) reporting, (c)(2) evacuation, (c)(3) critical-ops shutdown, (c)(4) accounting for
-  personnel, (c)(5) rescue/medical duties, (c)(6) contact person, plus (d) alarm system and
-  (e)/(f) training + plan review. The check is stricter than "present" — it requires
-  `body.len() > 80` so a section can't be an empty stub. Nine questions map to the real (c)
-  logic. The MISSION-LEVEL UPGRADE (the "kill the spectacle, put the logic back" thesis):
-  move from element-*present* validation to element-*substantive* validation — the len>80
-  proxy catches empty stubs but not generic boilerplate. Real next-level checks: (c)(4) must
-  name an actual accountability METHOD; (c)(5) must state whether site personnel DO or DON'T
-  perform rescue (the confined-space "no entry rescue" distinction is life-or-death); the
-  alarm section must specify a DISTINCTIVE signal per emergency type (per 1910.165); and
-  certain elements — esp (c)(5) rescue and alarm-distinctiveness — should ALWAYS force a
-  competent-person review regardless of model tailoring (currently `needs_review` only fires
-  when the model didn't tailor). Same move as the calibration engine: don't check that a
-  thing EXISTS, check that it's honestly/substantively DERIVED. This is the EAP's north star:
-  automate it AND put real logic back in = a safety culture that DOES something, not spectacle.
+- **EAP logic audit (done 2026-08-30, verified against 1910.38 text — CORRECTED 2026-09-12:
+  wrong standard, see below):** the 2026-08-30 audit verified the compiler's element coverage
+  against 29 CFR 1910.38 (General Industry) and found it structurally sound — but 1910.38 was
+  the wrong standard to check against. SC's customer base is exclusively construction, so the
+  applicable standard is 29 CFR 1926.35 (Construction, Subpart C), not 1910.38 (Subpart E). The
+  two share similar substance but differ in subsection lettering/order and cross-references
+  (1926.35(c) alarm systems references §1926.159, not §1910.165; 1926.35(e)(3) allows an oral
+  plan for crews of ≤10). `eap.rs` cited 1910.38 throughout (`osha_ref` labels, compliance
+  `required` array, LLM tailoring prompt, rendered document text) — fixed 2026-09-12 to cite
+  1926.35 correctly at every one of those points, along with the `app.html` SSSP Hub mirror.
+  App-wide audit at the same time confirmed the LLM-facing prompts (Validator, RiskAssessor,
+  vision system prompts in `agents/mod.rs`/`vision.rs`) were ALREADY correctly citing 1926 —
+  the bug was isolated to the deterministic EAP compiler and its docs. NOTE: `sc_eaps` stores
+  each EAP's fully-rendered `document` JSON at generation time, so this fix is prospective
+  only — the 4 pre-existing production EAP records still show 1910.38 in their stored
+  document until/unless they are regenerated; that backfill decision is still open.
+  The underlying structural-compliance work still holds, re-mapped onto the correct standard:
+  the compiler generates all SIX (b) elements + the surrounding mandates and requires them in
+  the compliance check: (b)(1) escape procedures/routes, (b)(2) critical-ops shutdown,
+  (b)(3) accounting for personnel, (b)(4) rescue/medical duties, (b)(5) reporting, (b)(6)
+  contact person, plus (c) alarm system and (d) evacuation types and (e) training. The check
+  is stricter than "present" — it requires `body.len() > 80` so a section can't be an empty
+  stub. The MISSION-LEVEL UPGRADE (the "kill the spectacle, put the logic back" thesis) is
+  unchanged by the citation fix: move from element-*present* validation to
+  element-*substantive* validation — the len>80 proxy catches empty stubs but not generic
+  boilerplate. Real next-level checks: (b)(3) must name an actual accountability METHOD;
+  (b)(4) must state whether site personnel DO or DON'T perform rescue (the confined-space
+  "no entry rescue" distinction is life-or-death); the alarm section must specify a
+  DISTINCTIVE signal per emergency type (per §1926.159); and certain elements — esp (b)(4)
+  rescue and alarm-distinctiveness — should ALWAYS force a competent-person review regardless
+  of model tailoring (currently `needs_review` only fires when the model didn't tailor). Same
+  move as the calibration engine: don't check that a thing EXISTS, check that it's
+  honestly/substantively DERIVED. This is the EAP's north star: automate it AND put real
+  logic back in = a safety culture that DOES something, not spectacle.
 - **Weather sharpening (known work, not an unknown):** pull real conditions from GPS/location,
   feed the engine as structured ground-truth (not a typed guess) — the code logic of how
   weather is generated + fed matters MORE than the dashboard widget. Dashboard: make current

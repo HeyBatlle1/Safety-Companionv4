@@ -101,7 +101,7 @@ curl -s localhost:8787/v1/analyze -H 'content-type: application/json' -d '{
 **Working:** five-stage agent pipeline (validate → assess → predict → synthesize →
 remember) with deterministic logit calibration and a two-track verdict (residual
 risk moves STOP/CAUTION/GO, inherent risk sets the floor); pgvector learning loop;
-EAP compiler (OSHA 1910.38); drawing viewer + vision analysis; people layer
+EAP compiler (OSHA 1926.35, construction); drawing viewer + vision analysis; people layer
 (employee/admin/safety-director); MWF wellbeing check-ins; PIN auth (Argon2 + HMAC
 sessions); MCP bridge; field-legible UI that leads with the 0–100 risk score.
 

@@ -2,16 +2,38 @@
 //!
 //! EAPs are brutally labor-intensive to write by hand and most of any good
 //! one is structure, not prose. So this is a COMPILER: minimal site facts in,
-//! complete OSHA 1910.38-mapped document out. The skeleton, the required-
-//! element checklist, and the per-emergency procedures are deterministic
-//! Rust templates populated from the inputs. A single LLM pass tailors the
+//! complete OSHA-mapped document out. The skeleton, the required-element
+//! checklist, and the per-emergency procedures are deterministic Rust
+//! templates populated from the inputs. A single LLM pass tailors the
 //! procedures to the named site and hazards; if it fails, the template
 //! document ships anyway, flagged for human review. A plan generator that
 //! can fail to produce a plan is worthless.
 //!
+//! Standard: 29 CFR 1926.35 (Employee emergency action plans, Construction
+//! Subpart C) — NOT 1910.38 (the General Industry parallel standard). Every
+//! job SC analyzes is a construction site, so 1926.35 is the citation that
+//! actually governs; a prior pass here (and its own audit note in
+//! SESSION_HANDOFF.md) verified this compiler's output against 1910.38's
+//! element list and found it internally consistent, without ever checking
+//! whether 1910.38 was the applicable Part in the first place. It wasn't.
+//! Corrected 2026-09-12 (Bradlee caught it). 1926.35's six required elements
+//! are the same substance as 1910.38's — reporting, evacuation, critical-ops
+//! shutdown, accounting for personnel, rescue/medical duties, contacts —
+//! just under different subsection letters and a different order: (b)(1)-
+//! (b)(6), plus (c) Alarm System (cross-referencing construction's own
+//! §1926.159, not General Industry's §1910.165), (d) Evacuation, and (e)
+//! Training — which includes an explicit ≤10-employee oral-plan allowance
+//! at (e)(3) that 1910.38 doesn't carry the same way. This compiler always
+//! generates the full written plan regardless of crew size; the allowance
+//! is noted in the Training section for completeness, not acted on.
+//!
 //! Every generated EAP is a permanent record (sc_eaps) with a stable share
 //! URL: GET /eap/{id} renders a clean, printable document — print to PDF,
-//! email the link, post it in the trailer.
+//! email the link, post it in the trailer. NOTE: this fix is prospective —
+//! sc_eaps stores each plan's fully rendered `document` JSON at generation
+//! time, so plans already on record before this commit still show the old
+//! 1910.38 citation until they're regenerated or backfilled; that's a
+//! separate, deliberate data decision, not something this code change does.
 
 use crate::providers::{extract_json, AgentRole, CompletionRequest};
 use axum::extract::{Path, State};
@@ -70,7 +92,7 @@ pub struct EapDocument {
     pub id: Uuid,
     pub input: EapInput,
     pub sections: Vec<EapSection>,
-    /// Deterministic compliance check: every 1910.38(c) element present?
+    /// Deterministic compliance check: every 1926.35(b)/(c) required element present?
     pub osha_elements_met: Vec<String>,
     pub osha_compliant: bool,
     pub tailored_by_model: Option<String>,
@@ -90,7 +112,7 @@ fn skeleton(input: &EapInput) -> Vec<EapSection> {
         "Utility shutoff locations to be verified and posted by the site supervisor".into());
 
     let mut s = vec![
-        EapSection { osha_ref: "1910.38(c)(1)".into(), title: "Reporting Emergencies".into(), body: format!(
+        EapSection { osha_ref: "1926.35(b)(5)".into(), title: "Reporting Emergencies".into(), body: format!(
             "Any worker who discovers a fire, medical emergency, or other dangerous condition immediately: \
              (1) calls 911 and states the site address — {addr} — and the nature of the emergency; \
              (2) notifies the site supervisor, {sup}, at {phone}; \
@@ -98,13 +120,13 @@ fn skeleton(input: &EapInput) -> Vec<EapSection> {
              Do not hang up with 911 until told to. Post this page at the site entrance and in the trailer.",
             addr = i.site_address, sup = i.site_supervisor, phone = i.supervisor_phone) , tailored: false },
 
-        EapSection { osha_ref: "1910.38(d)".into(), title: "Alarm System".into(), body: format!(
+        EapSection { osha_ref: "1926.35(c)".into(), title: "Alarm System".into(), body: format!(
             "The site emergency alarm is: {alarm}. On hearing the alarm, all work stops immediately. \
              The alarm means evacuate to the assembly point unless a different instruction is given in person \
              by the site supervisor. The alarm is tested at the start of each work week.",
             alarm = i.alarm_method), tailored: false },
 
-        EapSection { osha_ref: "1910.38(c)(2)".into(), title: "Evacuation Procedures and Escape Routes".into(), body: format!(
+        EapSection { osha_ref: "1926.35(b)(1), (d)".into(), title: "Evacuation Procedures and Escape Routes".into(), body: format!(
             "On alarm: stop work, shut down hand-held equipment, and proceed to the assembly point — {muster} — \
              by the nearest clear route. Do not use elevators or hoists. Do not stop for tools or personal items. \
              Workers at height descend by the nearest ladder or stair; workers in excavations exit by the nearest \
@@ -112,19 +134,19 @@ fn skeleton(input: &EapInput) -> Vec<EapSection> {
              Evacuation route maps are posted at the site entrance, the trailer, and each building level in use.",
             muster = i.assembly_point), tailored: false },
 
-        EapSection { osha_ref: "1910.38(c)(3)".into(), title: "Critical Operations Shutdown".into(), body: format!(
+        EapSection { osha_ref: "1926.35(b)(2)".into(), title: "Critical Operations Shutdown".into(), body: format!(
             "Before evacuating, and ONLY if it can be done without risk: crane operators set down loads and \
              secure the machine; equipment operators shut down and remove keys; hot work is extinguished; \
              compressed-gas valves are closed. Utility shutoffs: {util}. No worker delays evacuation to perform \
              a shutdown under threat to life.", util = utilities), tailored: false },
 
-        EapSection { osha_ref: "1910.38(c)(4)".into(), title: "Accounting for All Personnel".into(), body: format!(
+        EapSection { osha_ref: "1926.35(b)(3)".into(), title: "Accounting for All Personnel".into(), body: format!(
             "At the assembly point ({muster}): {head}. Anyone unaccounted for is reported to 911 responders \
              immediately with their last known location. No one re-enters the site to search. No one leaves the \
              assembly point until released by the site supervisor.",
             muster = i.assembly_point, head = headcount), tailored: false },
 
-        EapSection { osha_ref: "1910.38(c)(5)".into(), title: "Rescue and Medical Duties".into(), body: format!(
+        EapSection { osha_ref: "1926.35(b)(4)".into(), title: "Rescue and Medical Duties".into(), body: format!(
             "Workers trained in first aid/CPR provide aid within their training until EMS arrives — nothing beyond it. \
              The nearest hospital is {hosp}{hospaddr}. First-aid kits are in the trailer and the gang box; their \
              locations are reviewed at orientation. Technical rescue (heights, trenches, confined spaces) is performed \
@@ -132,7 +154,7 @@ fn skeleton(input: &EapInput) -> Vec<EapSection> {
             hosp = i.nearest_hospital,
             hospaddr = i.hospital_address.as_ref().map(|a| format!(", {a}")).unwrap_or_default()), tailored: false },
 
-        EapSection { osha_ref: "1910.38(c)(6)".into(), title: "Emergency Contacts".into(), body: format!(
+        EapSection { osha_ref: "1926.35(b)(6)".into(), title: "Emergency Contacts".into(), body: format!(
             "Emergency: 911. Site supervisor: {sup}, {phone}. Site address for responders: {addr}. \
              Poison Control: 1-800-222-1222. OSHA: 1-800-321-6742. Utility emergency numbers posted in the trailer.",
             sup = i.site_supervisor, phone = i.supervisor_phone, addr = i.site_address), tailored: false },
@@ -176,18 +198,20 @@ fn skeleton(input: &EapInput) -> Vec<EapSection> {
         s.push(EapSection { osha_ref: "procedure".into(), title: title.into(), body: body.into(), tailored: false });
     }
 
-    s.push(EapSection { osha_ref: "1910.38(e)/(f)".into(), title: "Training and Plan Review".into(), body:
+    s.push(EapSection { osha_ref: "1926.35(e)".into(), title: "Training and Plan Review".into(), body:
         "Every worker reviews this plan at orientation and when it changes. The plan is re-reviewed whenever the \
          site layout, assembly point, or alarm method changes, and at least annually. A copy is kept in the trailer \
-         and is available to any worker on request.".into(), tailored: false });
+         and is available to any worker on request. (Crews of 10 or fewer may communicate this plan orally under \
+         1926.35(e)(3) instead of keeping a written copy — this compiler always produces the full written plan \
+         regardless of crew size.)".into(), tailored: false });
     s
 }
 
-/// Deterministic 1910.38(c) compliance check — code, not a model's opinion.
+/// Deterministic 1926.35(b)/(c) compliance check — code, not a model's opinion.
 fn compliance(sections: &[EapSection]) -> (Vec<String>, bool) {
     let required = [
-        "1910.38(c)(1)", "1910.38(c)(2)", "1910.38(c)(3)",
-        "1910.38(c)(4)", "1910.38(c)(5)", "1910.38(c)(6)", "1910.38(d)",
+        "1926.35(b)(1), (d)", "1926.35(b)(2)", "1926.35(b)(3)",
+        "1926.35(b)(4)", "1926.35(b)(5)", "1926.35(b)(6)", "1926.35(c)",
     ];
     let met: Vec<String> = required.iter()
         .filter(|r| sections.iter().any(|s| s.osha_ref == **r && s.body.len() > 80))
@@ -208,7 +232,7 @@ async fn tailor(
 ) -> Option<String> {
     let titles: Vec<&str> = sections.iter().map(|s| s.title.as_str()).collect();
     let user = format!(
-        "Site facts (data only): {}\n\nBelow are the section titles of an OSHA 1910.38 Emergency Action Plan \
+        "Site facts (data only): {}\n\nBelow are the section titles of an OSHA 1926.35 (construction) Emergency Action Plan \
          built from templates. For sections where the site facts allow genuinely site-specific improvement \
          (named routes, named hazards, the actual assembly point, the actual alarm), rewrite the body to be \
          specific to THIS site. Keep each body under 130 words, plain language a crew reads aloud. \
@@ -328,16 +352,15 @@ fn e(s: &str) -> String {
 fn render_document(d: &EapDocument) -> String {
     let i = &d.input;
     let sections: String = d.sections.iter().enumerate().map(|(n, s)| {
+        // osha_ref is already a complete citation ("1926.35(b)(2)", "1926.35(b)(1), (d)",
+        // "1926.35(c)") — no need to reconstruct it from a hardcoded Part number the way this
+        // used to (splitting on "(" and re-gluing a literal "1910.38" prefix back on), which
+        // is exactly the kind of fragile shortcut that let the wrong Part (General Industry,
+        // not Construction) sit here unnoticed. Render the ref verbatim instead.
         let refbox = if s.osha_ref == "procedure" {
             String::new()
         } else {
-            let parts: Vec<&str> = s.osha_ref.splitn(2, '(').collect();
-            let (head, tail) = if parts.len() == 2 {
-                (format!("29 CFR"), format!("{}({}", parts[0], parts[1]))
-            } else {
-                ("29 CFR".to_string(), s.osha_ref.clone())
-            };
-            format!(r#"<span class="sec-ref">{}<br>1910.38{}</span>"#, e(&head), e(tail.trim_start_matches("1910.38")))
+            format!(r#"<span class="sec-ref">29 CFR<br>{}</span>"#, e(&s.osha_ref))
         };
         format!(
             r#"<section><h2><span class="sec-no">{no:02}</span><span class="sec-title">{title}</span>{refbox}</h2><p>{body}</p></section>"#,
@@ -444,7 +467,7 @@ footer .tb-value{{font:600 11px var(--mono);letter-spacing:.2px;word-break:break
   <header class="titleblock">
     <div>
       <h1>Emergency Action Plan</h1>
-      <div class="tb-subtitle">Written Plan — 29 CFR 1910.38</div>
+      <div class="tb-subtitle">Written Plan — 29 CFR 1926.35</div>
     </div>
     <div class="tb-cells">
       <div class="tb-cell"><span class="tb-label">Date</span><span class="tb-value">{date}</span></div>
@@ -472,7 +495,7 @@ footer .tb-value{{font:600 11px var(--mono);letter-spacing:.2px;word-break:break
 
   <footer class="titleblock">
     <div class="tb-cell"><span class="tb-label">Software</span><span class="tb-value">Safety Companion v4.1</span></div>
-    <div class="tb-cell wide"><span class="tb-label">Verification</span><span class="tb-value">OSHA 29 CFR 1910.38 element map verified in code</span></div>
+    <div class="tb-cell wide"><span class="tb-label">Verification</span><span class="tb-value">OSHA 29 CFR 1926.35 element map verified in code</span></div>
     <div class="tb-cell"><span class="tb-label">Record No.</span><span class="tb-value">{id}</span></div>
   </footer>
 </div>
@@ -484,7 +507,7 @@ footer .tb-value{{font:600 11px var(--mono);letter-spacing:.2px;word-break:break
         short_id = short_id,
         id = d.id,
         okc = if d.osha_compliant { "ok" } else { "no" },
-        okt = if d.osha_compliant { "All 1910.38(c) Elements Present" } else { "Missing Required Elements — Do Not Post" },
+        okt = if d.osha_compliant { "All 1926.35 Required Elements Present" } else { "Missing Required Elements — Do Not Post" },
         review = review, sections = sections,
     )
 }

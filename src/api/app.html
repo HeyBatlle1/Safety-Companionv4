@@ -223,7 +223,7 @@ svg.spark{width:100%;height:80px;display:block}
     <a class="st" href="#/watch" data-st="watch" data-tip="Everything the system has seen and learned"><span class="ic">⌂</span>Dashboard</a>
     <a class="st" href="#/scope" data-st="scope" data-tip="Set a job's CSI MasterFormat scope once, at setup"><span class="ic">▤</span>Scope</a>
     <a class="st" href="#/analyze" data-st="analyze" data-tip="Run a pre-task plan through the safety check"><span class="ic">▶</span>Run JHA</a>
-    <a class="st" href="#/eap" data-st="eap" data-tip="Build a complete Emergency Action Plan from a few site facts"><span class="ic">✚</span>Emergency Plan</a>
+    <a class="st" href="#/sssp" data-st="sssp" data-tip="The job-level front door: CSI scope, JHAs, and the Emergency Action Plan in one place"><span class="ic">✚</span>SSSP Hub</a>
     <a class="st" href="/viewer" data-tip="View and analyze blueprints and shop drawings"><span class="ic">▦</span>Drawings</a>
     <a class="st" href="#/truth" data-st="truth" data-tip="Report incidents and near misses — this is how it learns"><span class="ic">✎</span>Report Incident</a>
     <a class="st" href="#/profile" data-st="profile" data-tip="Your certs, screens, tasking, and 911 card"><span class="ic">☺</span>My Profile</a>
@@ -265,11 +265,17 @@ const vinfo = v => V[v] || {cls:"warning",word:"NOTICE",label:String(v),color:"v
 const sevColor = s => ({CRITICAL:"var(--danger)",HIGH:"var(--warning)",MEDIUM:"var(--caution)",LOW:"var(--safe)",INFO:"var(--muted)"}[String(s).toUpperCase()]||"var(--muted)");
 
 /* router */
-const routes = { watch: renderWatch, scope: renderScope, analyze: renderAnalyze, eap: renderEap, truth: renderTruth, report: renderStoredReport, profile: renderProfile, admin: renderAdmin };
+// "eap" is kept as a working alias for "sssp" — #/eap was the route's name
+// before the BUILD 1 reparent, and an old bookmark into the APP (not to be
+// confused with a permanent /eap/{id} DOCUMENT share link, which lives in
+// eap.rs and is untouched by this rename) should still land somewhere real
+// rather than 404 into the dashboard fallback.
+const routes = { watch: renderWatch, scope: renderScope, analyze: renderAnalyze, sssp: renderSssp, eap: renderSssp, truth: renderTruth, report: renderStoredReport, profile: renderProfile, admin: renderAdmin };
 function route(){
   const hash = location.hash.replace(/^#\//,"") || "watch";
   const [name, arg] = hash.split("/");
-  document.querySelectorAll("nav a.st").forEach(a => a.classList.toggle("on", a.dataset.st === (name==="report"?"watch":name)));
+  const navName = name==="report" ? "watch" : name==="eap" ? "sssp" : name;
+  document.querySelectorAll("nav a.st").forEach(a => a.classList.toggle("on", a.dataset.st === navName));
   (routes[name] || renderWatch)(arg);
 }
 window.addEventListener("hashchange", route);
@@ -713,10 +719,53 @@ const HAZ_OPTS = [
   ["confined_space","Confined spaces"],["hazmat","Hazardous materials"],["fall_rescue","Work at height (fall rescue)"]
 ];
 
-function renderEap(){
-  $$("#main").innerHTML = `
-    <h1>Emergency Plan</h1>
-    <div class="sub">Nine facts about the site go in. A complete, OSHA-mapped Emergency Action Plan comes out — printable, shareable by link, and on permanent record. The hours of writing are done by the compiler; you supply what only you know.</div>
+// SSSP Hub — BUILD 1 (enterprise-profiles board). The job-level front door:
+// a job's CSI scope and JHA history (BUILD 4's Scope page — linked, not
+// duplicated, since that surface is already built and reviewed) alongside
+// the Emergency Action Plan compiler, which used to be this app's entire
+// top-level "Emergency Plan" destination and is now one section a real SSSP
+// packet assembles. Reparented, not banished: the document this section
+// generates is still titled, and still legally is, "Emergency Action Plan
+// (EAP)" per 29 CFR 1910.38 — only the container around it changed name.
+// The /v1/eap, /v1/eap/{id}, and /eap/{id} routes in eap.rs are completely
+// untouched by this build, so every permanent EAP share link and every
+// bookmark to a specific plan a foreman printed or emailed keeps working
+// exactly as it did before this commit.
+//
+// Not yet done, flagging rather than guessing: EAPs aren't tied to a
+// project_id anywhere in the schema (EapInput/sc_eaps have no such column),
+// unlike JHAs, which is BUILD 4's plumbing. So this hub can't yet show "this
+// job's plan" the way it shows "this job's JHAs" — the Emergency Action Plan
+// section below still lists every plan on record, not just this job's. That
+// would need its own schema change (a project_id column on sc_eaps), which
+// is a different feature's data model than what BUILD 1 asked for (a rename
+// and reparent), so it's left alone here rather than folded in unasked.
+async function renderSssp(){
+  const m = $$("#main");
+  m.innerHTML = `
+    <h1>SSSP Hub</h1>
+    <div class="sub">The job-level front door — CSI scope, the JHAs run against a job, and the site's Emergency Action Plan, in one place instead of three.</div>
+    <h2>Jobs</h2>
+    <div id="sssp_jobs">Loading…</div>
+    <h2>Emergency Action Plan <span class="hud" style="text-transform:none">— 29 CFR 1910.38, one section of the packet</span></h2>
+    <div class="help" style="margin-bottom:8px">Not yet linked to a specific job below — every plan on record shows here until EAPs carry a job tag of their own.</div>
+    <div id="eap-section"></div>`;
+  try {
+    const projects = await api("/v1/projects");
+    $$("#sssp_jobs").innerHTML = projects.length ? `<div class="panel" style="padding:0;overflow-x:auto"><table>
+      <thead><tr><th>Job</th><th>Scope</th><th></th></tr></thead><tbody>` +
+      projects.map(p => `<tr class="row" onclick="location.hash='#/scope/${p.id}'" data-tip="Open this job's CSI scope and JHA history">
+        <td style="font-weight:600">${esc(p.name)}</td>
+        <td class="mono">${p.csi_codes.length} CSI code${p.csi_codes.length===1?"":"s"}</td>
+        <td class="hud">Scope & JHAs →</td></tr>`).join("") + `</tbody></table></div>`
+      : `<div class="empty">No jobs set up yet — <a href="#/scope">add one on the Scope page</a>.</div>`;
+  } catch(e){ $$("#sssp_jobs").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+  renderEapSection();
+}
+
+function renderEapSection(){
+  document.getElementById("eap-section").innerHTML = `
+    <div class="sub" style="margin-top:0">Nine facts about the site go in. A complete, OSHA-mapped Emergency Action Plan comes out — printable, shareable by link, and on permanent record. The hours of writing are done by the compiler; you supply what only you know.</div>
     <div class="btnrow"><button class="ghost" id="edemo" data-tip="Loads a realistic example site so you can see a finished plan in one click">Fill with example</button></div>
     <div class="grid2">
       <div><label>Project name</label><input id="ep_name" placeholder="Maple Street Medical Office"></div>
